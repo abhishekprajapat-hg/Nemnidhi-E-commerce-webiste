@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* 1. Global Tailwind Base Classes (Ensures text/bg are dynamic) */
+/* We set the default light theme on body */
+body {
+  @apply bg-white text-gray-900 min-h-screen;
+}
+
+/* 2. Dark Mode Inversion (Activates when 'dark' class is present on <html>) */
+/* This is the missing link that inverts the whole page wrapper */
+.dark body, .dark #root, .dark main {
+  /* Using Tailwind's deep black for consistency */
+  @apply bg-zinc-900 text-white; 
+}
