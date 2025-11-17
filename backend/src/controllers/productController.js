@@ -4,6 +4,13 @@ const mongoose = require('mongoose');
 const Product = require('../models/Product');
 // const cloudinary = require('cloudinary').v2; // optional if using cloud storage
 
+// @desc Get all unique product categories
+exports.getProductCategories = asyncHandler(async (req, res) => {
+  const categories = await Product.find().distinct('category');
+  // Filter out any null, undefined, or empty string categories
+  res.json(categories.filter(c => c));
+});
+
 // @desc Get all products (with filters, pagination)
 exports.getProducts = asyncHandler(async (req, res) => {
   const {
@@ -63,12 +70,14 @@ exports.getProducts = asyncHandler(async (req, res) => {
 // @desc Get single product
 exports.getProductByIdOrSlug = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
-  let product;
+  let product = null;
 
+  // First, try to find by ID if the format is a valid ObjectId
   if (mongoose.Types.ObjectId.isValid(idOrSlug)) {
     product = await Product.findById(idOrSlug);
   }
-  if (!product) {
+  // If it's not a valid ID or if no product was found by ID, try finding by slug
+  if (!product) { 
     product = await Product.findOne({ slug: idOrSlug });
   }
 

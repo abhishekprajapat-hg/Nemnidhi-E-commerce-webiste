@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const {
+  getProductCategories,
   getProducts,
   getProductByIdOrSlug,
   createProduct,
@@ -14,7 +15,8 @@ const { protect, admin } = require('../middleware/authMiddleware');
 router.get('/', getProducts);
 router.get('/product', getProducts);
 
-// single product (by id or slug)
+// IMPORTANT: Specific routes like '/categories' must be defined BEFORE dynamic routes like '/:idOrSlug'.
+router.get('/categories', getProductCategories);
 router.get('/:idOrSlug', getProductByIdOrSlug);
 
 // admin protected CRUD (PUT/DELETE use :id)
