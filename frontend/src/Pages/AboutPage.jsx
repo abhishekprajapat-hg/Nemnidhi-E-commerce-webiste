@@ -24,13 +24,13 @@ const IconShield = () => (
 export default function AboutPage() {
   return (
     // ⭐️ 1. Light theme (default) aur dark theme classes
-    <div className="min-h-screen bg-white text-gray-900 dark:bg-zinc-900 dark:text-gray-100">
+    <div className="min-h-screen bg-[#fdf7f7] text-gray-900 dark:bg-zinc-900 dark:text-gray-100">
       
       {/* Hero Section */}
-      <section className="relative flex flex-col items-center justify-center text-center py-24 px-6 bg-gray-50 border-b border-gray-200 dark:bg-zinc-800 dark:border-zinc-700">
+      <section className="relative flex flex-col items-center justify-center text-center py-24 px-6 bg-[#fdf7f7] border-b border-gray-200 dark:bg-zinc-800 dark:border-zinc-700">
         <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 text-gray-900 dark:text-white">
           {/* ⭐️ 2. Brand se match karta hua content (dark mode gradient ke saath) */}
-          About <span className="text-indigo-600 dark:text-yellow-400">My Shop</span>
+          About <span className="text-indigo-600 dark:text-yellow-400">NEMNIDHI</span>
         </h1>
         <p className="max-w-2xl text-gray-600 dark:text-gray-300 text-lg">
           Celebrating the rich heritage of Indian textiles and the artisans who create them.
@@ -44,7 +44,7 @@ export default function AboutPage() {
             <h2 className="text-3xl font-bold mb-4 dark:text-white">Our Story</h2>
             {/* ⭐️ 3. Content ko Saree/Handloom theme par focus kiya hai */}
             <p className="text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
-              Founded in 2025, <span className="text-gray-900 dark:text-white font-semibold">My Shop</span> was born from a deep love for India's rich textile traditions. We wanted to build a bridge between the timeless art of handloom and the modern wardrobe.
+              Founded in 2025, <span className="text-gray-900 dark:text-white font-semibold">NEMNIDHI</span> was born from a deep love for India's rich textile traditions. We wanted to build a bridge between the timeless art of handloom and the modern wardrobe.
             </p>
             <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
               We partner directly with weaver communities across the country—from the master artisans of Varanasi to the Kanjivaram weavers of the south. Our collection is a celebration of their generational skills, curated for those who value authenticity and elegance.
@@ -63,7 +63,7 @@ export default function AboutPage() {
       </section>
 
       {/* Our Values */}
-      <section className="bg-gray-50 border-y border-gray-200 py-20 dark:bg-black dark:border-zinc-800">
+      <section className="bg-[#fdf7f7] border-y border-gray-200 py-20 dark:bg-black dark:border-zinc-800">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-12">Our Values</h2>
 
@@ -125,7 +125,7 @@ export default function AboutPage() {
       </section>
 
       {/* Call to Action */}
-      <section className="bg-gray-50 border-t border-gray-200 py-20 px-6 text-center dark:bg-black dark:border-zinc-800">
+      <section className="bg-[#fdf7f7] border-t border-gray-200 py-20 px-6 text-center dark:bg-black dark:border-zinc-800">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Explore Our Heritage</h2>
         <p className="text-gray-600 dark:text-gray-300 mb-8 max-w-xl mx-auto">
           Find a piece of tradition that tells your story. Browse our latest collection of handwoven sarees and ethnic wear.

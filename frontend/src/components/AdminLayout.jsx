@@ -108,12 +108,12 @@ export default function AdminLayout({ children }) {
           aria-modal="true"
         >
           <div className="px-6 py-5 border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between">
-            <div>
-              <div className="text-lg font-bold font-serif">My Shop</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Admin Panel</div>
-            </div>
-             <button onClick={() => setDrawerOpen(false)} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-700">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            <div className="text-lg font-bold font-serif dark:text-white">NEMNIDHI</div>
+            <button
+              onClick={() => setDrawerOpen(false)}
+              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-700"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
           <nav className="p-4 space-y-1 flex-1">
@@ -121,7 +121,7 @@ export default function AdminLayout({ children }) {
           </nav>
           <div className="p-4 border-t border-gray-200 dark:border-zinc-700">
             <div className="text-xs text-gray-500 dark:text-gray-400">Signed in as</div>
-            <div className="text-sm font-medium">{user?.name || user?.email}</div>
+            <div className="text-sm font-medium dark:text-white">{user?.name || user?.email}</div>
           </div>
         </motion.aside>
       </div>
@@ -129,14 +129,12 @@ export default function AdminLayout({ children }) {
       {/* Desktop Sidebar */}
       <aside className="w-72 bg-white border-r border-gray-200 hidden lg:flex flex-col flex-shrink-0 dark:bg-zinc-800 dark:border-zinc-700">
         <div className="px-6 py-5 border-b border-gray-200 dark:border-zinc-700">
-          <div className="text-lg font-bold font-serif dark:text-white">My Shop</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Admin Panel</div>
+          <div className="text-lg font-bold font-serif dark:text-white">NEMNIDHI</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Admin Dashboard</div>
         </div>
-
         <nav className="p-4 space-y-1 flex-1">
           {sidebarLinks}
         </nav>
-
         <div className="p-4 border-t border-gray-200 dark:border-zinc-700">
           <div className="text-xs text-gray-500 dark:text-gray-400">Signed in as</div>
           <div className="text-sm font-medium dark:text-white">{user?.name || user?.email}</div>

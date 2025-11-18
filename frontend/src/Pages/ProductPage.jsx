@@ -169,102 +169,105 @@ export default function ProductsPage() {
       </div>
 
       {/* Title + Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold dark:text-white capitalize">{category || 'All Products'}</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Browse our collection of curated products.</p>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Title + Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl font-bold dark:text-white capitalize">{category || 'All Products'}</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Browse our collection of curated products.</p>
+            </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Search Input */}
-          <div className="relative">
-            <input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search products…"
-              // ⭐️ Dark Mode input styles
-              className="w-64 max-w-full border rounded-lg pl-10 pr-3 py-2 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
-            />
-            <svg
-              className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none dark:text-gray-400"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-            >
-              <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
-            </svg>
-          </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Search Input */}
+              <div className="relative">
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search products…"
+                  // ⭐️ Dark Mode input styles
+                  className="w-64 max-w-full border rounded-lg pl-10 pr-3 py-2 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
+                />
+                <svg
+                  className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none dark:text-gray-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
+                </svg>
+              </div>
 
-          {/* Sort Select */}
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="border rounded-lg px-3 py-2 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
-          >
-            <option value="-createdAt">Newest</option>
-            <option value="price">Price: Low to High</option>
-            <option value="-price">Price: High to Low</option>
-            <option value="title">Title A–Z</option>
-            <option value="-title">Title Z–A</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Grid */}
-      {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
-        </div>
-      ) : items.length === 0 ? (
-        <div className="text-center text-gray-500 dark:text-gray-400 py-10">
-          No products found.
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {items.map((p) => (
-              <Link
-                key={p._id}
-                to={`/product/${p._id}`}
-                // ⭐️ Product Card Styles
-                className="group border rounded-xl overflow-hidden bg-white hover:shadow-md transition dark:border-zinc-700 dark:bg-zinc-800 dark:hover:shadow-lg dark:hover:shadow-black/50"
+              {/* Sort Select */}
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                className="border rounded-lg px-3 py-2 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
               >
-                <div className="relative">
-                  <div className="aspect-[4/5] bg-gray-100 dark:bg-zinc-700">
-                    <img
-                      src={p.images?.[0] || "/placeholder.png"}
-                      alt={p.title}
-                      className="w-full h-full object-cover group-hover:scale-[1.02] transition"
-                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.png"; }}
-                    />
+                <option value="-createdAt">Newest</option>
+                <option value="price">Price: Low to High</option>
+                <option value="-price">Price: High to Low</option>
+                <option value="title">Title A–Z</option>
+                <option value="-title">Title Z–A</option>
+              </select>
+            </div>
+        </div>
+
+        {/* Grid */}
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center text-gray-500 dark:text-gray-400 py-10">
+            No products found.
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {items.map((p) => (
+                <Link
+                  key={p._id}
+                  to={`/product/${p._id}`}
+                  // ⭐️ Product Card Styles
+                  className="group border rounded-xl overflow-hidden bg-white hover:shadow-md transition dark:border-zinc-700 dark:bg-zinc-800 dark:hover:shadow-lg dark:hover:shadow-black/50"
+                >
+                  <div className="relative">
+                    <div className="aspect-[4/5] bg-gray-100 dark:bg-zinc-700">
+                      <img
+                        src={p.images?.[0] || "/placeholder.png"}
+                        alt={p.title}
+                        className="w-full h-full object-cover group-hover:scale-[1.02] transition"
+                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.png"; }}
+                      />
+                    </div>
+
+                    {Number(p.countInStock || 0) <= 0 && (
+                      <span className="absolute top-2 left-2 bg-red-600 text-white text-xs rounded px-2 py-1">
+                        Out of stock
+                      </span>
+                    )}
                   </div>
 
-                  {Number(p.countInStock || 0) <= 0 && (
-                    <span className="absolute top-2 left-2 bg-red-600 text-white text-xs rounded px-2 py-1">
-                      Out of stock
-                    </span>
-                  )}
-                </div>
+                  <div className="p-3">
+                    <div className="font-medium line-clamp-1 dark:text-white">{p.title}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">₹{Number(p.price || 0).toFixed(2)}</div>
+                    {p.rating ? (
+                      <div className="mt-1 text-xs text-yellow-600 dark:text-yellow-500">★ {Number(p.rating).toFixed(1)} ({p.numReviews || 0})</div>
+                    ) : null}
+                  </div>
+                </Link>
+              ))}
+            </div>
 
-                <div className="p-3">
-                  <div className="font-medium line-clamp-1 dark:text-white">{p.title}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">₹{Number(p.price || 0).toFixed(2)}</div>
-                  {p.rating ? (
-                    <div className="mt-1 text-xs text-yellow-600 dark:text-yellow-500">★ {Number(p.rating).toFixed(1)} ({p.numReviews || 0})</div>
-                  ) : null}
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          {/* Pagination Controls */}
-          <PaginationControls
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-        </>
-      )}
+            {/* Pagination Controls */}
+            <PaginationControls
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }

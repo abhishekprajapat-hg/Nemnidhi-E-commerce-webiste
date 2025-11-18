@@ -253,7 +253,7 @@ export default function ProductDetails() {
   if (!product) return <div className="p-10 text-center dark:text-gray-300">Product not found</div>;
 
   return (
-    <div className="product-details-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 bg-white dark:bg-zinc-900">
+    <div className="product-details-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 bg-[#fdf7f7] dark:bg-zinc-900">
       <style>{`
         .swiper-button-next,
         .swiper-button-prev {
@@ -287,7 +287,7 @@ export default function ProductDetails() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 md:gap-12">
         <section className="md:col-span-1 lg:col-span-7 order-1">
           <div className="relative rounded-2xl overflow-hidden bg-gray-100 dark:bg-zinc-800 border dark:border-zinc-700">
-            <Swiper
+            <Swiper 
               modules={[Navigation, Autoplay, Pagination, Thumbs]}
               thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
               onSlideChange={(swiper) => setActive(swiper.activeIndex)}

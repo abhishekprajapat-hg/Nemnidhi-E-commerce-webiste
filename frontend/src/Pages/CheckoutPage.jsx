@@ -240,8 +240,8 @@ export default function CheckoutPage() {
   }
 
   return (
-    // ⭐️ Main Wrapper
-    <div className="bg-gray-50 min-h-screen dark:bg-black">
+    // ⭐️ Main Wrapper - Changed bg-gray-50 to bg-[#fdf7f7]
+    <div className="bg-[#fdf7f7] min-h-screen dark:bg-black">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-6">
           <h1 className="text-3xl font-extrabold dark:text-white">Checkout</h1>
@@ -259,7 +259,7 @@ export default function CheckoutPage() {
             />
 
             {/* 2. "Save Address" & "Billing Address" Checkboxes */}
-            <div className="rounded-xl border bg-white p-6 shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
+            <div className="rounded-xl border bg-[#fffcfc] p-6 shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
               <div className="relative flex items-start">
                 <div className="flex items-center h-5">
                   <input
@@ -313,7 +313,7 @@ export default function CheckoutPage() {
           <aside className="lg:col-span-5">
             <div className="sticky top-24 space-y-6">
               {/* Order Summary */}
-              <div className="rounded-xl border p-6 bg-white shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
+              <div className="rounded-xl border p-6 bg-[#fffcfc] shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
                 <h3 className="text-lg font-semibold mb-4 dark:text-white">Order Summary</h3>
                 
                 {/* Item List */}
@@ -355,7 +355,7 @@ export default function CheckoutPage() {
               </div>
               
               {/* Payment Method Selection */}
-              <div className="rounded-xl border p-6 bg-white shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
+              <div className="rounded-xl border p-6 bg-[#fffcfc] shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
                 <h3 className="text-lg font-semibold mb-4 dark:text-white">Payment Method</h3>
                 <fieldset disabled={loading} className="space-y-3">
                   {/* Razorpay Option */}

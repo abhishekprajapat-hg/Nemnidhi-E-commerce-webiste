@@ -32,7 +32,7 @@ export default function AddressForm({ title, address, onAddressChange, disabled 
 
   return (
     // ⭐️ Fieldset ko dark mode classes di hain
-    <fieldset disabled={disabled} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
+    <fieldset disabled={disabled} className="rounded-xl border border-gray-200 bg-[#fffcfc] p-6 shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
       <h2 className="text-lg font-semibold mb-4 dark:text-white">{title}</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">

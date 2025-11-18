@@ -83,7 +83,7 @@ function HeroSlider({ slides }) {
   const slide = slides[index];
 
   return (
-    <section className="relative min-h-[calc(100vh-80px)] flex items-stretch bg-white dark:bg-zinc-900 text-gray-900 dark:text-white overflow-hidden">
+    <section className="relative min-h-[calc(100vh-80px)] flex items-stretch bg-[#fdf7f7] dark:bg-zinc-900 text-gray-900 dark:text-white overflow-hidden">
       {/* Left: content area (centered vertically) */}
       <div className="relative z-10 w-full lg:w-1/2 flex items-center">
         <div className="max-w-2xl px-8 md:px-12 lg:px-16 py-20">
@@ -172,7 +172,7 @@ function HeroSlider({ slides }) {
           />
         </AnimatePresence>
 
-        <div className="absolute inset-0 bg-black/50 lg:hidden" />
+        <div className="absolute inset-0 bg-black/0 lg:hidden" />
       </div>
 
       {/* Dots (centered) */}
@@ -193,7 +193,7 @@ function HeroSlider({ slides }) {
 /* ---------- Scrolling marquee trust bar ---------- */
 function ScrollingMarquee() {
   return (
-    <div className="py-4 bg-[#9ebbe9] text-black overflow-hidden">
+    <div className="py-4 bg-[#fdf7f7] text-black overflow-hidden dark:bg-zinc-800 dark:text-gray-200">
       <motion.div
         initial={{ x: "0%" }}
         animate={{ x: "-50%" }}
@@ -203,13 +203,13 @@ function ScrollingMarquee() {
         {[...Array(2)].map((_, i) => (
           <div key={i} className="flex space-x-12 px-6 text-sm font-semibold tracking-wider uppercase">
             <span>Authentic Handloom Guaranteed</span>
-            <span className="text-gray-700">★</span>
+            <span className="text-gray-700 dark:text-gray-400">★</span>
             <span>Free Shipping Across India</span>
-            <span className="text-gray-700">★</span>
+            <span className="text-gray-700 dark:text-gray-400">★</span>
             <span>International Shipping Available</span>
-            <span className="text-gray-700">★</span>
+            <span className="text-gray-700 dark:text-gray-400">★</span>
             <span>Handcrafted by Artisans</span>
-            <span className="text-gray-700">★</span>
+            <span className="text-gray-700 dark:text-gray-400">★</span>
           </div>
         ))}
       </motion.div>
@@ -221,7 +221,7 @@ function ScrollingMarquee() {
 function CategoryGrid({ categories }) {
 
   return (
-    <Section className="bg-white dark:bg-zinc-900">
+    <Section className="bg-[#fdf7f7] dark:bg-zinc-900">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-8">
           Shop by Category
@@ -344,7 +344,7 @@ function SkeletonProductCard() {
 
 function ProductCarousel({ title, products, loading, onAddToCart }) {
   return (
-    <Section className="bg-gray-50 dark:bg-black">
+    <Section className="bg-[#fdf7f7] dark:bg-black">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-8">{title}</h2>
         <div className="grid grid-cols-1 gap-6">
@@ -378,7 +378,7 @@ const IconShipping = () => (
 
 function TrustIconsSection() {
   return (
-    <Section className="bg-white dark:bg-zinc-900">
+    <Section className="bg-[#fdf7f7] dark:bg-zinc-900">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="flex items-start gap-4">
@@ -419,7 +419,7 @@ function TrustIconsSection() {
 /* ---------- Newsletter + Testimonials (kept) ---------- */
 function NewsletterSection() {
   return (
-    <Section className="bg-gray-50 dark:bg-black">
+    <Section className="bg-[#fdf7f7] dark:bg-black">
       <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
         <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Stay in the Loop</h2>
         <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">Join our newsletter to receive updates on new arrivals, exclusive offers, and the stories behind our crafts.</p>
@@ -440,7 +440,7 @@ function TestimonialSection() {
   ];
 
   return (
-    <Section className="bg-white dark:bg-zinc-900">
+    <Section className="bg-[#fdf7f7] dark:bg-zinc-900">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white text-center mb-12">What Our Customers Say</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -520,7 +520,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-zinc-900">
+    <div className="min-h-screen w-full bg-[#fdf7f7] dark:bg-zinc-900">
       <HeroSlider slides={homepageContent.heroSlides} />
       <ScrollingMarquee />
       <CategoryGrid categories={homepageContent.categories} />

@@ -9,12 +9,12 @@ const IconTwitter = () => <svg className="w-6 h-6" fill="currentColor" viewBox="
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-50 text-gray-600 border-t border-gray-200 dark:bg-zinc-900 dark:text-gray-400 dark:border-zinc-800">
+    <footer className="bg-[#fdf7f7] text-gray-600 border-t border-gray-200 dark:bg-zinc-900 dark:text-gray-400 dark:border-zinc-800">
       <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-4 gap-10">
         
         <div>
           <div className="text-2xl font-bold tracking-tight font-serif text-gray-900 dark:text-white mb-4">
-            My Shop
+            NEMNIDHI
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Celebrating Indian heritage with our curated collection of handloom sarees, lehengas, and artisanal ethnic wear.
@@ -78,7 +78,7 @@ export default function Footer() {
         <div className="md:flex md:items-center md:justify-between">
           
           <div className="mt-4 md:mt-0 text-center md:text-right text-xs text-gray-500 dark:text-gray-400">
-            © {new Date().getFullYear()} My Shop. All rights reserved.
+            © {new Date().getFullYear()} NEMNIDHI. All rights reserved.
           </div>
         </div>
       </div>

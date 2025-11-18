@@ -72,7 +72,7 @@ export default function RegisterPage() {
           
           {/* ⭐️ 2. Content updated for Indian Clothing */}
           <p className="text-gray-600 dark:text-gray-300 max-w-md">
-            Join My Shop and step into a world of authentic Indian craftsmanship. Store addresses, track orders, and experience elegance.
+            Join NEMNIDHI and step into a world of authentic Indian craftsmanship. Store addresses, track orders, and experience elegance.
           </p>
           
           <div className="mt-6 flex gap-3">
@@ -91,10 +91,10 @@ export default function RegisterPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="text-lg font-semibold dark:text-white">Create account</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Start your journey with My Shop</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Start your journey with NEMNIDHI</div>
             </div>
             <div className="hidden sm:flex items-center gap-3 text-2xl font-extrabold font-serif">
-              My Shop
+              NEMNIDHI
             </div>
           </div>
 

@@ -4,7 +4,7 @@
 /* 1. Global Tailwind Base Classes (Ensures text/bg are dynamic) */
 /* We set the default light theme on body */
 body {
-  @apply bg-white text-gray-900 min-h-screen;
+  @apply bg-[#fdf7f7] text-gray-900 min-h-screen;
 }
 
 /* 2. Dark Mode Inversion (Activates when 'dark' class is present on <html>) */

@@ -46,11 +46,11 @@ export default function LoginPage() {
         
         {/* Left: Brand / Marketing */}
         <div className="hidden md:flex flex-col justify-center gap-6 pl-6">
-          <div className="text-4xl font-extrabold tracking-tight dark:text-white">My Shop</div>
+          <div className="text-4xl font-extrabold tracking-tight dark:text-white">NEMNIDHI</div>
           
           {/* ⭐️ 2. Content updated for Indian Clothing */}
           <p className="text-gray-600 dark:text-gray-300 max-w-md">
-            Discover elegance woven in traditional fabrics. Sign in to manage your preferred shipping addresses, track past orders, and save your favorite styles.
+            Discover elegance woven in traditional fabrics. Sign in to manage your preferred shipping addresses, track past orders, and save your favorite styles for NEMNIDHI.
           </p>
 
           <div className="mt-6 flex gap-3">
@@ -76,7 +76,7 @@ export default function LoginPage() {
               <div className="text-sm text-gray-500 dark:text-gray-400">Sign in to continue</div>
             </div>
             <div className="hidden sm:flex items-center gap-3 text-2xl font-extrabold font-serif">
-              My Shop
+              NEMNIDHI
             </div>
           </div>
 
