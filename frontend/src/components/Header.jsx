@@ -429,7 +429,7 @@ export default function Header() {
             </button>
             <Link to="/" className="flex items-center gap-3">
               <div className="text-xl font-semibold tracking-widest uppercase font-sans dark:text-white">
-                NN
+                NEMNIDHI
               </div>
             </Link>
           </div>
