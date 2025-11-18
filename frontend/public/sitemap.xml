@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Homepage -->
+  <url>
+    <loc>https://glam.nemnidhi.com/</loc>
+    <priority>1.00</priority>
+  </url>
+
+  <!-- Categories -->
+  <url>
+    <loc>https://glam.nemnidhi.com/category/saree</loc>
+  </url>
+  <url>
+    <loc>https://glam.nemnidhi.com/category/western</loc>
+  </url>
+  <url>
+    <loc>https://glam.nemnidhi.com/category/tops</loc>
+  </url>
+  <url>
+    <loc>https://glam.nemnidhi.com/category/sweaters</loc>
+  </url>
+  <url>
+    <loc>https://glam.nemnidhi.com/category/jeans</loc>
+  </url>
+
+  <!-- Products -->
+  <!-- NOTE: Product URLs backend se dynamic generate honge -->
+  <!-- Main product listing -->
+  <url>
+    <loc>https://glam.nemnidhi.com/products</loc>
+  </url>
+
+</urlset>
