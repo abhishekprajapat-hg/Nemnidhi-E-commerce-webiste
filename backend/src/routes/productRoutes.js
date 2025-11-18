@@ -7,7 +7,8 @@ const {
   getProductByIdOrSlug,
   createProduct,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  createProductReview
 } = require('../controllers/productController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -17,6 +18,9 @@ router.get('/product', getProducts);
 
 // IMPORTANT: Specific routes like '/categories' must be defined BEFORE dynamic routes like '/:idOrSlug'.
 router.get('/categories', getProductCategories);
+
+// Create a new review
+router.post('/:id/reviews', protect, createProductReview);
 router.get('/:idOrSlug', getProductByIdOrSlug);
 
 // admin protected CRUD (PUT/DELETE use :id)
