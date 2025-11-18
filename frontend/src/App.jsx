@@ -7,6 +7,7 @@ import ToastContainer from "./components/ToastContainer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import OrderSuccess from "./Pages/OrderSuccess";
 import Footer from "./components/Footer";
+import ScrollToTop from "./components/ScrollToTop";
 // pages (use consistent "Pages" folder)
 import Home from "./Pages/Home";
 import ProductsPage from "./Pages/ProductPage";   // ✅ listing
@@ -37,6 +38,7 @@ export default function App() {
       {!isAdminRoute && <Header />}
 
       <main className="flex-1">
+          <ScrollToTop />
         <Routes>
           {/* public */}
           <Route path="/" element={<Home />} />
