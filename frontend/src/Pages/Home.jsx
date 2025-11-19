@@ -6,6 +6,9 @@ import { useDispatch } from "react-redux";
 import { addToCart } from "../store/cartSlice";
 import { showToast } from "../utils/toast";
 import { motion, AnimatePresence, useInView } from "framer-motion";
+import img1 from "src/public/images/img-1.jpg";
+import img2 from "src/public/images/img-2.jpg";
+import img3 from "src/public/images/img-3.jpg";
 
 /* ---------- Small helper: Section with scroll fade-in ---------- */
 function Section({ children, className = "" }) {
@@ -28,21 +31,21 @@ function Section({ children, className = "" }) {
 /* ---------- Hero slides data (defaults) ---------- */
 const DEFAULT_HERO_SLIDES = [
   {
-    img: "src/public/images/img-1.jpg",
+    img: img1,
     alt: "Beautiful Indian Sarees",
     title: "Whispers of Jade & Gold",
     subtitle: "A luxurious silk canvas, where vibrant green hues dance with opulent golden threads.",
     href: "/product/6918c0b7272e5abff761c00a",
   },
   {
-    img: "src/public/images/img-2.jpg",
+    img: img2,
     alt: "Designer Kurta Sets",
     title: "CONTEMPORARY KURTA SETS",
     subtitle: "Modern designs for every occasion.",
     href: "/products?category=Kurta",
   },
   {
-    img: "src/public/images/img-3.jpg",
+    img: img3,
     alt: "Stunning Lehengas",
     title: "THE BRIDAL COLLECTION",
     subtitle: "Find the perfect lehenga for your special day.",
@@ -51,11 +54,11 @@ const DEFAULT_HERO_SLIDES = [
 ];
 
 const DEFAULT_CATEGORIES = [
-  { name: "Sarees", href: "/products?category=Saree", img: "src/public/images/saree.jpg" },
-  { name: "Western", href: "/products?category=Western", img: "src/public/images/western.jpg" },
-  { name: "Tops", href: "/products?category=Tops", img: "src/public/images/tops.jpg" },
-  { name: "Sweaters", href: "/products?category=Sweaters", img: "src/public/images/sweaters.jpg" },
-  { name: "Jeans", href: "/products?category=Jeans", img: "src/public/images/jeans.jpg" },
+  { name: "Sarees", href: "/products?category=Saree", img: img1 },
+  { name: "Western", href: "/products?category=Western", img: img2 },
+  { name: "Tops", href: "/products?category=Tops", img: img3 },
+  { name: "Sweaters", href: "/products?category=Sweaters", img: img1 },
+  { name: "Jeans", href: "/products?category=Jeans", img: img2 },
 ];
 
 /* ---------- HeroSlider component ---------- */
