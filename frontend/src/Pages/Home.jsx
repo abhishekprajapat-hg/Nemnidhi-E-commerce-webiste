@@ -41,27 +41,27 @@ const DEFAULT_CATEGORIES = [
   {
     name: "Sarees",
     href: "/products?category=Saree",
-    img: "/images/saree.jpg",
+    img: "/images/img-1.jpg",
   },
   {
     name: "Western",
     href: "/products?category=Western",
-    img: "/images/western.jpg",
+    img: "/images/img-2.jpg",
   },
   {
     name: "Tops",
     href: "/products?category=Tops",
-    img: "/images/tops.jpg",
+    img: "/images/img-3.jpg",
   },
   {
     name: "Sweaters",
     href: "/products?category=Sweaters",
-    img: "/images/sweaters.jpg",
+    img: "/images/img-1.jpg",
   },
   {
     name: "Jeans",
     href: "/products?category=Jeans",
-    img: "/images/jeans.jpg",
+    img: "/images/img-2.jpg",
   },
 ];
 
