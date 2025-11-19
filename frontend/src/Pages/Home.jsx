@@ -6,10 +6,6 @@ import { useDispatch } from "react-redux";
 import { addToCart } from "../store/cartSlice";
 import { showToast } from "../utils/toast";
 import { motion, AnimatePresence, useInView } from "framer-motion";
-import img1 from "../assets/img-1.jpg";
-import img2 from "../assets/img-2.jpg";
-import img3 from "../assets/img-3.jpg";
-
 /* ---------- Small helper: Section with scroll fade-in ---------- */
 function Section({ children, className = "" }) {
   const ref = useRef(null);
