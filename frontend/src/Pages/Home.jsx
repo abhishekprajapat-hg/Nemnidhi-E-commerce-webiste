@@ -25,7 +25,7 @@ function Section({ children, className = "" }) {
   );
 }
 
-/* ---------- Hero slides data ---------- */
+/* ---------- Hero slides data (defaults) ---------- */
 const DEFAULT_HERO_SLIDES = [
   {
     img: "src/assets/images/img-1.jpg",
@@ -58,16 +58,16 @@ const DEFAULT_CATEGORIES = [
   { name: "Jeans", href: "/products?category=Jeans", img: "src/assets/images/jeans.jpg" },
 ];
 
-/* ---------- HeroSlider: two-column layout (text left, image right) ---------- */
+/* ---------- HeroSlider component ---------- */
 function HeroSlider({ slides }) {
   const [index, setIndex] = useState(0);
 
   // Auto-play
   useEffect(() => {
-    if (slides.length <= 1) return;
+    if (!slides || slides.length <= 1) return;
     const t = setTimeout(() => setIndex((i) => (i + 1) % slides.length), 5000);
     return () => clearTimeout(t);
-  }, [index, slides.length]);
+  }, [index, slides]);
 
   if (!slides || slides.length === 0) {
     return (
@@ -84,7 +84,7 @@ function HeroSlider({ slides }) {
 
   return (
     <section className="relative min-h-[calc(100vh-80px)] flex items-stretch bg-[#fdf7f7] dark:bg-zinc-900 text-gray-900 dark:text-white overflow-hidden">
-      {/* Left: content area (centered vertically) */}
+      {/* Left: content area */}
       <div className="relative z-10 w-full lg:w-1/2 flex items-center">
         <div className="max-w-2xl px-8 md:px-12 lg:px-16 py-20">
           <AnimatePresence mode="wait">
@@ -130,7 +130,7 @@ function HeroSlider({ slides }) {
         </div>
       </div>
 
-      {/* Right: image area (cover) */}
+      {/* Right: image area */}
       <div className="hidden lg:block w-1/2 relative">
         <AnimatePresence mode="wait">
           <motion.img
@@ -151,7 +151,7 @@ function HeroSlider({ slides }) {
         </AnimatePresence>
       </div>
 
-      {/* Overlay for small screens: show image under text for mobile (we show smaller background image) */}
+      {/* Mobile background image */}
       <div className="lg:hidden absolute inset-0 z-0">
         <AnimatePresence mode="wait">
           <motion.img
@@ -175,7 +175,7 @@ function HeroSlider({ slides }) {
         <div className="absolute inset-0 bg-black/0 lg:hidden" />
       </div>
 
-      {/* Dots (centered) */}
+      {/* Dots */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2">
         {slides.map((_, i) => (
           <button
@@ -219,7 +219,6 @@ function ScrollingMarquee() {
 
 /* ---------- Category Grid ---------- */
 function CategoryGrid({ categories }) {
-
   return (
     <Section className="bg-[#fdf7f7] dark:bg-zinc-900">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -250,12 +249,25 @@ function CategoryGrid({ categories }) {
   );
 }
 
-/* ---------- Product carousel and helpers (kept similar to your version) ---------- */
+/* ---------- ProductCard (uses variant images & lowest price) ---------- */
 function ProductCard({ p, onAddToCart }) {
+  // Flatten variant images (if any)
+  const variantImages = Array.isArray(p?.variants)
+    ? p.variants.flatMap((v) => (Array.isArray(v.images) ? v.images : []))
+    : [];
+
   const slides =
+    (variantImages && variantImages.length && variantImages) ||
     (p?.images && p.images.length && p.images) ||
     (p?.image && [p.image]) ||
     ["/placeholder.png"];
+
+  // compute lowest price across all variants/sizes; fallback to p.price
+  const pricesFromVariants = Array.isArray(p?.variants)
+    ? p.variants.flatMap((v) => (Array.isArray(v.sizes) ? v.sizes.map((s) => Number(s.price || 0)) : []))
+    : [];
+
+  const displayPrice = pricesFromVariants.length ? Math.min(...pricesFromVariants) : Number(p?.price || 0);
 
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -311,7 +323,7 @@ function ProductCard({ p, onAddToCart }) {
             <h3 className="text-base font-semibold text-gray-800 dark:text-white truncate" title={p?.title || p?.name}>
               {p?.title || p?.name}
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">₹{Number(p?.price || 0).toFixed(2)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">₹{Number(displayPrice || 0).toFixed(2)}</p>
           </div>
 
           <div className="absolute inset-0 p-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -373,7 +385,7 @@ const IconSecure = () => (
   <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12 12 0 0012 21.697z" /></svg>
 );
 const IconShipping = () => (
-  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125V14.25m-17.25 4.5h10.5m-10.5-4.5v-4.875c0-.621.504-1.125 1.125-1.125h14.25c.621 0 1.125.504 1.125 1.125v4.875m-17.25 0h17.25M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25v2.25a2.25 2.25 0 002.25 2.25z" /></svg>
+  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125V14.25m-17.25 0h17.25M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25v2.25a2.25 2.25 0 002.25 2.25z" /></svg>
 );
 
 function TrustIconsSection() {
@@ -416,7 +428,7 @@ function TrustIconsSection() {
   );
 }
 
-/* ---------- Newsletter + Testimonials (kept) ---------- */
+/* ---------- Newsletter + Testimonials ---------- */
 function NewsletterSection() {
   return (
     <Section className="bg-[#fdf7f7] dark:bg-black">
@@ -503,18 +515,28 @@ export default function Home() {
     return () => { mounted = false; };
   }, []);
 
+  // Add to cart — prefers first variant & first size if available
   const handleAddToCart = (prod) => {
     if (!prod || !prod._id) return;
+
+    const firstVariant = Array.isArray(prod.variants) && prod.variants.length ? prod.variants[0] : null;
+    const chosenSize = firstVariant?.sizes && firstVariant.sizes.length ? firstVariant.sizes[0] : null;
+
+    const imageFromVariant = firstVariant?.images?.length ? firstVariant.images[0] : null;
+    const priceFromVariant = chosenSize ? Number(chosenSize.price || 0) : (prod.price ? Number(prod.price) : 0);
+    const stockFromVariant = chosenSize ? Number(chosenSize.stock || 0) : (prod.countInStock || 0);
+
     const payload = {
       product: prod._id,
       title: prod.title || prod.name,
-      price: Number(prod.price || 0),
+      price: priceFromVariant,
       qty: 1,
-      image: (prod.images && prod.images[0]) || prod.image || "",
-      size: prod.sizes?.[0] || "",
-      color: prod.colors?.[0] || "",
-      countInStock: prod.countInStock || 1,
+      image: imageFromVariant || (prod.images && prod.images[0]) || prod.image || "",
+      size: chosenSize?.size || "",
+      color: firstVariant?.color || "",
+      countInStock: stockFromVariant,
     };
+
     dispatch(addToCart(payload));
     showToast(`${payload.title} added to cart`);
   };

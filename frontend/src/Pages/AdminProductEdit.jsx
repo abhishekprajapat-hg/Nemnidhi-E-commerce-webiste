@@ -1,429 +1,526 @@
-import React, { useEffect, useState, useRef } from 'react';
+// src/pages/AdminProductEdit.jsx
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../api/axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 import AdminLayout from '../components/AdminLayout';
 
-// ⭐️ 1. Reusable UI components (Dark mode support added)
-const Input = ({ label, id, ...props }) => (
+/* --------------------------
+   Small UI pieces
+   -------------------------- */
+const Input = ({ label, ...props }) => (
   <div>
-    <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
       {label}
     </label>
-    <div className="mt-1">
-      <input
-        id={id}
-        name={id}
-        {...props}
-        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base px-4 py-2.5 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
-      />
-    </div>
+    <input
+      {...props}
+      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm px-4 py-2.5 
+        dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100 focus:ring-indigo-500 
+        focus:border-indigo-500"
+    />
   </div>
 );
 
-const Textarea = ({ label, id, ...props }) => (
+const Textarea = ({ label, ...props }) => (
   <div>
-    <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
       {label}
     </label>
-    <div className="mt-1">
-      <textarea
-        id={id}
-        name={id}
-        {...props}
-        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base px-4 py-2.5 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
-      />
-    </div>
+    <textarea
+      {...props}
+      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm px-4 py-2.5 
+        dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100 focus:ring-indigo-500 
+        focus:border-indigo-500"
+    />
   </div>
 );
 
 const Card = ({ children }) => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-zinc-800 dark:border-zinc-700">{children}</div>
+  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm 
+  dark:bg-zinc-800 dark:border-zinc-700">
+    {children}
+  </div>
 );
 
 const CardTitle = ({ children }) => (
   <h2 className="text-lg font-semibold mb-4 dark:text-white">{children}</h2>
 );
 
+/* --------------------------
+   Helpers
+   -------------------------- */
+const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+/* --------------------------
+   AdminProductEdit component
+   -------------------------- */
 export default function AdminProductEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
   const [product, setProduct] = useState({
     title: '',
     slug: '',
     description: '',
     category: '',
-    price: 0,
-    sizes: [],
-    colors: [],
-    images: [],
-    countInStock: 0,
+    variants: [],
   });
+
   const [availableCategories, setAvailableCategories] = useState([
-    "Sarees", "Western", "Tops", "Sweaters", "Jeans"
+    'Sarees',
+    'Western',
+    'Tops',
+    'Sweaters',
+    'Jeans',
   ]);
 
-  const fileInputRef = useRef(null);
-  const dropRef = useRef(null);
+  const mountedRef = useRef(true);
+  const controllerRef = useRef(null);
+  // fileInputsRef keyed by variantId
+  const fileInputsRef = useRef({}); // { [variantId]: inputElement }
 
+  // lifecycle
   useEffect(() => {
-    let mounted = true;
-    
-    if (id) {
-      api
-        .get(`/api/products/${id}`)
-        .then((res) => {
-          if (!mounted) return;
-          setProduct(res.data);
-        })
-        .catch((err) => {
-          console.error(err);
-          showToast('Failed to load product', 'error');
-        })
-        .finally(() => {
-          if (mounted) setLoading(false);
-        });
-    }
-
-    api.get('/api/products/categories')
-      .then(res => {
-        if (!mounted || !res.data?.length) return;
-        // Combine default and fetched categories, removing duplicates
-        setAvailableCategories(cats => [...new Set([...cats, ...res.data])]);
-      })
-      .catch(err => {
-        console.error("Failed to fetch categories", err);
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (controllerRef.current) controllerRef.current.abort();
+      // cleanup appended inputs
+      Object.values(fileInputsRef.current).forEach((el) => {
+        try { el.remove(); } catch (e) {}
       });
+      fileInputsRef.current = {};
+    };
+  }, []);
+
+  // Load initial product (if editing) + categories
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      // load categories (non-blocking)
+      api.get('/api/products/categories')
+        .then((res) => {
+          if (cancelled) return;
+          const cats = Array.isArray(res.data) ? res.data.filter(Boolean) : [];
+          setAvailableCategories((c) => Array.from(new Set([...c, ...cats])));
+        })
+        .catch(() => {});
+
+      if (!id) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      if (controllerRef.current) {
+        try { controllerRef.current.abort(); } catch (e) {}
+      }
+      controllerRef.current = new AbortController();
+
+      try {
+        const res = await api.get(`/api/products/${id}`, { signal: controllerRef.current.signal });
+        if (cancelled) return;
+        const data = res.data || {};
+
+        // ensure variants have stable ids
+        const variants = (Array.isArray(data.variants) ? data.variants : []).map((v) => ({
+          id: v.id || genId(),
+          color: v.color || '',
+          images: Array.isArray(v.images) ? v.images : [],
+          sizes: Array.isArray(v.sizes) ? v.sizes.map((s) => ({
+            size: s.size || '',
+            price: Number(s.price || 0),
+            stock: Number(s.stock || 0),
+          })) : [],
+        }));
+
+        setProduct({
+          title: data.title || '',
+          slug: data.slug || '',
+          description: data.description || '',
+          category: data.category || '',
+          variants,
+        });
+
+        // since this is loaded data, reset dirty flag
+        setDirty(false);
+      } catch (err) {
+        if (err?.name === 'AbortError' || err?.name === 'CanceledError') return;
+        showToast('Failed to load product', 'error');
+      } finally {
+        if (!cancelled) setLoading(false);
+        controllerRef.current = null;
+      }
+    };
+
+    load();
 
     return () => {
-      mounted = false;
+      cancelled = true;
+      if (controllerRef.current) controllerRef.current.abort();
     };
   }, [id]);
 
-  // Upload helper (No change in logic)
-  const uploadFile = async (file) => {
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      const res = await api.post('/api/uploads', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return res.data?.url || null;
-    } catch (err) {
-      console.warn('Upload failed, using local preview instead', err);
-      return await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.readAsDataURL(file);
-      });
-    }
-  };
+  // mark dirty when product changes (but not on initial load caused by setProduct above because we reset dirty there)
+  useEffect(() => {
+    setDirty(true);
+  }, [product.title, product.slug, product.description, product.category, product.variants]);
 
-  const addImagesFromFiles = async (files) => {
-    if (!files || files.length === 0) return;
-    setSaving(true);
-    try {
-      const arr = Array.from(files);
-      const uploaded = [];
-      for (const f of arr) {
-        const url = await uploadFile(f);
-        if (url) uploaded.push(url);
+  // immutable update helper (functional updates)
+  const updateProduct = useCallback((updater) => {
+    setProduct((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      return next;
+    });
+  }, []);
+
+  /* --------------------------
+     Variant/size manipulation (using variant.id)
+     -------------------------- */
+  const addVariant = useCallback(() => {
+    const newV = { id: genId(), color: '', images: [], sizes: [] };
+    updateProduct((p) => ({ ...p, variants: [...(p.variants || []), newV] }));
+  }, [updateProduct]);
+
+  const removeVariant = useCallback((variantId) => {
+    updateProduct((p) => ({ ...p, variants: (p.variants || []).filter((v) => v.id !== variantId) }));
+    // cleanup file input if any
+    const inp = fileInputsRef.current[variantId];
+    if (inp) {
+      try { inp.remove(); } catch (e) {}
+      delete fileInputsRef.current[variantId];
+    }
+  }, [updateProduct]);
+
+  const updateVariantField = useCallback((variantId, field, value) => {
+    updateProduct((p) => {
+      const variants = (p.variants || []).map((vv) => (vv.id === variantId ? { ...vv, [field]: value } : vv));
+      return { ...p, variants };
+    });
+  }, [updateProduct]);
+
+  const addSize = useCallback((variantId) => {
+    updateProduct((p) => {
+      const variants = (p.variants || []).map((vv) => {
+        if (vv.id !== variantId) return vv;
+        const sizes = Array.isArray(vv.sizes) ? [...vv.sizes, { size: '', price: 0, stock: 0 }] : [{ size: '', price: 0, stock: 0 }];
+        return { ...vv, sizes };
+      });
+      return { ...p, variants };
+    });
+  }, [updateProduct]);
+
+  const removeSize = useCallback((variantId, sIndex) => {
+    updateProduct((p) => {
+      const variants = (p.variants || []).map((vv) => {
+        if (vv.id !== variantId) return vv;
+        return { ...vv, sizes: (vv.sizes || []).filter((_, x) => x !== sIndex) };
+      });
+      return { ...p, variants };
+    });
+  }, [updateProduct]);
+
+  const updateSizeField = useCallback((variantId, sIndex, field, value) => {
+    updateProduct((p) => {
+      const variants = (p.variants || []).map((vv) => {
+        if (vv.id !== variantId) return vv;
+        const sizes = (vv.sizes || []).map((s, j) => (j === sIndex ? { ...s, [field]: value } : s));
+        return { ...vv, sizes };
+      });
+      return { ...p, variants };
+    });
+  }, [updateProduct]);
+
+  /* --------------------------
+     Upload helper (frontend)
+     -------------------------- */
+  const uploadFile = useCallback(async (file) => {
+    // Try multipart endpoints first, then fallback to dataURI
+    const tryUpload = async (url) => {
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await api.post(url, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+        // expect res.data.url
+        return res.data?.url || null;
+      } catch (e) {
+        return null;
       }
-      setProduct((p) => ({ ...p, images: [...(p.images || []), ...uploaded] }));
-    } catch (err) {
-      console.error(err);
-      showToast('Failed to add images', 'error');
-    } finally {
-      setSaving(false);
+    };
+
+    const endpoints = ['/api/upload/image', '/api/upload'];
+    for (const ep of endpoints) {
+      const r = await tryUpload(ep);
+      if (r) return r;
     }
-  };
 
-  const onFileInputChange = (e) => {
-    addImagesFromFiles(e.target.files);
-    e.target.value = null;
-  };
+    // fallback to base64 data URI
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => resolve(ev?.target?.result || null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }, []);
 
-  // Drag/Drop handlers (No change in logic)
-  const onDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const dt = e.dataTransfer;
-    if (dt && dt.files && dt.files.length) addImagesFromFiles(dt.files);
-    if (dropRef.current) dropRef.current.classList.remove('ring-2', 'ring-indigo-500');
-  };
-  const onDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (dropRef.current) dropRef.current.classList.add('ring-2', 'ring-indigo-500');
-  };
-  const onDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (dropRef.current) dropRef.current.classList.remove('ring-2', 'ring-indigo-500');
-  };
-
-  const addImageUrl = () => {
-    const url = prompt('Paste image URL');
-    if (!url) return;
-    setProduct((p) => ({ ...p, images: [...(p.images || []), url] }));
-  };
-
-  const removeImageAt = (idx) =>
-    setProduct((p) => ({ ...p, images: p.images.filter((_, i) => i !== idx) }));
-
-  const addNewCategory = () => {
-    const newCategory = prompt("Enter new category name:");
-    if (!newCategory || !newCategory.trim()) return;
-
-    const trimmedCategory = newCategory.trim();
-    // Check if category already exists (case-insensitive)
-    if (availableCategories.some(c => c.toLowerCase() === trimmedCategory.toLowerCase())) {
-      showToast("Category already exists", "info");
-    } else {
-      setAvailableCategories(cats => [...cats, trimmedCategory].sort());
+  // Handles files chosen for a specific variantId
+  const onFilesSelected = useCallback(async (variantId, files) => {
+    if (!files || files.length === 0) return;
+    const urls = [];
+    for (const f of Array.from(files)) {
+      const url = await uploadFile(f);
+      if (url) urls.push(url);
     }
-    setProduct(p => ({ ...p, category: trimmedCategory }));
-  };
+    if (urls.length) {
+      // use functional update to avoid stale state
+      updateProduct((p) => {
+        const variants = (p.variants || []).map((vv) => {
+          if (vv.id !== variantId) return vv;
+          const existing = Array.isArray(vv.images) ? vv.images : [];
+          return { ...vv, images: [...existing, ...urls] };
+        });
+        return { ...p, variants };
+      });
+    }
+    // reset input element if present
+    const input = fileInputsRef.current[variantId];
+    if (input) {
+      try { input.value = ''; } catch (e) { /* ignore */ }
+    }
+  }, [uploadFile, updateProduct]);
 
-  const save = async (e) => {
-    e?.preventDefault();
+  /* --------------------------
+     Save (create/update) with sanitization
+     -------------------------- */
+  const save = useCallback(async (e) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+
+    // Basic validation
+    if (!product.title || !product.slug) {
+      showToast('Title and slug are required', 'error');
+      return;
+    }
+
     setSaving(true);
     try {
+      // sanitize variants (remove internal ids before sending)
+      const safeVariants = (product.variants || []).map((v) => ({
+        color: String(v.color || '').trim(),
+        images: Array.isArray(v.images) ? v.images.filter(Boolean) : [],
+        sizes: (Array.isArray(v.sizes) ? v.sizes : []).map((s) => ({
+          size: String(s.size || '').trim(),
+          price: Number(s.price || 0),
+          stock: Number(s.stock || 0),
+        })),
+      }));
+
       const payload = {
-        ...product,
-        price: Number(product.price),
-        countInStock: Number(product.countInStock),
+        title: String(product.title || '').trim(),
+        slug: String(product.slug || '').trim(),
+        description: String(product.description || ''),
+        category: String(product.category || ''),
+        variants: safeVariants,
       };
-      if (id) await api.put(`/api/products/${id}`, payload);
-      else await api.post('/api/products/product', payload);
+
+      if (id) {
+        await api.put(`/api/products/${id}`, payload);
+      } else {
+        await api.post('/api/products', payload);
+      }
+
+      setDirty(false);
       showToast('Product saved successfully');
       navigate('/admin/products');
     } catch (err) {
-      console.error(err);
       showToast('Save failed: ' + (err.response?.data?.message || err.message), 'error');
     } finally {
       setSaving(false);
     }
-  };
+  }, [product, id, navigate]);
 
-  const previewImage = product.images && product.images.length ? product.images[0] : '';
+  // Confirm on unload if unsaved
+  useEffect(() => {
+    const handler = (e) => {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
 
+  const categoryOptions = useMemo(() => availableCategories.filter(Boolean), [availableCategories]);
+
+  /* --------------------------
+     Render
+     -------------------------- */
   return (
-    // ⭐️ 3. AdminLayout wrapper
     <AdminLayout>
       <div className="max-w-[1200px] mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">{id ? 'Edit product' : 'Create product'}</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Manage product information, images and inventory.</p>
+            <h2 className="text-2xl font-semibold dark:text-white">{id ? 'Edit Product' : 'Create Product'}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Manage product information, variants, images & inventory.
+            </p>
           </div>
-          <div className="text-right">
-            <button
-              onClick={() => navigate('/admin/products')}
-              className="text-sm px-4 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-300 dark:hover:bg-zinc-600"
-            >
-              Back to products
-            </button>
-          </div>
+
+          <button
+            onClick={() => {
+              if (dirty && !window.confirm('You have unsaved changes. Leave anyway?')) return;
+              navigate('/admin/products');
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50 dark:bg-zinc-700 dark:text-gray-300 dark:border-zinc-600"
+          >
+            Back
+          </button>
         </div>
 
         {loading ? (
-          <div className="py-10 text-center text-gray-500 dark:text-gray-400">Loading product…</div>
+          <div className="py-10 text-center text-gray-500 dark:text-gray-400">Loading…</div>
         ) : (
           <form onSubmit={save} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Form (spans 2) */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Basic Information */}
               <Card>
-                <CardTitle>Basic information</CardTitle>
+                <CardTitle>Basic Information</CardTitle>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Title"
-                    id="title"
-                    value={product.title}
-                    onChange={(e) => setProduct({ ...product, title: e.target.value })}
-                  />
-                  <Input
-                    label="Slug"
-                    id="slug"
-                    value={product.slug}
-                    onChange={(e) => setProduct({ ...product, slug: e.target.value })}
-                  />
+                  <Input label="Title" value={product.title} onChange={(e) => updateProduct({ title: e.target.value })} />
+                  <Input label="Slug" value={product.slug} onChange={(e) => updateProduct({ slug: e.target.value })} />
                   <div>
-                    <div className="flex items-center justify-between">
-                      <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Category
-                      </label>
-                      <button type="button" onClick={addNewCategory} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
-                        + New
-                      </button>
-                    </div>
-                    <div className="mt-1">
-                      <select
-                        id="category"
-                        value={product.category}
-                        onChange={(e) => setProduct({ ...product, category: e.target.value })}
-                        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base px-4 py-2.5 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
-                      >
-                        <option value="">Select a category</option>
-                        {availableCategories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <Input
-                    label="Price"
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    value={product.price}
-                    onChange={(e) => setProduct({ ...product, price: e.target.value })}
-                  />
-                </div>
-                <div className="mt-4">
-                  <Textarea
-                    label="Description"
-                    id="description"
-                    rows="5"
-                    value={product.description}
-                    onChange={(e) => setProduct({ ...product, description: e.target.value })}
-                  />
-                </div>
-              </Card>
-
-              {/* Inventory & Options */}
-              <Card>
-                <CardTitle>Inventory & options</CardTitle>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Input
-                    label="Stock"
-                    id="stock"
-                    type="number"
-                    value={product.countInStock}
-                    onChange={(e) => setProduct({ ...product, countInStock: e.target.value })}
-                  />
-                  <Input
-                    label="Sizes"
-                    id="sizes"
-                    value={(product.sizes || []).join(',')}
-                    onChange={(e) => setProduct({ ...product, sizes: e.target.value.split(',').map((s) => s.trim()) })}
-                    placeholder="S, M, L"
-                  />
-                  <Input
-                    label="Colors"
-                    id="colors"
-                    value={(product.colors || []).join(',')}
-                    onChange={(e) => setProduct({ ...product, colors: e.target.value.split(',').map((s) => s.trim()) })}
-                    placeholder="red, blue"
-                  />
-                </div>
-              </Card>
-
-              {/* Image Upload */}
-              <Card>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Images</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-2 bg-black hover:bg-gray-800 text-white rounded-md text-sm font-medium dark:bg-white dark:text-black dark:hover:bg-gray-200"
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
+                    <select
+                      value={product.category}
+                      onChange={(e) => updateProduct({ category: e.target.value })}
+                      className="mt-1 block w-full border-gray-300 rounded-md px-4 py-2.5 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
                     >
-                      Upload files
-                    </button>
-                    <button type="button" onClick={addImageUrl} className="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-300 dark:hover:bg-zinc-600">
-                      Add URL
-                    </button>
+                      <option value="">Select Category</option>
+                      {categoryOptions.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
-                <input
-                  ref={fileInputRef}
-                  onChange={onFileInputChange}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                />
+                <div className="mt-4">
+                  <Textarea label="Description" rows="5" value={product.description} onChange={(e) => updateProduct({ description: e.target.value })} />
+                </div>
+              </Card>
 
-                {/* Dropzone */}
-                <div
-                  ref={dropRef}
-                  onDrop={onDrop}
-                  onDragOver={onDragOver}
-                  onDragLeave={onDragLeave}
-                  className="mt-4 border-2 border-dashed border-gray-300 rounded-lg p-6 text-gray-500 bg-gray-50 flex items-center justify-center cursor-pointer hover:border-indigo-500 dark:bg-zinc-900/30 dark:border-zinc-700 dark:text-gray-400 dark:hover:border-indigo-400"
-                >
-                  <div className="text-center">
-                    <div className="text-sm">Drag & drop images here, or click <button type="button" onClick={() => fileInputRef.current?.click()} className="text-indigo-600 font-medium underline">browse</button></div>
-                    <div className="text-xs mt-1 text-gray-400 dark:text-gray-500">Upload multiple images at once</div>
-                  </div>
+              <Card>
+                <CardTitle>Product Variants</CardTitle>
+
+                <div className="flex items-center gap-3 mb-4">
+                  <button type="button" onClick={addVariant} className="px-3 py-2 bg-black text-white rounded-md text-sm dark:bg-white dark:text-black">
+                    + Add Variant
+                  </button>
                 </div>
 
-                <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                  {(product.images || []).length === 0 && (
-                    <div className="col-span-3 text-sm text-gray-400 dark:text-gray-500">No images yet.</div>
-                  )}
+                {product.variants.length === 0 && <p className="text-gray-500 dark:text-gray-400 text-sm">No variants added yet.</p>}
 
-                  {(product.images || []).map((url, idx) => (
-                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100 dark:border-zinc-700 dark:bg-zinc-700">
-                      <img src={url} alt={`preview-${idx}`} className="object-cover w-full h-full" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex items-start justify-end p-1.5">
-                        <button
-                          type="button"
-                          onClick={() => removeImageAt(idx)}
-                          aria-label={`Remove image ${idx}`}
-                          className="bg-white/80 hover:bg-white rounded-full p-1 leading-none"
-                        >
-                          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                        </button>
+                {product.variants.map((variant, vIndex) => (
+                  <div key={variant.id} className="border p-4 rounded-lg mb-4 bg-gray-50 dark:bg-zinc-700/50 dark:border-zinc-600">
+                    <div className="flex justify-between mb-3">
+                      <h3 className="font-semibold dark:text-white">Variant {vIndex + 1}</h3>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => removeVariant(variant.id)} className="text-red-500 text-sm">Delete</button>
                       </div>
                     </div>
-                  ))}
-                </div>
+
+                    <Input label="Color" value={variant.color} onChange={(e) => updateVariantField(variant.id, 'color', e.target.value)} />
+
+                    <div className="mt-3">
+                      <label className="text-sm font-medium dark:text-gray-300">Images</label>
+                      <div className="flex gap-2 mt-2 items-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // create a hidden file input for this variant if not exists
+                            if (!fileInputsRef.current[variant.id]) {
+                              const inp = document.createElement('input');
+                              inp.type = 'file';
+                              inp.accept = 'image/*';
+                              inp.multiple = true;
+                              inp.style.display = 'none';
+                              inp.addEventListener('change', (e) => onFilesSelected(variant.id, e.target.files));
+                              document.body.appendChild(inp);
+                              fileInputsRef.current[variant.id] = inp;
+                            }
+                            fileInputsRef.current[variant.id].click();
+                          }}
+                          className="px-3 py-2 bg-black text-white rounded-md text-sm dark:bg-white dark:text-black"
+                        >
+                          Upload
+                        </button>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">You can upload multiple images</div>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-2 mt-3">
+                        {(variant.images || []).map((img, i) => (
+                          <div key={i} className="relative rounded overflow-hidden border">
+                            <img src={img} loading="lazy" className="w-full h-20 object-cover" alt={`variant-${vIndex}-img-${i}`} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/placeholder.png'; }} />
+                            <button
+                              type="button"
+                              className="absolute top-1 right-1 bg-white text-xs px-1 rounded"
+                              onClick={() => updateVariantField(variant.id, 'images', (variant.images || []).filter((_, x) => x !== i))}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mt-5">
+                      <label className="text-sm font-medium dark:text-gray-300">Sizes</label>
+                      <div className="mt-2">
+                        <button type="button" onClick={() => addSize(variant.id)} className="ml-3 px-2 py-1 bg-gray-800 text-white rounded text-xs dark:bg-white dark:text-black">+ Add Size</button>
+                      </div>
+
+                      {(variant.sizes || []).map((s, sIndex) => (
+                        <div key={sIndex} className="grid grid-cols-3 gap-3 mt-3 items-center">
+                          <input placeholder="Size (S/M/L)" value={s.size} onChange={(e) => updateSizeField(variant.id, sIndex, 'size', e.target.value)} className="border p-2 rounded dark:bg-zinc-800 dark:border-zinc-600" />
+                          <input placeholder="Price (₹)" type="number" value={s.price} onChange={(e) => updateSizeField(variant.id, sIndex, 'price', Number(e.target.value || 0))} className="border p-2 rounded dark:bg-zinc-800 dark:border-zinc-600" />
+                          <input placeholder="Stock (Qty)" type="number" value={s.stock} onChange={(e) => updateSizeField(variant.id, sIndex, 'stock', Number(e.target.value || 0))} className="border p-2 rounded dark:bg-zinc-800 dark:border-zinc-600" />
+                          <button type="button" onClick={() => removeSize(variant.id, sIndex)} className="text-red-500 text-xs col-span-3 text-left mt-1">Remove size</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </Card>
 
-              {/* Action Buttons */}
               <div className="flex gap-3">
-                <button type="submit" disabled={saving} className="px-6 py-2.5 bg-black hover:bg-gray-800 text-white rounded-md font-medium dark:bg-white dark:text-black dark:hover:bg-gray-200">
-                  {saving ? 'Saving…' : 'Save product'}
+                <button type="submit" disabled={saving} className="px-6 py-2.5 bg-black text-white rounded-md font-medium dark:bg-white dark:text-black">
+                  {saving ? 'Saving…' : 'Save Product'}
                 </button>
-                <button type="button" onClick={() => navigate('/admin/products')} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-700">
+                <button type="button" onClick={() => { if (dirty && !window.confirm('You have unsaved changes. Leave anyway?')) return; navigate('/admin/products'); }} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 dark:border-zinc-700 dark:text-gray-300">
                   Cancel
                 </button>
               </div>
             </div>
 
-            {/* Right: Preview / Meta */}
             <aside className="space-y-6 lg:sticky lg:top-24">
               <Card>
                 <CardTitle>Preview</CardTitle>
-                {previewImage ? (
-                  <img src={previewImage} alt="preview" className="mx-auto h-48 w-auto object-cover rounded-md border" />
+                {product.variants?.[0]?.images?.[0] ? (
+                  <img src={product.variants[0].images[0]} loading="lazy" className="mx-auto h-48 object-cover rounded-md border" alt="preview" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/placeholder.png'; }} />
                 ) : (
-                  <div className="mx-auto h-48 w-full bg-gray-100 dark:bg-zinc-700 border rounded-md flex items-center justify-center text-gray-500 dark:text-gray-400">No image</div>
+                  <div className="h-48 bg-gray-100 dark:bg-zinc-700 rounded flex items-center justify-center text-gray-500">No image</div>
                 )}
-                <h4 className="mt-3 font-semibold text-gray-800 dark:text-white text-center">{product.title || 'Untitled product'}</h4>
-                <div className="text-lg font-medium text-gray-900 dark:text-white text-center mt-1">₹{Number(product.price || 0).toFixed(2)}</div>
-              </Card>
-
-              <Card>
-                <CardTitle>Quick info</CardTitle>
-                <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-                  <div>Category: <span className="font-medium text-gray-800 dark:text-white">{product.category || '—'}</span></div>
-                  <div>Stock: <span className="font-medium text-gray-800 dark:text-white">{product.countInStock}</span></div>
-                  <div>Sizes: <span className="font-medium text-gray-800 dark:text-white">{(product.sizes || []).join(', ') || '—'}</span></div>
-                  <div>Colors: <span className="font-medium text-medium dark:text-white">{(product.colors || []).join(', ') || '—'}</span></div>
-                </div>
+                <h3 className="mt-3 font-semibold text-center dark:text-white">{product.title || 'Untitled'}</h3>
+                <p className="text-sm text-gray-500 text-center dark:text-gray-300">{product.category || 'No category'}</p>
               </Card>
             </aside>
           </form>
         )}
       </div>
-    </AdminLayout> 
+    </AdminLayout>
   );
 }

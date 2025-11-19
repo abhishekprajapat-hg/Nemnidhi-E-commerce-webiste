@@ -1,12 +1,12 @@
-// src/controllers/orderController.js
 const asyncHandler = require('express-async-handler');
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 
-/**
- * Admin: get all orders with advanced filtering (with facets)
- * GET /api/orders  (admin)
- */
+function isValidObjectId(id) {
+  return mongoose.Types.ObjectId.isValid(String(id));
+}
+
 exports.getAllOrders = asyncHandler(async (req, res) => {
   const {
     q,
@@ -24,29 +24,50 @@ exports.getAllOrders = asyncHandler(async (req, res) => {
     facets = 'true',
   } = req.query;
 
-  const initialFilter = {};
+  const filter = {};
 
   if (status) {
     const statuses = String(status).split(',').map((s) => s.trim()).filter(Boolean);
-    if (statuses.length) initialFilter.status = { $in: statuses };
+    if (statuses.length) filter.status = { $in: statuses };
   }
 
-  if (paymentMethod) initialFilter.paymentMethod = paymentMethod;
-  if (city) initialFilter['shippingAddress.city'] = new RegExp(String(city), 'i');
-  if (country) initialFilter['shippingAddress.country'] = new RegExp(String(country), 'i');
+  if (paymentMethod) filter.paymentMethod = paymentMethod;
+  if (city) filter['shippingAddress.city'] = new RegExp(String(city), 'i');
+  if (country) filter['shippingAddress.country'] = new RegExp(String(country), 'i');
 
   if (from || to) {
-    initialFilter.createdAt = {};
-    if (from) initialFilter.createdAt.$gte = new Date(from);
-    if (to) initialFilter.createdAt.$lte = new Date(to);
-    if (!Object.keys(initialFilter.createdAt).length) delete initialFilter.createdAt;
+    const createdAt = {};
+    if (from) {
+      const d = new Date(from);
+      if (!isNaN(d)) createdAt.$gte = d;
+    }
+    if (to) {
+      const d = new Date(to);
+      if (!isNaN(d)) createdAt.$lte = d;
+    }
+    if (Object.keys(createdAt).length) filter.createdAt = createdAt;
   }
 
   if (min || max) {
-    initialFilter.totalPrice = {};
-    if (min) initialFilter.totalPrice.$gte = Number(min);
-    if (max) initialFilter.totalPrice.$lte = Number(max);
-    if (!Object.keys(initialFilter.totalPrice).length) delete initialFilter.totalPrice;
+    const totalPrice = {};
+    if (min !== undefined && min !== null && String(min).trim() !== '') totalPrice.$gte = Number(min);
+    if (max !== undefined && max !== null && String(max).trim() !== '') totalPrice.$lte = Number(max);
+    if (Object.keys(totalPrice).length) filter.totalPrice = totalPrice;
+  }
+
+  if (q && String(q).trim()) {
+    const qq = String(q).trim();
+    const regex = new RegExp(qq, 'i');
+    filter.$or = [
+      { 'shippingAddress.fullName': { $regex: regex } },
+      { 'orderItems.title': { $regex: regex } },
+      { userEmail: { $regex: regex } },
+    ];
+    if (isValidObjectId(qq)) {
+      try {
+        filter.$or.push({ _id: mongoose.Types.ObjectId(qq) });
+      } catch (e) {}
+    }
   }
 
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -54,91 +75,74 @@ exports.getAllOrders = asyncHandler(async (req, res) => {
   const skip = (pageNum - 1) * perPage;
 
   const sortObj = {};
-  String(sort).split(',').forEach((s) => {
-    const key = s.trim();
-    if (!key) return;
-    if (key.startsWith('-')) sortObj[key.slice(1)] = -1;
-    else sortObj[key] = 1;
-  });
-
-  const pipeline = [
-    { $match: initialFilter },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'user',
-        foreignField: '_id',
-        as: 'user',
-      },
-    },
-    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-  ];
-
-  if (q && String(q).trim()) {
-    const regex = new RegExp(String(q).trim(), 'i');
-    pipeline.push({
-      $match: {
-        $or: [
-          { _id: { $regex: regex } },
-          { 'user.email': { $regex: regex } },
-          { 'user.name': { $regex: regex } },
-          { 'shippingAddress.fullName': { $regex: regex } },
-          { 'orderItems.title': { $regex: regex } },
-        ],
-      },
+  String(sort)
+    .split(',')
+    .forEach((s) => {
+      const key = s.trim();
+      if (!key) return;
+      if (key.startsWith('-')) sortObj[key.slice(1)] = -1;
+      else sortObj[key] = 1;
     });
+
+  const total = await Order.countDocuments(filter);
+
+  const projection =
+    'user orderItems shippingAddress paymentMethod itemsPrice shippingPrice taxPrice totalPrice isPaid isDelivered status createdAt paidAt deliveredAt';
+
+  const orders = await Order.find(filter)
+    .select(projection)
+    .sort(sortObj)
+    .skip(skip)
+    .limit(perPage)
+    .populate('user', 'name email')
+    .lean()
+    .exec();
+
+  let facetResult = {};
+  const wantFacets = String(facets).toLowerCase() === 'true';
+  if (wantFacets) {
+    try {
+      const [statusCounts, paymentCounts] = await Promise.all([
+        Order.aggregate([
+          { $match: filter },
+          { $group: { _id: '$status', count: { $sum: 1 } } },
+          { $project: { _id: 0, status: '$_id', count: 1 } },
+        ]).allowDiskUse(true),
+        Order.aggregate([
+          { $match: filter },
+          { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
+          { $project: { _id: 0, paymentMethod: '$_id', count: 1 } },
+        ]).allowDiskUse(true),
+      ]);
+      facetResult = { status: statusCounts || [], paymentMethod: paymentCounts || [] };
+    } catch (aggErr) {
+      console.error('Order facets aggregation error:', aggErr && aggErr.stack ? aggErr.stack : aggErr);
+      facetResult = { status: [], paymentMethod: [] };
+    }
   }
 
-  const wantFacets = String(facets).toLowerCase() === 'true';
-
-  pipeline.push({
-    $facet: {
-      orders: [
-        { $sort: Object.keys(sortObj).length ? sortObj : { createdAt: -1 } },
-        { $skip: skip },
-        { $limit: perPage },
-      ],
-      totalCount: [{ $count: 'count' }],
-      ...(wantFacets
-        ? {
-            statusCounts: [
-              { $group: { _id: '$status', count: { $sum: 1 } } },
-              { $project: { _id: 0, status: '$_id', count: 1 } },
-            ],
-            paymentCounts: [
-              { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
-              { $project: { _id: 0, paymentMethod: '$_id', count: 1 } },
-            ],
-          }
-        : {}),
-    },
-  });
-
-  const [result] = await Order.aggregate(pipeline);
-  const total = result?.totalCount?.[0]?.count || 0;
-  const pages = Math.ceil(total / perPage);
-
   res.json({
-    orders: result?.orders || [],
-    page: pageNum,
-    pages,
+    orders,
     total,
-    facets: wantFacets
-      ? {
-          status: result?.statusCounts || [],
-          paymentMethod: result?.paymentCounts || [],
-        }
-      : undefined,
+    page: pageNum,
+    pages: Math.ceil(total / perPage),
+    facets: wantFacets ? facetResult : undefined,
   });
 });
 
-// keep old name that routes import
 exports.getOrders = exports.getAllOrders;
 
-/**
- * Create order (no payment required) - Private
- * POST /api/orders
- */
+async function recomputeAndSetCountInStock(productId, session = null) {
+  if (!isValidObjectId(productId)) return;
+  const p = await Product.findById(productId).session(session).lean();
+  if (!p) return;
+  const total = (p.variants || []).reduce((pv, v) => {
+    const s = (v.sizes || []).reduce((acc, si) => acc + (Number(si.stock) || 0), 0);
+    return pv + s;
+  }, 0);
+  await Product.updateOne({ _id: productId }, { $set: { countInStock: total } }, { session });
+}
+
 exports.createOrder = asyncHandler(async (req, res) => {
   const {
     orderItems,
@@ -150,67 +154,171 @@ exports.createOrder = asyncHandler(async (req, res) => {
     totalPrice,
   } = req.body;
 
-  if (!orderItems || orderItems.length === 0) {
+  if (!orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
     res.status(400);
     throw new Error('No order items');
   }
 
-  const order = new Order({
-    user: req.user._id,
-    orderItems,
-    shippingAddress,
-    paymentMethod,
-    itemsPrice,
-    shippingPrice,
-    taxPrice,
-    totalPrice,
-    isPaid: false,
-    status: 'Created',
-  });
+  const session = await mongoose.startSession();
+  let usingTransaction = false;
 
-  const createdOrder = await order.save();
-
-  // best-effort decrement stock
-  for (const item of orderItems) {
+  try {
     try {
-      await Product.findByIdAndUpdate(item.product, { $inc: { countInStock: -item.qty } });
-    } catch (err) {
-      console.error('Stock update error', err.message);
+      session.startTransaction();
+      usingTransaction = true;
+    } catch (txErr) {
+      usingTransaction = false;
     }
-  }
 
-  res.status(201).json(createdOrder);
+    const itemsSnapshot = [];
+
+    for (const it of orderItems) {
+      const { product: productId, color, size, qty } = it;
+      const quantity = Number(qty || 1);
+      if (!productId) {
+        throw new Error('Order item missing product id');
+      }
+      if (!color || !size) {
+        throw new Error('Order item must include color and size');
+      }
+
+      const query = {
+        _id: productId,
+        variants: {
+          $elemMatch: {
+            color: color,
+            sizes: { $elemMatch: { size: size, stock: { $gte: quantity } } },
+          },
+        },
+      };
+
+      const update = {
+        $inc: { 'variants.$[v].sizes.$[s].stock': -quantity },
+      };
+
+      const arrayFilters = [{ 'v.color': color }, { 's.size': size }];
+
+      const opts = { arrayFilters, session };
+
+      const updateResult = await Product.updateOne(query, update, opts);
+
+      const matched = (updateResult && (updateResult.matchedCount || updateResult.n || updateResult.ok)) ? (updateResult.matchedCount || updateResult.n) : 0;
+      const modified = (updateResult && (updateResult.modifiedCount || updateResult.nModified)) ? (updateResult.modifiedCount || updateResult.nModified) : 0;
+
+      if (!updateResult || matched === 0 || modified === 0) {
+        if (usingTransaction) await session.abortTransaction();
+        res.status(400);
+        throw new Error(`Insufficient stock or variant/size not found for product ${productId} (${color}/${size})`);
+      }
+
+      const prod = await Product.findById(productId).session(usingTransaction ? session : null);
+      if (!prod) {
+        if (usingTransaction) await session.abortTransaction();
+        res.status(404);
+        throw new Error('Product not found after stock decrement');
+      }
+
+      const variant = (prod.variants || []).find((v) => String(v.color) === String(color));
+      if (!variant) {
+        if (usingTransaction) await session.abortTransaction();
+        res.status(400);
+        throw new Error('Variant not found in product after update');
+      }
+      const sizeObj = (variant.sizes || []).find((s) => String(s.size) === String(size));
+      if (!sizeObj) {
+        if (usingTransaction) await session.abortTransaction();
+        res.status(400);
+        throw new Error('Size object not found after update');
+      }
+
+      try {
+        await recomputeAndSetCountInStock(productId, usingTransaction ? session : null);
+      } catch (e) {
+        console.warn('Failed to recompute countInStock', e && e.message ? e.message : e);
+      }
+
+      const image =
+        (Array.isArray(variant.images) && variant.images[0]) ||
+        prod.image ||
+        (Array.isArray(prod.images) && prod.images[0]) ||
+        '';
+
+      itemsSnapshot.push({
+        product: prod._id,
+        title: prod.title,
+        price: Number(sizeObj.price || prod.price || 0),
+        qty: quantity,
+        size: sizeObj.size,
+        color: variant.color,
+        image,
+      });
+    }
+
+    const order = new Order({
+      user: req.user ? req.user._id : null,
+      orderItems: itemsSnapshot,
+      shippingAddress,
+      paymentMethod,
+      itemsPrice,
+      shippingPrice,
+      taxPrice,
+      totalPrice,
+      isPaid: false,
+      status: 'Created',
+    });
+
+    const savedOrder = usingTransaction ? await order.save({ session }) : await order.save();
+
+    if (usingTransaction) {
+      await session.commitTransaction();
+      session.endSession();
+    }
+
+    res.status(201).json(savedOrder);
+  } catch (err) {
+    try {
+      if (usingTransaction) await session.abortTransaction();
+    } catch (e) {}
+    try {
+      session.endSession();
+    } catch (e) {}
+    throw err;
+  }
 });
 
-/**
- * Get order by id - Private (owner or admin)
- * GET /api/orders/:id
- */
 exports.getOrderById = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id).populate('user', 'name email');
+  const id = req.params.id;
+  if (!isValidObjectId(id)) {
+    res.status(400);
+    throw new Error('Invalid order id');
+  }
+  const order = await Order.findById(id).populate('user', 'name email').lean();
   if (!order) {
     res.status(404);
     throw new Error('Order not found');
   }
-  const isOwner = order.user && order.user._id && order.user._id.toString() === req.user._id.toString();
-  if (!isOwner && !req.user.isAdmin) {
+  const currentUserId = req.user && (req.user._id ? req.user._id.toString() : req.user.toString());
+  const orderUserId = order.user && order.user._id ? order.user._id.toString() : (order.user ? String(order.user) : null);
+  const isOwner = currentUserId && orderUserId && currentUserId === orderUserId;
+  if (!isOwner && !(req.user && req.user.isAdmin)) {
     res.status(403);
     throw new Error('Not authorized to view this order');
   }
   res.json(order);
 });
 
-/**
- * Cancel order - Private (owner only; not delivered)
- * PUT /api/orders/:id/cancel
- */
 exports.cancelOrder = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id);
+  const id = req.params.id;
+  if (!isValidObjectId(id)) {
+    res.status(400);
+    throw new Error('Invalid order id');
+  }
+  const order = await Order.findById(id);
   if (!order) {
     res.status(404);
     throw new Error('Order not found');
   }
-  if (order.user.toString() !== req.user._id.toString() && !req.user.isAdmin) {
+  if (!(req.user && (String(order.user) === String(req.user._id) || req.user.isAdmin))) {
     res.status(403);
     throw new Error('Not authorized to cancel this order');
   }
@@ -228,12 +336,23 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
   order.cancelReason = reason || '';
   order.cancelledAt = Date.now();
 
-  // restore stock best-effort
   for (const item of order.orderItems) {
     try {
-      await Product.findByIdAndUpdate(item.product, { $inc: { countInStock: item.qty } });
+      const { product: productId, color, size, qty } = item;
+      if (!productId || !color || !size) continue;
+
+      const update = { $inc: { 'variants.$[v].sizes.$[s].stock': Number(qty || 0) } };
+      const arrayFilters = [{ 'v.color': color }, { 's.size': size }];
+
+      await Product.updateOne({ _id: productId }, update, { arrayFilters });
+
+      try {
+        await recomputeAndSetCountInStock(productId);
+      } catch (e) {
+        console.warn('Failed to recompute countInStock after cancel', e && e.message ? e.message : e);
+      }
     } catch (err) {
-      console.error('Stock restore error', err.message);
+      console.error('Stock restore error', err && err.message ? err.message : err);
     }
   }
 
@@ -241,21 +360,22 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
   res.json({ message: 'Order cancelled', order });
 });
 
-/**
- * Get logged-in user's orders - Private
- * GET /api/orders/myorders
- */
 exports.getMyOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
+  if (!req.user || !req.user._id) {
+    res.status(401);
+    throw new Error('Not authenticated');
+  }
+  const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 }).lean();
   res.json(orders);
 });
 
-/**
- * Mark order delivered - Private/Admin
- * PUT /api/orders/:id/deliver
- */
 exports.markOrderDelivered = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id);
+  const id = req.params.id;
+  if (!isValidObjectId(id)) {
+    res.status(400);
+    throw new Error('Invalid order id');
+  }
+  const order = await Order.findById(id);
   if (!order) {
     res.status(404);
     throw new Error('Order not found');
@@ -270,12 +390,13 @@ exports.markOrderDelivered = asyncHandler(async (req, res) => {
   res.json({ message: 'Order marked delivered', order });
 });
 
-/**
- * Update order to paid (kept for back-compat) - Private
- * PUT /api/orders/:id/pay
- */
 exports.updateOrderToPaid = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id);
+  const id = req.params.id;
+  if (!isValidObjectId(id)) {
+    res.status(400);
+    throw new Error('Invalid order id');
+  }
+  const order = await Order.findById(id);
   if (!order) {
     res.status(404);
     throw new Error('Order not found');

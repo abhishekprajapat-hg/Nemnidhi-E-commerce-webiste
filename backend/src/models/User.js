@@ -1,27 +1,36 @@
-// src/models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const addressSchema = new mongoose.Schema({
-  fullName: { type: String, default: '' },
-  address: { type: String, default: '' },
-  city: { type: String, default: '' },
-  postalCode: { type: String, default: '' },
-  country: { type: String, default: '' }
+  fullName: { type: String, default: '', trim: true },
+  address: { type: String, default: '', trim: true },
+  city: { type: String, default: '', trim: true },
+  postalCode: { type: String, default: '', trim: true },
+  country: { type: String, default: '', trim: true }
 }, { _id: false });
 
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String, required: true },
-  isAdmin: { type: Boolean, default: false },
-  shippingAddress: { type: addressSchema, default: {} }
-}, { timestamps: true });
+const userSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: { unique: true, sparse: true }
+    },
+    password: { type: String, required: true, minlength: 6 },
+    isAdmin: { type: Boolean, default: false },
+    shippingAddress: { type: addressSchema, default: {} }
+  },
+  { timestamps: true }
+);
 
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   try {
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (err) {
@@ -29,7 +38,7 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-userSchema.methods.matchPassword = async function(enteredPassword) {
+userSchema.methods.matchPassword = function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
 

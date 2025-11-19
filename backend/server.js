@@ -1,186 +1,186 @@
-// server.js
-require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
-const express = require("express");
-const helmet = require("helmet");
-const cors = require("cors");
-const mongoose = require("mongoose");
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const compression = require('compression');
+const mongoose = require('mongoose');
 
-const connectDB = require("./src/config/db");
-const authRoutes = require("./src/routes/authRoutes");
-const productRoutes = require("./src/routes/productRoutes");
-const orderRoutes = require("./src/routes/orderRoutes");
-const contentRoutes = require("./src/routes/contentRoutes");
-const reviewRoutes = require("./src/routes/reviewRoutes");
+const connectDB = require('./src/config/db');
+const authRoutes = require('./src/routes/authRoutes');
+const productRoutes = require('./src/routes/productRoutes');
+const orderRoutes = require('./src/routes/orderRoutes');
+const contentRoutes = require('./src/routes/contentRoutes');
+const reviewRoutes = require('./src/routes/reviewRoutes');
+const uploadRoutes = require('./src/routes/uploadRoutes');
 
-const { notFound, errorHandler } = require("./src/middleware/errorMiddleware");
+const { notFound, errorHandler } = require('./src/middleware/errorMiddleware');
+
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const PORT = Number(process.env.PORT) || 5000;
 
 const app = express();
 
-// read env as early as possible
-const NODE_ENV = process.env.NODE_ENV || "development";
-const PORT = process.env.PORT || 5000;
+app.set('trust proxy', 1);
 
-// trust proxy (useful when deploying behind nginx / cloud providers)
-app.set("trust proxy", 1);
-
-// Middlewares
-// Conditional morgan require so a missing dev dependency doesn't crash production
 try {
-  // require only if available
-  // eslint-disable-next-line global-require
-  const morgan = require("morgan");
-  if (NODE_ENV === "development") {
-    app.use(morgan("dev"));
-  } else {
-    app.use(morgan("combined"));
-  }
+  const morgan = require('morgan');
+  app.use(morgan(NODE_ENV === 'development' ? 'dev' : 'combined'));
 } catch (err) {
-  // If morgan isn't installed, don't fail the app. Just warn.
-  console.warn(
-    "morgan not available — skipping request logging. Install with `npm i morgan` for dev logs."
-  );
+  console.warn('morgan not installed — skipping request logging.');
 }
 
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "*",
+    origin: process.env.FRONTEND_URL || '*',
     credentials: true,
   })
 );
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(compression());
 
-// Basic in-memory rate limiter (very small protection — optional)
-const RATE_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_MAX = Number(process.env.RATE_MAX) || 300; // requests per IP per window
+const RATE_WINDOW_MS = 60 * 1000;
+const RATE_MAX = Math.max(50, Number(process.env.RATE_MAX) || 300);
 const ipCounts = new Map();
 setInterval(() => ipCounts.clear(), RATE_WINDOW_MS);
 
 app.use((req, res, next) => {
   try {
-    const ip = req.ip || req.connection?.remoteAddress || "unknown";
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || 'unknown';
     const entry = ipCounts.get(ip) || 0;
     if (entry > RATE_MAX) {
-      res.status(429).json({ message: "Too many requests, slow down" });
-    } else {
-      ipCounts.set(ip, entry + 1);
-      next();
+      return res.status(429).json({ message: 'Too many requests, slow down' });
     }
+    ipCounts.set(ip, entry + 1);
+    next();
   } catch (err) {
     next();
   }
 });
 
-// Serve uploaded files (if using /uploads)
-const uploadsPath = path.join(__dirname, "/uploads");
-if (!fs.existsSync(uploadsPath)) {
-  try {
-    fs.mkdirSync(uploadsPath, { recursive: true });
-  } catch (err) {
-    console.warn("Could not create uploads folder:", err.message);
-  }
-}
-app.use("/uploads", express.static(uploadsPath));
-
-// Mount API routes
-app.use("/api/auth", authRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/content", contentRoutes);
-app.use("/api/reviews", reviewRoutes);
-
-// Optional payment routes: import only if file exists to avoid crashes
+const uploadsPath = path.join(__dirname, 'uploads');
 try {
-  const paymentRoutesPath = path.join(
-    __dirname,
-    "src",
-    "routes",
-    "paymentRoutes.js"
-  );
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsPath));
+} catch (err) {
+  console.warn('Uploads static serve disabled:', err.message);
+}
+
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/content', contentRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/upload', uploadRoutes);
+
+try {
+  const paymentRoutesPath = path.join(__dirname, 'src', 'routes', 'paymentRoutes.js');
   if (fs.existsSync(paymentRoutesPath)) {
-    const paymentRoutes = require("./src/routes/paymentRoutes");
-    app.use("/api/payment", paymentRoutes);
+    const paymentRoutes = require('./src/routes/paymentRoutes');
+    app.use('/api/payment', paymentRoutes);
   } else {
-    console.info("Payment routes not found — skipping /api/payment mount");
+    console.info('/api/payment not mounted (no file found)');
   }
 } catch (err) {
-  console.warn(
-    "Payment routes load error (continuing without payments):",
-    err.message
-  );
+  console.warn('Error loading payment routes, continuing without payments:', err.message);
 }
 
-// health check with DB connection state
-app.get("/api/health", (req, res) => {
+app.get('/api/health', (req, res) => {
   const connectionState = mongoose.connection?.readyState;
-  // mongoose.readyState: 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
-  const states = {
-    0: "disconnected",
-    1: "connected",
-    2: "connecting",
-    3: "disconnecting",
-  };
+  const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
   res.json({
-    status: "ok",
+    status: 'ok',
     env: NODE_ENV,
-    db: states[connectionState] || "unknown",
+    db: states[connectionState] || 'unknown',
+    uptime: process.uptime(),
   });
 });
 
-// Catch-all 404 for api
-app.use("/api", notFound);
-
-// Error handlers (last)
+app.use('/api', notFound);
 app.use(errorHandler);
-app.get("/sitemap.xml", (req, res) => {
-  res.header("Content-Type", "application/xml");
-  res.send(`
-    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-      <url><loc>https://glam.nemnidhi.com/</loc></url>
-      <url><loc>https://glam.nemnidhi.com/products</loc></url>
-      <url><loc>https://glam.nemnidhi.com/categories</loc></url>
-    </urlset>
-  `);
+
+app.get('/sitemap.xml', (req, res) => {
+  res.header('Content-Type', 'application/xml');
+  res.send(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url><loc>https://glam.nemnidhi.com/</loc></url>
+    <url><loc>https://glam.nemnidhi.com/products</loc></url>
+    <url><loc>https://glam.nemnidhi.com/categories</loc></url>
+  </urlset>`);
 });
-async function start() {
+
+async function startServer() {
   try {
+    console.log('Starting server...');
+    console.log('NODE_ENV=', NODE_ENV);
+    console.log('PORT=', PORT);
+    const mongoUri = process.env.MONGO_URI || '';
+    console.log('MONGO_URI present?', !!mongoUri);
+    if (mongoUri) {
+      try {
+        const masked = mongoUri.replace(/(mongodb(\+srv)?:\/\/)([^:@\s]+)(:[^@]+)?@?/, '$1****@');
+        console.log('MONGO_URI (masked):', masked);
+      } catch (e) {
+        console.log('MONGO_URI (short):', mongoUri.substring(0, 40) + '...');
+      }
+    }
+
     await connectDB();
-    const server = app.listen(PORT, () =>
-      console.log(`Server running in ${NODE_ENV} mode on port ${PORT}`)
-    );
 
-    process.on("unhandledRejection", (reason) => {
-      console.error("Unhandled Rejection at:", reason);
-      server.close(() => process.exit(1));
+    if (NODE_ENV === 'production') {
+      const clientBuild = path.join(__dirname, 'client', 'build');
+      if (fs.existsSync(clientBuild)) {
+        app.use(express.static(clientBuild));
+        app.get('*', (req, res) => res.sendFile(path.join(clientBuild, 'index.html')));
+      }
+    }
+
+    const server = app.listen(PORT, () => {
+      console.log(`Server listening on port ${PORT}`);
     });
 
-    process.on("uncaughtException", (err) => {
-      console.error("Uncaught Exception:", err);
-      server.close(() => process.exit(1));
-    });
+    const graceful = async (signal) => {
+      try {
+        console.log(`Received ${signal}. Closing server...`);
+        server.close(async () => {
+          try {
+            await mongoose.disconnect();
+            console.log('Mongo disconnected. Exiting.');
+            process.exit(0);
+          } catch (e) {
+            console.error('Error during disconnect:', e);
+            process.exit(1);
+          }
+        });
+        setTimeout(() => {
+          console.error('Forcing shutdown after timeout.');
+          process.exit(1);
+        }, 30_000).unref();
+      } catch (e) {
+        console.error('Graceful shutdown failed:', e);
+        process.exit(1);
+      }
+    };
 
-    process.on("SIGTERM", () => {
-      console.info("SIGTERM received — shutting down gracefully");
-      server.close(() => {
-        console.log("Server closed");
-        process.exit(0);
-      });
-    });
+    process.on('SIGINT', () => graceful('SIGINT'));
+    process.on('SIGTERM', () => graceful('SIGTERM'));
 
-    process.on("SIGINT", () => {
-      console.info("SIGINT received — shutting down gracefully");
-      server.close(() => {
-        console.log("Server closed (SIGINT)");
-        process.exit(0);
-      });
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    });
+    process.on('uncaughtException', (err) => {
+      console.error('Uncaught Exception thrown:', err);
+      process.exit(1);
     });
   } catch (err) {
-    console.error("Failed to start server:", err);
+    console.error('Fatal error when starting server:');
+    console.error(err && err.stack ? err.stack : err);
     process.exit(1);
   }
 }
 
-start();
+startServer();

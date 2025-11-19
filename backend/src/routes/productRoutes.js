@@ -1,4 +1,3 @@
-// src/routes/productRoutes.js
 const express = require('express');
 const router = express.Router();
 const {
@@ -8,26 +7,26 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
-  createProductReview
+  createProductReview,
 } = require('../controllers/productController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
-// list / search - support both /api/products and /api/products/product
 router.get('/', getProducts);
-router.get('/product', getProducts);
+router.get('/product', getProducts); // backwards compat if something calls /product
 
-// IMPORTANT: Specific routes like '/categories' must be defined BEFORE dynamic routes like '/:idOrSlug'.
 router.get('/categories', getProductCategories);
 
-// Create a new review
+// create product: POST /api/products
+router.post('/', protect, admin, createProduct);
+
+// create review for product: POST /api/products/:id/reviews
 router.post('/:id/reviews', protect, createProductReview);
+
+// get single product by id or slug
 router.get('/:idOrSlug', getProductByIdOrSlug);
 
-// admin protected CRUD (PUT/DELETE use :id)
+// update & delete
 router.put('/:id', protect, admin, updateProduct);
 router.delete('/:id', protect, admin, deleteProduct);
-
-// create (admin)
-router.post('/product', protect, admin, createProduct);
 
 module.exports = router;

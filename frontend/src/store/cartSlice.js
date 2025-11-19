@@ -1,109 +1,260 @@
+// src/store/cartSlice.js
 import { createSlice } from '@reduxjs/toolkit';
-import { showToast } from '../utils/toast'; // Assuming you have this utility
+import { showToast } from '../utils/toast';
 
-// Helper to find a unique item
-const findUniqueItem = (cartItems, itemToFind) => {
-  return cartItems.find(
-    (x) =>
-      x.product === itemToFind.product &&
-      // Only check size/color if they exist on the item
-      (!itemToFind.size || x.size === itemToFind.size) &&
-      (!itemToFind.color || x.color === itemToFind.color)
-  );
+// --- Helpers ----------------------------------------------------------------
+
+/**
+ * Returns true if cart item `a` matches key `b`.
+ * Priority:
+ * 1) If b.sku exists -> match by product + sku
+ * 2) Else match by product + (size if provided) + (color if provided)
+ */
+const matches = (a = {}, b = {}) => {
+  if (!a || !b) return false;
+  if (b.sku) {
+    return a.product === b.product && (a.sku || '') === b.sku;
+  }
+  if (b.size && b.color) {
+    return a.product === b.product && a.size === b.size && a.color === b.color;
+  }
+  if (b.size) {
+    return a.product === b.product && a.size === b.size;
+  }
+  if (b.color) {
+    return a.product === b.product && a.color === b.color;
+  }
+  // fallback: only product id matches
+  return a.product === b.product;
 };
 
-// Helper to save to localStorage
+const findIndex = (cartItems, key) => cartItems.findIndex((it) => matches(it, key));
+
+/**
+ * Make a lightweight snapshot suitable for localStorage:
+ * - remove very large fields (data: URLs)
+ * - keep essential fields to reconstruct cart
+ */
+const makeLightweightCart = (cartItems) =>
+  (cartItems || []).map((it) => {
+    const lightweight = {
+      product: it.product,
+      title: it.title,
+      price: it.price,
+      qty: it.qty,
+      size: it.size,
+      color: it.color,
+      sku: it.sku,
+      countInStock: it.countInStock,
+    };
+    // include small image urls only if they look like normal http(s) urls and short
+    if (it.image && typeof it.image === 'string' && it.image.length < 2000 && !it.image.startsWith('data:')) {
+      lightweight.image = it.image;
+    }
+    return lightweight;
+  });
+
+/**
+ * Save to localStorage with graceful fallback in case of QuotaExceededError.
+ * Attempts in order:
+ *  1) Save full cart (if small)
+ *  2) Save lightweight cart (no base64 images)
+ *  3) Save minimal cart (product, qty, sku)
+ */
 const saveCartToStorage = (cartItems) => {
-  localStorage.setItem('cartItems', JSON.stringify(cartItems));
+  try {
+    // Try saving full cart first
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+    return;
+  } catch (err) {
+    // If quota exceeded, attempt fallbacks
+    try {
+      const light = makeLightweightCart(cartItems);
+      localStorage.setItem('cartItems', JSON.stringify(light));
+      showToast('Cart saved in compact form (large fields removed).', 'info');
+      return;
+    } catch (err2) {
+      try {
+        // last resort: minimal
+        const minimal = (cartItems || []).map((it) => ({
+          product: it.product,
+          qty: it.qty,
+          sku: it.sku,
+        }));
+        localStorage.setItem('cartItems', JSON.stringify(minimal));
+        showToast('Cart saved (minimal). Some item details not persisted.', 'info');
+        return;
+      } catch (err3) {
+        // cannot save at all - warn in console and show toast
+        console.warn('Failed to persist cart to localStorage (quota)', err3);
+        showToast('Unable to save cart locally — local storage full.', 'error');
+      }
+    }
+  }
 };
+
+// --- Initial state ---------------------------------------------------------
 
 const initialState = {
-  // Your original code used 'items', so we will stick to that.
-  items: JSON.parse(localStorage.getItem('cartItems') || '[]'),
+  items: (() => {
+    try {
+      const raw = localStorage.getItem('cartItems');
+      if (!raw) return [];
+      // parse safely
+      return JSON.parse(raw);
+    } catch (e) {
+      console.warn('Failed to parse cart from storage, starting with empty cart', e);
+      try {
+        localStorage.removeItem('cartItems');
+      } catch (er) {
+        /* ignore */
+      }
+      return [];
+    }
+  })(),
 };
+
+// --- Slice -----------------------------------------------------------------
 
 const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
     /**
-     * Handles adding a new item OR incrementing the quantity of an existing item.
-     * Payload: The full item object { product, title, price, ... }
+     * Add to cart (or increment existing). Payload should include:
+     * { product, title, price, qty, sku?, size?, color?, countInStock }
      */
     addToCart: (state, action) => {
-      const newItem = action.payload;
-      const existItem = findUniqueItem(state.items, newItem);
+      const newItem = { ...action.payload, qty: action.payload.qty || 1 };
 
-      if (existItem) {
-        // Item already exists, increment quantity
-        const newQty = existItem.qty + (newItem.qty || 1); // Use payload qty or default to 1
-        if (newQty > existItem.countInStock) {
-          showToast('Cannot add more. Item is out of stock', 'error');
-          return; // Don't update
+      // Find existing matching item (sku preferred)
+      const idx = findIndex(state.items, newItem);
+      if (idx >= 0) {
+        const exist = state.items[idx];
+        const newQty = exist.qty + newItem.qty;
+
+        // determine available stock: prefer exist.countInStock, else newItem.countInStock
+        const available = Number(exist.countInStock ?? newItem.countInStock ?? 0);
+
+        if (newQty > available) {
+          showToast(
+            `Cannot add more. Only ${available} ${
+              available === 1 ? 'item' : 'items'
+            } available.`,
+            'error'
+          );
+          return;
         }
 
-        state.items = state.items.map((x) =>
-          findUniqueItem([x], newItem) ? { ...x, qty: newQty } : x
-        );
+        // update qty (and keep other props from exist, but allow price/image override)
+        state.items[idx] = {
+          ...exist,
+          qty: newQty,
+          price: newItem.price ?? exist.price,
+          image: newItem.image ?? exist.image,
+          countInStock: available,
+        };
       } else {
-        // New item, add it to the cart
-        state.items = [...state.items, { ...newItem, qty: newItem.qty || 1 }];
+        // New item: ensure qty <= stock
+        const available = Number(newItem.countInStock ?? 0);
+        if (newItem.qty > available) {
+          showToast(
+            `Cannot add ${newItem.qty}. Only ${available} ${
+              available === 1 ? 'item' : 'items'
+            } available.`,
+            'error'
+          );
+          return;
+        }
+
+        // push normalized item
+        const toPush = {
+          product: newItem.product,
+          title: newItem.title,
+          price: newItem.price,
+          qty: newItem.qty,
+          image: newItem.image,
+          size: newItem.size,
+          color: newItem.color,
+          sku: newItem.sku,
+          countInStock: available,
+        };
+        state.items = [...state.items, toPush];
       }
 
+      // persist (with fallbacks)
       saveCartToStorage(state.items);
     },
 
     /**
-     * Handles decrementing the quantity, and removes
-     * the item if the quantity becomes 0.
-     * Payload: A "key" object { product, size, color }
+     * Remove one quantity of the specified "key" item.
+     * Payload: { product, sku?, size?, color? }
      */
     removeFromCart: (state, action) => {
-      const itemToDecrease = action.payload;
-      const existItem = findUniqueItem(state.items, itemToDecrease);
+      const key = action.payload;
+      const idx = findIndex(state.items, key);
+      if (idx === -1) return;
 
-      if (!existItem) return; // Item not found
-
-      if (existItem.qty === 1) {
-        // Last item, remove it from the cart entirely
-        state.items = state.items.filter(
-          (x) => !findUniqueItem([x], itemToDecrease)
-        );
+      const exist = state.items[idx];
+      if (exist.qty <= 1) {
+        // remove entirely
+        state.items = state.items.filter((_, i) => i !== idx);
       } else {
-        // Item exists, just decrement quantity
-        state.items = state.items.map((x) =>
-          findUniqueItem([x], itemToDecrease) ? { ...x, qty: x.qty - 1 } : x
-        );
+        state.items[idx] = { ...exist, qty: exist.qty - 1 };
       }
 
       saveCartToStorage(state.items);
     },
 
     /**
-     * Removes an item from the cart completely, regardless of quantity.
-     * Used by the "Remove" button in the cart.
-     * Payload: A "key" object { product, size, color }
+     * Remove the entire item line regardless of qty.
+     * Payload: { product, sku?, size?, color? }
      */
     clearItemFromCart: (state, action) => {
-      const itemToRemove = action.payload;
-      state.items = state.items.filter(
-        (x) => !findUniqueItem([x], itemToRemove)
-      );
+      const key = action.payload;
+      state.items = state.items.filter((it) => !matches(it, key));
       saveCartToStorage(state.items);
     },
 
     /**
-     * Clears the entire cart.
+     * Replace item quantity (useful for cart page direct qty edits).
+     * Payload: { product, sku?, size?, color?, qty }
+     */
+    setItemQty: (state, action) => {
+      const { qty, ...key } = action.payload;
+      if (typeof qty !== 'number' || qty < 0) return;
+      const idx = findIndex(state.items, key);
+      if (idx === -1) return;
+
+      const exist = state.items[idx];
+      const available = Number(exist.countInStock ?? 0);
+
+      if (qty === 0) {
+        state.items = state.items.filter((_, i) => i !== idx);
+      } else if (qty > available) {
+        showToast(`Only ${available} items available`, 'error');
+        return;
+      } else {
+        state.items[idx] = { ...exist, qty };
+      }
+      saveCartToStorage(state.items);
+    },
+
+    /**
+     * Clears the whole cart.
      */
     clearCart: (state) => {
       state.items = [];
-      localStorage.removeItem('cartItems');
+      try {
+        localStorage.removeItem('cartItems');
+      } catch (e) {
+        console.warn('Failed to remove cartItems from storage', e);
+      }
     },
   },
 });
 
-// We removed 'updateQty' because 'addToCart' and 'removeFromCart' handle it better
-export const { addToCart, removeFromCart, clearItemFromCart, clearCart } =
+export const { addToCart, removeFromCart, clearItemFromCart, clearCart, setItemQty } =
   cartSlice.actions;
 
 export default cartSlice.reducer;
