@@ -6,9 +6,9 @@ import { useDispatch } from "react-redux";
 import { addToCart } from "../store/cartSlice";
 import { showToast } from "../utils/toast";
 import { motion, AnimatePresence, useInView } from "framer-motion";
-import img1 from "src/public/images/img-1.jpg";
-import img2 from "src/public/images/img-2.jpg";
-import img3 from "src/public/images/img-3.jpg";
+import img1 from "/public/images/img-1.jpg";
+import img2 from "/public/images/img-2.jpg";
+import img3 from "/public/images/img-3.jpg";
 
 /* ---------- Small helper: Section with scroll fade-in ---------- */
 function Section({ children, className = "" }) {
