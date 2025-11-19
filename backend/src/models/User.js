@@ -12,6 +12,7 @@ const addressSchema = new mongoose.Schema({
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
+
     email: {
       type: String,
       required: true,
@@ -20,13 +21,36 @@ const userSchema = new mongoose.Schema(
       trim: true,
       index: { unique: true, sparse: true }
     },
+
     password: { type: String, required: true, minlength: 6 },
+
     isAdmin: { type: Boolean, default: false },
-    shippingAddress: { type: addressSchema, default: {} }
+
+    shippingAddress: { type: addressSchema, default: {} },
+
+    // ------------------------------
+    // OTP VERIFICATION FIELDS
+    // ------------------------------
+
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    otp: {
+      type: String, // store as string for leading zeros
+      default: null,
+    },
+
+    otpExpires: {
+      type: Date,
+      default: null,
+    }
   },
   { timestamps: true }
 );
 
+// Hash password before save
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   try {
@@ -38,6 +62,7 @@ userSchema.pre('save', async function (next) {
   }
 });
 
+// Password match method
 userSchema.methods.matchPassword = function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };

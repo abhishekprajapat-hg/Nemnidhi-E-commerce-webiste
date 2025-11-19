@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axios";
-import AdminLayout from "../components/AdminLayout"; // 👈 AdminLayout import
+import AdminLayout from "../components/admin/AdminLayout"; // 👈 AdminLayout import
 // ⭐️ 1. Chart ke liye imports
 import {
   BarChart,

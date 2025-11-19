@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import api from '../api/axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { showToast } from '../utils/toast';
-import AdminLayout from '../components/AdminLayout';
+import AdminLayout from '../components/admin/AdminLayout';
 
 /* --------------------------
    Small UI pieces

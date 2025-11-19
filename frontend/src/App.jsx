@@ -12,6 +12,7 @@ const RegisterPage = lazy(() => import("./Pages/RegisterPage"));
 const ProfilePage = lazy(() => import("./Pages/ProfilePage"));
 const AboutPage = lazy(() => import("./Pages/AboutPage"));
 const OrderSuccess = lazy(() => import("./Pages/OrderSuccess"));
+const VerifyOtp = lazy(() => import("./Pages/VerifyOtp"));
 
 // Admin pages
 const AdminLogin = lazy(() => import("./Pages/AdminLogin"));
@@ -65,6 +66,8 @@ export default function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/order/success/:id" element={<OrderSuccess />} />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/verify-otp" element={<VerifyOtp />} />
+
 
             {/* protected user pages */}
             <Route

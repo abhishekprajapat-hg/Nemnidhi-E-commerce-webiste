@@ -6,6 +6,8 @@ const HOMEPAGE_CACHE_TTL = 30 * 1000;
 let homepageCache = null;
 let homepageCacheAt = 0;
 
+
+
 function trimProductForList(p) {
   if (!p) return null;
   return {
@@ -114,23 +116,74 @@ const getHomepageContent = asyncHandler(async (req, res) => {
 });
 
 const updateHomepageContent = asyncHandler(async (req, res) => {
-  const contentData = req.body;
-
-  const updatedContent = await Content.findOneAndUpdate(
-    { page: 'homepage' },
-    { data: contentData },
-    { new: true, upsert: true, runValidators: true }
-  ).lean();
-
-  if (!updatedContent) {
-    res.status(500);
-    throw new Error('Failed to save homepage content.');
+  // quick guard against empty/huge bodies (adjust threshold if you want)
+  if (!req.body || typeof req.body !== 'object') {
+    res.status(400);
+    throw new Error('Invalid request body.');
   }
 
-  homepageCache = null;
-  homepageCacheAt = 0;
+  // Optional: reject overly large payloads (very rough check)
+  try {
+    const sizeBytes = Buffer.byteLength(JSON.stringify(req.body), 'utf8');
+    const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+    if (sizeBytes > MAX_SIZE) {
+      res.status(413);
+      throw new Error('Payload too large. Upload images separately and use URLs.');
+    }
+  } catch (e) {
+    // continue — JSON.stringify might fail for circular refs but unlikely
+  }
 
-  res.status(200).json(updatedContent.data || null);
+  const contentData = req.body;
+
+  // Build update using $set and ensure page is set on upsert.
+  const updateDoc = {
+    $set: {
+      data: contentData,
+      page: 'homepage',
+    },
+  };
+
+  try {
+    const updatedContent = await Content.findOneAndUpdate(
+      { page: 'homepage' },
+      updateDoc,
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+        context: 'query', // necessary for some validators on findOneAndUpdate
+        setDefaultsOnInsert: true,
+      }
+    ).lean();
+
+    if (!updatedContent) {
+      res.status(500);
+      throw new Error('Failed to save homepage content.');
+    }
+
+    // clear cache so next GET returns fresh trimmed data
+    homepageCache = null;
+    homepageCacheAt = 0;
+
+    return res.status(200).json(updatedContent.data || null);
+  } catch (err) {
+    // If Mongoose validation error, return useful message
+    if (err && err.name === 'ValidationError') {
+      res.status(422);
+      const messages = Object.values(err.errors || {}).map((e) => e.message).join('; ');
+      return res.json({ error: 'Validation failed', details: messages || err.message });
+    }
+
+    // Other errors bubble up
+    console.error('Error saving homepage content:', err);
+    res.status(500);
+    throw new Error('Failed to save homepage content. See server logs for details.');
+  }
 });
+
+
+
+
 
 module.exports = { getHomepageContent, updateHomepageContent };

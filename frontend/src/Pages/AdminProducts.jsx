@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axios";
-import AdminLayout from "../components/AdminLayout";
+import AdminLayout from "../components/admin/AdminLayout";
 import { showToast } from "../utils/toast";
 
 const CACHE_TTL = 8 * 1000; // 8 seconds
