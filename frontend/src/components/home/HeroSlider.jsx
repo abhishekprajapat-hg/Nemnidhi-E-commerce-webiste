@@ -1,273 +1,338 @@
 import React, { useEffect, useRef, useState } from "react";
-// Assuming React Router's Link is available in the environment
-// import { Link } from "react-router-dom"; 
-// Using a simple <a> tag fallback for Link in this single-file context
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
-/**
- * LazyImage Component
- * Handles lazy loading and smooth fade-in using IntersectionObserver and framer-motion.
- */
-function LazyImage({
-  src,
-  alt = "",
-  className = "",
-  placeholder,
-  style = {},
-  rootMargin = "200px",
-  ...rest
-}) {
-  const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+export function HeroSlider({ slides = [], initialIndex = 0 }) {
+  const [index, setIndex] = useState(initialIndex);
+  const [isPaused, setIsPaused] = useState(false);
+  const [prefersReduced, setPrefersReduced] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const containerRef = useRef(null);
+  const slidesRef = useRef(slides);
+  const timerRef = useRef(null);
+  const runningRef = useRef(false);
+
+  const SLIDE_MS = 5200;
+  const SWIPE_THRESHOLD = 60;
 
   useEffect(() => {
-    const imgEl = ref.current;
-    if (!imgEl) return;
+    slidesRef.current = slides;
+  }, [slides]);
 
-    // Use native lazy loading as a hint for modern browsers
-    if ("loading" in HTMLImageElement.prototype) {
-      setVisible(true);
-      // Fallback is still necessary for older browsers, but we don't need to return early
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      setPrefersReduced(false);
+      return;
     }
-
-    let obs;
-    // IntersectionObserver setup
-    const options = { rootMargin };
-    const callback = (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          if (obs) obs.disconnect();
-        }
-      });
-    };
-
-    try {
-      if (!visible) {
-        obs = new IntersectionObserver(callback, options);
-        obs.observe(imgEl);
-      }
-    } catch (err) {
-      // Fallback for no IntersectionObserver support: show immediately
-      setVisible(true);
-    }
-    
-    // Cleanup function
+    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReduced(Boolean(m.matches));
+    update();
+    if (m.addEventListener) m.addEventListener("change", update);
+    else if (m.addListener) m.addListener(update);
     return () => {
-      if (obs && obs.disconnect) obs.disconnect();
+      if (m.removeEventListener) m.removeEventListener("change", update);
+      else if (m.removeListener) m.removeListener(update);
     };
-  }, [rootMargin, visible]);
+  }, []);
 
+  useEffect(() => {
+    const onVis = () => setIsVisible(!document.hidden);
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
 
-  // Placeholder for error handling (using a simple, dark fallback image)
-  const handleError = (e) => {
-    e.currentTarget.onerror = null;
-    e.currentTarget.src =
-      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800' viewBox='0 0 1200 800'%3E%3Crect fill='%2318181b' width='100%25' height='100%25'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Inter, Arial' font-size='28' fill='%2371717a'%3EImage%20Unavailable%3C/text%3E%3C/svg%3E";
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setIsVisible(true);
+      return;
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const e = entries[0];
+        setIsVisible(!document.hidden && e.isIntersecting);
+      },
+      { threshold: 0.06 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const canAutoplay = () =>
+    !isPaused &&
+    !prefersReduced &&
+    Boolean(isVisible) &&
+    slidesRef.current &&
+    slidesRef.current.length > 1 &&
+    !isDragging;
+
+  const startAutoplay = () => {
+    if (runningRef.current) return;
+    runningRef.current = true;
+
+    const tick = () => {
+      timerRef.current = setTimeout(() => {
+        if (canAutoplay()) {
+          setIndex((i) => (i + 1) % slidesRef.current.length);
+        }
+        if (runningRef.current) tick();
+      }, SLIDE_MS);
+    };
+
+    tick();
   };
 
+  const stopAutoplay = () => {
+    runningRef.current = false;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
 
-  return (
-    <div 
-      ref={ref} 
-      className={`relative w-full h-full overflow-hidden ${className}`} 
-      style={style}
-    >
-      {/* Blurred Low-Resolution Placeholder */}
-      {placeholder && !loaded && (
-        <img
-          src={placeholder}
-          alt={alt}
-          aria-hidden
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500"
-          style={{ filter: "blur(8px)", transform: "scale(1.05)", opacity: loaded ? 0 : 1 }}
-        />
-      )}
+  useEffect(() => {
+    let kickoffId = null;
+    let retryId = null;
 
-      {/* High-Resolution Motion Image */}
-      <AnimatePresence mode="popLayout">
-        {visible && (
-          <motion.img
-            key={src} // Key change triggers the exit/enter animations
-            src={src}
-            alt={alt}
-            loading="lazy"
-            decoding="async"
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{ opacity: loaded ? 1 : 0.9, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.02 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            onLoad={() => setLoaded(true)}
-            onError={handleError}
-            className="w-full h-full object-cover transition-opacity duration-300 absolute inset-0"
-            // Ensure the main image is visible over the placeholder upon load
-            style={{ zIndex: 10 }}
-            {...rest}
-          />
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
+    kickoffId = setTimeout(() => {
+      if (canAutoplay()) startAutoplay();
+      else {
+        retryId = setTimeout(() => {
+          if (canAutoplay()) startAutoplay();
+        }, 300);
+      }
+    }, 120);
 
+    return () => {
+      if (kickoffId) clearTimeout(kickoffId);
+      if (retryId) clearTimeout(retryId);
+      stopAutoplay();
+    };
+  }, [slides.length, prefersReduced, isVisible]);
 
-/**
- * HeroSlider Component (The main application component)
- * Renders the sliding hero section with text and image transitions.
- */
-export function HeroSlider({ slides }) {
-  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    if (canAutoplay()) startAutoplay();
+    else stopAutoplay();
+  }, [isPaused, prefersReduced, isVisible, isDragging, slides.length]);
 
-  // Auto-slide effect
   useEffect(() => {
     if (!slides || slides.length <= 1) return;
-    const t = setTimeout(() => setIndex((i) => (i + 1) % slides.length), 6000); // 6s interval
-    return () => clearTimeout(t);
+    const next = slides[(index + 1) % slides.length];
+    if (next && next.img) {
+      const img = new Image();
+      img.src = next.img;
+    }
   }, [index, slides]);
 
-  // Mock data structure if not provided
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "ArrowRight") manualNext();
+      else if (e.key === "ArrowLeft") manualPrev();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (!slides || slides.length === 0) {
+      setIndex(0);
+      return;
+    }
+    if (index >= slides.length) setIndex(0);
+  }, [slides.length, index, slides]);
+
+  function manualNext() {
+    stopAutoplay();
+    setIndex((i) => (i + 1) % slides.length);
+    setIsPaused(true);
+    window.setTimeout(() => setIsPaused(false), 900);
+  }
+
+  function manualPrev() {
+    stopAutoplay();
+    setIndex((i) => (i - 1 + slides.length) % slides.length);
+    setIsPaused(true);
+    window.setTimeout(() => setIsPaused(false), 900);
+  }
+
   if (!slides || slides.length === 0) {
-    slides = [
-      {
-        eyebrow: "SUMMER COLLECTION 2024",
-        title: "The Future of Minimalist Design",
-        subtitle: "Discover timeless pieces crafted with sustainable materials and unparalleled attention to detail.",
-        href: "#collection",
-        img: "https://placehold.co/1200x800/1e293b/f8fafc?text=HERO+SLIDE+1",
-        placeholder: "https://placehold.co/60x40/1e293b/f8fafc?text=.",
-        alt: "A minimalist chair set against a neutral backdrop."
-      },
-      {
-        eyebrow: "EXCLUSIVE DROP",
-        title: "Craftsmanship Meets Modern Utility",
-        subtitle: "Limited edition apparel and accessories designed for the urban explorer.",
-        href: "#exclusive",
-        img: "https://placehold.co/1200x800/374151/f3f4f6?text=HERO+SLIDE+2",
-        placeholder: "https://placehold.co/60x40/374151/f3f4f6?text=.",
-        alt: "A model wearing stylish, modern sportswear."
-      }
-    ];
+    return (
+      <div className="relative min-h-[50vh] flex items-center justify-center bg-black/5 dark:bg-zinc-900">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold">Hero not configured</h2>
+          <p className="mt-2 text-sm text-gray-600">Add slides — try images with a focus area for best results.</p>
+        </div>
+      </div>
+    );
   }
 
   const slide = slides[index];
-  const slideVariants = {
-    enter: { opacity: 0, x: -50 },
-    center: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: 50 },
-  };
 
   return (
-    <section className="relative min-h-[calc(100vh-64px)] lg:min-h-screen flex items-center bg-zinc-950 text-white overflow-hidden">
-      
-      {/* Background Image Container - Always takes up full space */}
-      <div className="absolute inset-0">
-        <AnimatePresence initial={false} mode="wait">
-          <motion.div
-            key={index} // Key change triggers image transition
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.9, ease: "easeInOut" }}
-            className="absolute inset-0"
-          >
-            <LazyImage
-              src={slide.img}
-              alt={slide.alt}
-              placeholder={slide.placeholder}
-            />
-            {/* Dark Overlay for contrast on all screen sizes */}
-            <div className="absolute inset-0 bg-black/60 lg:bg-black/30" />
-          </motion.div>
+    <section
+      ref={containerRef}
+      className="relative overflow-hidden min-h-[70vh] lg:min-h-[calc(100vh-80px)] bg-gradient-to-b from-[#fff7fb] to-[#fff9fb] dark:from-zinc-900 dark:to-zinc-800"
+      onFocus={() => setIsPaused(true)}
+      onBlur={() => setIsPaused(false)}
+      role="region"
+      aria-label="Hatke hero slider"
+    >
+      <div
+        className="lg:hidden relative w-full h-[56vh]"
+        onPointerDown={() => setIsPaused(true)}
+        onPointerUp={() => setIsPaused(false)}
+      >
+        <AnimatePresence mode="wait">
+          <motion.img
+            key={`m-${index}`}
+            src={slide.img}
+            alt={slide.alt || slide.title}
+            initial={{ opacity: 0, y: 8, scale: 1.02 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.48 }}
+            className="w-full h-full object-cover"
+            loading={index === 0 ? "eager" : "lazy"}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            onDragStart={() => {
+              setIsDragging(true);
+              setIsPaused(true);
+            }}
+            onDragEnd={(_, info) => {
+              setIsDragging(false);
+              setIsPaused(false);
+              const offset = info.offset.x;
+              if (offset < -SWIPE_THRESHOLD) manualNext();
+              else if (offset > SWIPE_THRESHOLD) manualPrev();
+            }}
+          />
         </AnimatePresence>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30" />
       </div>
 
-      {/* Content Container */}
-      <div className="relative z-10 w-full h-full flex items-center justify-center lg:justify-start">
-        <div className="w-full lg:w-4/5 xl:w-3/5 max-w-7xl mx-auto px-6 md:px-12 lg:px-16 py-24 lg:py-0">
-          
-          {/* Content Box - ensures legibility on mobile and defined space on desktop */}
-          <div className="max-w-xl p-8 rounded-xl backdrop-blur-sm bg-black/40 lg:bg-transparent lg:p-0">
+      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2">
+        <div className="px-6 md:px-12 lg:px-20 py-8 lg:py-28 flex items-start lg:items-center">
+          <div className="max-w-xl">
             <AnimatePresence mode="wait">
-              <motion.div
-                key={index}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.6, ease: [0.17, 0.67, 0.83, 0.67] }} // Custom spring-like easing
-                className="space-y-6"
+              <motion.h2
+                key={`title-${index}`}
+                initial={{ y: 36, opacity: 0, scale: 0.98 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: -18, opacity: 0 }}
+                transition={{ duration: 0.52, ease: "easeOut" }}
+                className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight"
               >
-                {/* Eyebrow */}
-                {slide.eyebrow && (
-                  <div className="text-sm tracking-widest uppercase text-yellow-300 font-semibold border-l-4 border-yellow-300 pl-3">
-                    {slide.eyebrow}
-                  </div>
-                )}
-
-                {/* Title */}
-                <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight text-white leading-snug">
+                <span className="block bg-clip-text text-transparent bg-gradient-to-r from-pink-600 to-rose-400">
                   {slide.title}
-                </h1>
-
-                {/* Subtitle */}
-                <p className="pt-4 text-base lg:text-xl text-gray-200 max-w-lg">
-                  {slide.subtitle}
-                </p>
-
-                {/* Actions */}
-                <div className="flex flex-wrap items-center gap-4 pt-4">
-                  <a
-                    href={slide.href} // Using <a> as Link replacement
-                    className="px-8 py-3 rounded-full bg-red-600 text-white font-bold tracking-wider uppercase text-sm hover:bg-red-700 transition-all duration-300 shadow-xl shadow-red-600/30 hover:scale-[1.03] transform"
-                  >
-                    SHOP NOW
-                  </a>
-
-                  <a
-                    href="#lookbook" // Using <a> as Link replacement
-                    className="px-6 py-3 rounded-full text-white/90 border border-white/30 font-semibold text-sm hover:bg-white/10 transition-all duration-300"
-                  >
-                    EXPLORE LOOKBOOK
-                  </a>
-                </div>
-              </motion.div>
+                </span>
+              </motion.h2>
             </AnimatePresence>
+
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.12 }} className="mt-5 text-sm md:text-base text-gray-700 dark:text-gray-300 max-w-prose">
+              {slide.subtitle}
+            </motion.p>
+
+            <motion.div className="mt-6 flex gap-4 items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+              <Link to={slide.href} className="inline-flex items-center justify-center rounded-full px-5 py-2.5 font-semibold text-sm bg-[#ff2d95] text-white shadow-2xl hover:scale-105 transform-gpu">
+                {slide.cta || "Shop the vibe"}
+              </Link>
+
+              <Link to={slide.href} className="inline-flex items-center px-4 py-2 rounded-full bg-white/10 text-sm text-black/80 dark:text-white/80 ring-1 ring-white/10">
+                Lookbook
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+
+        <div
+          className="hidden lg:flex relative w-full h-[100vh] items-center justify-center"
+          onPointerEnter={() => setIsPaused(true)}
+          onPointerLeave={() => setIsPaused(false)}
+        >
+          <div className="relative w-[78%] max-w-4xl h-[78%] rounded-3xl shadow-2xl overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={`d-${index}`}
+                src={slide.img}
+                alt={slide.alt || slide.title}
+                initial={{ opacity: 0, scale: 1.04, x: 18 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.98, x: -18 }}
+                transition={{ opacity: { duration: 0.6 }, duration: 0.6, ease: "easeOut" }}
+                className="w-full h-full object-cover block"
+                loading={index === 0 ? "eager" : "lazy"}
+                style={{ willChange: "transform, opacity", touchAction: "pan-y" }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                onDragStart={() => {
+                  setIsDragging(true);
+                  setIsPaused(true);
+                }}
+                onDragEnd={(_, info) => {
+                  setIsDragging(false);
+                  setIsPaused(false);
+                  const offset = info.offset.x;
+                  if (offset < -SWIPE_THRESHOLD) manualNext();
+                  else if (offset > SWIPE_THRESHOLD) manualPrev();
+                }}
+              />
+            </AnimatePresence>
+
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-0 bg-gradient-to-tr from-pink-50 via-white to-rose-50 opacity-30 mix-blend-overlay animate-[pulse_10s_infinite]" />
+            </div>
+
+            <div className="absolute left-8 top-10 bg-black/60 text-white px-4 py-2 rounded-full backdrop-blur text-sm shadow-xl">
+              {slide.badge || "Limited drop"}
+            </div>
+
+            <button
+              onClick={manualPrev}
+              aria-label="Previous slide"
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full backdrop-blur hover:scale-105 transition-transform z-30"
+            >
+              ‹
+            </button>
+            <button
+              onClick={manualNext}
+              aria-label="Next slide"
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full backdrop-blur hover:scale-105 transition-transform z-30"
+            >
+              ›
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Navigation Indicators */}
-      <div className="absolute bottom-8 lg:bottom-12 left-1/2 -translate-x-1/2 z-20 flex gap-3">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3">
         {slides.map((_, i) => (
           <button
-            key={i}
-            onClick={() => setIndex(i)}
+            key={`dot-${i}`}
+            onClick={() => {
+              stopAutoplay();
+              setIndex(i);
+              setIsPaused(true);
+              window.setTimeout(() => setIsPaused(false), 900);
+            }}
             aria-label={`Go to slide ${i + 1}`}
-            className={`
-              relative w-2.5 h-2.5 rounded-full transition-all duration-300
-              ${i === index 
-                ? "w-8 bg-red-600 shadow-md shadow-red-600/50" 
-                : "bg-white/40 hover:bg-white/80"
-              }
-            `}
-          >
-            {/* Optional: Add a subtle loading bar effect to the current indicator */}
-            {i === index && (
-                <motion.div
-                    className="absolute inset-0 bg-red-400 rounded-full"
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ duration: 6, ease: "linear" }}
-                    style={{ originX: 0 }}
-                />
-            )}
-          </button>
+            className={`rounded-full transition-all ${i === index ? "bg-white w-10 h-2 shadow-lg" : "bg-white/60 w-3 h-3"}`}
+          />
         ))}
       </div>
+
+      {!prefersReduced && (
+        <motion.div
+          key={`progress-${index}`}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: SLIDE_MS / 1000, ease: "linear" }}
+          className="absolute left-0 right-0 bottom-0 h-1 origin-left bg-gradient-to-r from-pink-500 to-rose-400 z-40"
+          style={{ transformOrigin: "left" }}
+        />
+      )}
     </section>
   );
 }
-
-// Default export is required for single-file React Immersives
-export default HeroSlider;
