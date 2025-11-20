@@ -14,7 +14,7 @@ build/
 # Backend uploads / generated files
 /uploads/
 backend/uploads/
-
+backend/makeAdmin.js
 # Environment files
 .env
 .env.*
