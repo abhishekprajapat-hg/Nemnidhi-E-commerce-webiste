@@ -1,113 +1,67 @@
 // src/controllers/paymentController.js
-const asyncHandler = require('express-async-handler');
-const Razorpay = require('razorpay');
-const Order = require('../models/Order'); // adjust path/name to your Order model
-const crypto = require('crypto');
-
-if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-  console.warn('Razorpay keys not set (RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET). Payment endpoints will fail until set.');
-}
+const asyncHandler = require("express-async-handler");
+const Razorpay = require("razorpay");
+const Order = require("../models/Order");
+const crypto = require("crypto");
 
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-/**
- * POST /api/payment/razorpay/create
- * body: { orderId }
- * Creates a razorpay order using your internal order's total and returns razorpay order object
- */
+// ⭐ Step 1 → Create Razorpay order (NO internal order yet)
 exports.createRazorpayOrder = asyncHandler(async (req, res) => {
-  const { orderId } = req.body;
-  if (!orderId) {
+  const { totalPrice } = req.body;
+
+  if (!totalPrice || totalPrice <= 0 || isNaN(totalPrice)) {
     res.status(400);
-    throw new Error('orderId is required');
+    throw new Error("Invalid amount");
   }
 
-  // load internal order
-  const internalOrder = await Order.findById(orderId);
-  if (!internalOrder) {
-    res.status(404);
-    throw new Error('Internal order not found');
-  }
+  const razorOrder = await razorpayInstance.orders.create({
+    amount: Math.round(totalPrice * 100),
+    currency: "INR",
+  });
 
-  // amount must be in paise
-  const amountRupees = Number(internalOrder.totalPrice || internalOrder.total || 0);
-  if (isNaN(amountRupees) || amountRupees <= 0) {
-    res.status(400);
-    throw new Error('Invalid order amount');
-  }
-
-  const amountPaise = Math.round(amountRupees * 100);
-
-  // Create Razorpay order
-  try {
-    const options = {
-      amount: amountPaise,
-      currency: 'INR',
-      receipt: String(internalOrder._id),
-      notes: {
-        internalOrderId: String(internalOrder._id),
-        userId: String(internalOrder.user || '')
-      }
-    };
-
-    const razorOrder = await razorpayInstance.orders.create(options);
-
-    // Return Razorpay order object to client
-    res.json({
-      id: razorOrder.id,
-      amount: razorOrder.amount,
-      currency: razorOrder.currency,
-      receipt: razorOrder.receipt,
-      internalOrderId: internalOrder._id
-    });
-  } catch (err) {
-    console.error('Razorpay order create error', err);
-    res.status(500).json({ message: 'Failed to create Razorpay order', detail: err.message || String(err) });
-  }
+  res.json(razorOrder);
 });
 
-/**
- * POST /api/payment/razorpay/verify
- * body: { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature }
- * Verifies signature and marks internal order as paid
- */
+// ⭐ Step 2 → Verify + create order in DB (ONLY if success)
 exports.verifyRazorpayPayment = asyncHandler(async (req, res) => {
-  const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-  if (!orderId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+  const {
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+    orderPayload,
+  } = req.body;
+
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     res.status(400);
-    throw new Error('Missing required payment params');
+    throw new Error("Missing payment fields");
   }
 
-  // Construct signature payload the same way Razorpay expects: order_id|payment_id
-  const generated_signature = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+  const expectedSig = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
     .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-    .digest('hex');
+    .digest("hex");
 
-  if (generated_signature !== razorpay_signature) {
+  if (expectedSig !== razorpay_signature) {
     res.status(400);
-    throw new Error('Invalid signature (verification failed)');
+    throw new Error("Invalid signature");
   }
 
-  // mark internal order as paid
-  const order = await Order.findById(orderId);
-  if (!order) {
-    res.status(404);
-    throw new Error('Order not found');
-  }
+  // ⭐ Now create final order in DB
+  const finalOrder = await Order.create({
+    ...orderPayload,
+    user: req.user._id,
+    isPaid: true,
+    paidAt: new Date(),
+    paymentResult: {
+      provider: "razorpay",
+      id: razorpay_payment_id,
+      orderId: razorpay_order_id,
+    },
+  });
 
-  order.isPaid = true;
-  order.paidAt = new Date();
-  order.paymentResult = {
-    id: razorpay_payment_id,
-    provider: 'razorpay',
-    orderId: razorpay_order_id
-  };
-
-  await order.save();
-
-  res.json({ success: true, orderId: order._id });
+  res.json({ success: true, orderId: finalOrder._id });
 });

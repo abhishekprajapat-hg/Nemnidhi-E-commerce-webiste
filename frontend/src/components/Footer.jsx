@@ -20,10 +20,10 @@ export default function Footer() {
             Celebrating Indian heritage with our curated collection of handloom sarees, lehengas, and artisanal ethnic wear.
           </p>
           <div className="flex items-center gap-5 mt-6">
-            <a href="#" className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition" aria-label="Instagram">
+            <a href="https://www.instagram.com/nemnidhi.glam" className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition" aria-label="Instagram">
               <IconInstagram />
             </a>
-            <a href="#" className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition" aria-label="Facebook">
+            <a href="https://www.facebook.com/share/1GiBqEvLZ9/" className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition" aria-label="Facebook">
               <IconFacebook />
             </a>
             <a href="#" className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition" aria-label="Twitter">
@@ -35,22 +35,23 @@ export default function Footer() {
         <div>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-wider uppercase mb-4">Shop</h3>
           <ul className="space-y-3 text-sm">
-            <li><Link to="/products?category=Banarasi" className="hover:text-black dark:hover:text-white">Banarasi Sarees</Link></li>
-            <li><Link to="/products?category=Lehenga" className="hover:text-black dark:hover:text-white">Lehengas</Link></li>
-            <li><Link to="/products?category=Kurta" className="hover:text-black dark:hover:text-white">Kurta Sets</Link></li>
             <li><Link to="/products" className="hover:text-black dark:hover:text-white">All Products</Link></li>
+            <li><Link to="/products?category=Sarees" className="hover:text-black dark:hover:text-white">Sarees</Link></li>
+            <li><Link to="/products?sort=-createdAt&category=Sweaters" className="hover:text-black dark:hover:text-white">Sweaters</Link></li>
+            <li><Link to="/products?sort=-createdAt&category=Tops" className="hover:text-black dark:hover:text-white">Tops</Link></li>
+            <li><Link to="/products?sort=-createdAt&category=Jeans" className="hover:text-black dark:hover:text-white">Jeans</Link></li>
+            <li><Link to="/products?sort=-createdAt&category=Western" className="hover:text-black dark:hover:text-white">Western</Link></li>
           </ul>
         </div>
 
         <div>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-wider uppercase mb-4">Company</h3>
           <ul className="space-y-3 text-sm">
+            <li><Link to="/home" className="hover:text-black dark:hover:text-white">Home</Link></li>
+            <li><Link to="/products" className="hover:text-black dark:hover:text-white">Shop</Link></li>
             <li><Link to="/about" className="hover:text-black dark:hover:text-white">About Us</Link></li>
             <li><Link to="/contact" className="hover:text-black dark:hover:text-white">Contact Us</Link></li>
-            <li><Link to="/faq" className="hover:text-black dark:hover:text-white">FAQs</Link></li>
-            <li><Link to="/customer-service" className="hover:text-black dark:hover:text-white">Customer Service</Link></li>
-            <li><Link to="/admin/login" className="hover:text-black dark:hover:text-white">Admin</Link></li>
-          </ul>
+           </ul>
         </div>
 
         <div>

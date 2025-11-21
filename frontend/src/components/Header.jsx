@@ -306,6 +306,12 @@ export default function Header() {
       >
         About
       </Link>
+      <Link
+        to="/contact"
+        className="text-xs font-normal uppercase tracking-wider text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white transition hover:underline"
+      >
+        Contact
+      </Link>
     </>
   );
 
@@ -334,11 +340,11 @@ export default function Header() {
         About
       </Link>
       <Link
-        to="/customer-service"
+        to="/contact"
         onClick={() => setDrawerOpen(false)}
         className="block px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200"
       >
-        Customer Service
+        Contact
       </Link>
 
       <div className="pt-3 mt-3 border-t border-gray-200 dark:border-zinc-800 space-y-2">
@@ -358,13 +364,7 @@ export default function Header() {
             >
               My Account
             </Link>
-            <Link
-              to="/orders"
-              onClick={() => setDrawerOpen(false)}
-              className="flex items-center w-full px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200"
-            >
-              My Orders
-            </Link>
+            
           </>
         )}
       </div>
@@ -526,13 +526,7 @@ export default function Header() {
                     >
                       Login
                     </Link>
-                    <Link
-                      to="/wishlist"
-                      onClick={() => setIsLoginOpen(false)}
-                      className="flex items-center py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 rounded px-2"
-                    >
-                      Wishlist
-                    </Link>
+                   
                   </div>
                 )}
               </motion.div>

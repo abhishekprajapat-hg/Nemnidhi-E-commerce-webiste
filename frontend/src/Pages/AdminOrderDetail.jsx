@@ -1,3 +1,4 @@
+// /src/Pages/AdminOrderDetail.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../api/axios";
@@ -49,19 +50,24 @@ export default function AdminOrderDetail() {
     } catch (e) {}
   }, []);
 
+  // NOTE: fetchOrder intentionally does NOT depend on `order` to avoid render loops.
   const fetchOrder = useCallback(
     async (useCache = true) => {
       setError("");
+
       if (useCache) {
         const cached = readCache(id);
         if (cached) {
+          // use cached value, don't force loading spinner
           setOrder(cached);
           setLoading(false);
         } else {
-          if (!order) setLoading(true);
+          // no cache -> show loader
+          setLoading(true);
         }
       } else {
-        if (!order) setLoading(true);
+        // forced refresh -> show loader while fetching
+        setLoading(true);
       }
 
       if (fetchController.current) {
@@ -76,8 +82,8 @@ export default function AdminOrderDetail() {
           signal: fetchController.current.signal,
         });
         if (!mountedRef.current) return;
-        setOrder(data);
-        writeCache(id, data);
+        setOrder(data || null);
+        writeCache(id, data || null);
         setLoading(false);
       } catch (err) {
         if (err?.name === "CanceledError" || err?.name === "AbortError") return;
@@ -88,15 +94,17 @@ export default function AdminOrderDetail() {
         fetchController.current = null;
       }
     },
-    [id, order, readCache, writeCache]
+    // removed `order` from deps to avoid infinite loop
+    [id, readCache, writeCache]
   );
 
   useEffect(() => {
+    if (!id) return;
     fetchOrder(true);
-    // also refresh in background to ensure freshness shortly after mount
+    // also refresh in background shortly after mount
     const t = setTimeout(() => fetchOrder(false), 600);
     return () => clearTimeout(t);
-  }, [fetchOrder]);
+  }, [id, fetchOrder]);
 
   const itemsTotal = useMemo(
     () =>
@@ -122,10 +130,9 @@ export default function AdminOrderDetail() {
     try {
       await api.put(`/api/orders/${order._id}/deliver`);
       showToast("Order marked as delivered");
-      // refresh in background to get authoritative data
+      // refresh authoritative data
       fetchOrder(false);
     } catch (err) {
-      // rollback
       setOrder(prev);
       showToast(err.response?.data?.message || err.message || "Failed to mark delivered", "error");
     } finally {
