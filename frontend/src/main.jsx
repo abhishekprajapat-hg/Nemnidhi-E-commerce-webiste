@@ -7,6 +7,9 @@ import App from './App';
 import store from './store/store';
 import './index.css';
 import { ThemeProvider } from './context/ThemeContext';
+// JS entry: imports the CSS bundle so it's served from your origin
+import "@fortawesome/fontawesome-free/css/all.min.css";
+
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

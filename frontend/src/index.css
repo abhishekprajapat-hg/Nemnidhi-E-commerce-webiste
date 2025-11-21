@@ -1,6 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* src/index.css */
+
 /* 1. Global Tailwind Base Classes (Ensures text/bg are dynamic) */
 /* We set the default light theme on body */
 body {
