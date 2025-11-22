@@ -367,8 +367,8 @@ export function HeroSlider({
             </div>
 
             {/* controls */}
-            <button onClick={manualPrev} aria-label="Previous slide" className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 text-white p-3 rounded-full backdrop-blur hover:scale-105 transition-transform z-30">‹</button>
-            <button onClick={manualNext} aria-label="Next slide" className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 text-white p-3 rounded-full backdrop-blur hover:scale-105 transition-transform z-30">›</button>
+            <button onClick={manualPrev} aria-label="Previous slide" className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/30 text-white shadow-sm">‹</button>
+            <button onClick={manualNext} aria-label="Next slide" className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/30 text-white shadow-sm">›</button>
 
             {/* dots + progress */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3">

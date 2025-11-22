@@ -1,3 +1,4 @@
+// models/Product.js
 const mongoose = require('mongoose');
 
 const sizeSchema = new mongoose.Schema({
@@ -24,35 +25,79 @@ const productSchema = new mongoose.Schema({
   slug: { type: String, required: true, trim: true, unique: true, index: true },
   description: { type: String, default: '' },
   category: { type: String, default: '', index: true },
+
+  // Optional: add brand if you need brand filtering
+  brand: { type: String, default: '', index: true },
+
   variants: { type: [variantSchema], default: [] },
   reviews: { type: [reviewSchema], default: [] },
   rating: { type: Number, default: 0, min: 0, max: 5 },
   numReviews: { type: Number, default: 0, min: 0 },
+
+  // Denormalized fields for fast querying / sorting
+  minPrice: { type: Number, default: null, index: true },
+  maxPrice: { type: Number, default: null, index: true },
+  totalStock: { type: Number, default: 0, index: true },
+  aggColors: { type: [String], default: [], index: true },
+  aggSizes: { type: [String], default: [], index: true },
 }, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } });
 
+// virtual as convenience
 productSchema.virtual('countInStock').get(function () {
-  if (!Array.isArray(this.variants)) return 0;
-  return this.variants.reduce((pv, v) => {
-    const sizesTotal = Array.isArray(v.sizes)
-      ? v.sizes.reduce((sv, s) => sv + (Number(s.stock) || 0), 0)
-      : 0;
-    return pv + sizesTotal;
-  }, 0);
+  return this.totalStock || 0;
 });
 
 productSchema.index({ title: 'text', description: 'text', slug: 'text' });
 
+// Compute denormalized fields before save
 productSchema.pre('save', function (next) {
-  if (Array.isArray(this.reviews)) {
-    this.numReviews = this.reviews.length;
-    if (this.numReviews > 0) {
-      const sum = this.reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
-      this.rating = sum / this.numReviews;
-    } else {
-      this.rating = 0;
+  // Compute totalStock, minPrice, maxPrice, aggColors, aggSizes
+  try {
+    let minP = null;
+    let maxP = null;
+    let totalStock = 0;
+    const colorsSet = new Set();
+    const sizesSet = new Set();
+
+    if (Array.isArray(this.variants)) {
+      for (const v of this.variants) {
+        if (v && v.color) colorsSet.add(String(v.color));
+        if (Array.isArray(v.sizes)) {
+          for (const s of v.sizes) {
+            const price = Number(s.price);
+            const stock = Number(s.stock) || 0;
+            if (!Number.isNaN(price)) {
+              if (minP === null || price < minP) minP = price;
+              if (maxP === null || price > maxP) maxP = price;
+            }
+            totalStock += stock;
+            if (s.size) sizesSet.add(String(s.size));
+          }
+        }
+      }
     }
+
+    this.minPrice = minP;
+    this.maxPrice = maxP;
+    this.totalStock = totalStock;
+    this.aggColors = Array.from(colorsSet);
+    this.aggSizes = Array.from(sizesSet);
+
+    // Recompute reviews summary
+    if (Array.isArray(this.reviews)) {
+      this.numReviews = this.reviews.length;
+      if (this.numReviews > 0) {
+        const sum = this.reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
+        this.rating = sum / this.numReviews;
+      } else {
+        this.rating = 0;
+      }
+    }
+
+    next();
+  } catch (err) {
+    next(err);
   }
-  next();
 });
 
 module.exports = mongoose.models.Product || mongoose.model('Product', productSchema);

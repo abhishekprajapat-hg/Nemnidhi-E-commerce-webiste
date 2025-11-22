@@ -1,34 +1,112 @@
 // src/pages/AdminProducts.jsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import AdminLayout from "../components/admin/AdminLayout";
 import { showToast } from "../utils/toast";
 
-const CACHE_TTL = 8 * 1000; // 8 seconds
+const CACHE_TTL = 30 * 1000; // 30 seconds - larger TTL for faster repeat loads
+const DEBOUNCE_MS = 280;
 
-function PaginationControls({ currentPage, totalPages, onPageChange }) {
+function RowSkeleton() {
   return (
-    <div className="flex items-center justify-between mt-6">
-      <button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        className="px-4 py-2 text-sm font-medium border rounded-md bg-white disabled:opacity-50 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-300"
-      >
-        Previous
-      </button>
-      <span className="text-sm text-gray-700 dark:text-gray-300">Page {currentPage} of {totalPages}</span>
-      <button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className="px-4 py-2 text-sm font-medium border rounded-md bg-white disabled:opacity-50 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-300"
-      >
-        Next
-      </button>
+    <div className="px-4 py-3 flex items-center gap-3 animate-pulse">
+      <div className="w-4 h-4 rounded bg-gray-200 dark:bg-zinc-700" />
+      <div className="w-16 h-16 bg-gray-200 dark:bg-zinc-700 rounded-md" />
+      <div className="flex-1">
+        <div className="w-48 h-4 bg-gray-200 dark:bg-zinc-700 rounded" />
+      </div>
+      <div className="w-20 h-4 bg-gray-200 dark:bg-zinc-700 rounded" />
+      <div className="w-16 h-4 bg-gray-200 dark:bg-zinc-700 rounded" />
+      <div className="w-32 h-8 bg-gray-200 dark:bg-zinc-700 rounded" />
     </div>
   );
 }
 
+/* ProductRow is memoized so it only re-renders when its props change */
+const ProductRow = React.memo(function ProductRow({
+  p,
+  thumb,
+  price,
+  totalStock,
+  checked,
+  onToggle,
+  onView,
+  onEdit,
+  onDelete,
+}) {
+  return (
+    <div className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition dark:hover:bg-zinc-700/50">
+      <input
+        type="checkbox"
+        checked={!!checked}
+        onChange={(e) => onToggle(p._id, e.target.checked)}
+        className="accent-indigo-600"
+        aria-label={`Select product ${p.title || p._id}`}
+      />
+      <div className="w-16 h-16 rounded-md overflow-hidden bg-gray-100 dark:bg-zinc-700 shrink-0">
+        {thumb ? (
+          <img
+            src={thumb}
+            alt={p.title || "product"}
+            className="object-cover w-full h-full"
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "/placeholder.png";
+            }}
+          />
+        ) : (
+          <div className="w-full h-full grid place-items-center text-xs text-gray-400">No image</div>
+        )}
+      </div>
+
+      <div className="flex-1">
+        <div className="font-medium dark:text-white">{p.title}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">{p.slug}</div>
+      </div>
+
+      <div className="w-28 text-right dark:text-white">₹{Number(price || 0).toFixed(2)}</div>
+      <div className="w-24 text-right">
+        {Number(totalStock) > 0 ? (
+          <span className="text-green-700 dark:text-green-400">{totalStock}</span>
+        ) : (
+          <span className="text-red-700 dark:text-red-400">0</span>
+        )}
+      </div>
+
+      <div className="w-44 text-right flex justify-end gap-2 text-sm">
+        <button
+          onClick={() => onView(p._id)}
+          className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-100 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-700"
+        >
+          View
+        </button>
+        <button
+          onClick={() => onEdit(p._id)}
+          className="px-3 py-1 bg-yellow-400 text-black rounded-md hover:opacity-80 dark:bg-yellow-500 dark:hover:bg-yellow-400"
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(p._id)}
+          className="px-3 py-1 border border-red-500 text-red-600 rounded-md hover:bg-red-50 dark:border-red-500 dark:text-red-400 dark:hover:bg-red-500/10"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+});
+
+/* helpers to derive meta once */
 function deriveThumbnail(product) {
   if (!product) return "/placeholder.png";
   if (Array.isArray(product.variants)) {
@@ -65,26 +143,12 @@ function derivePrice(product) {
   return Number(product.price || 0);
 }
 
-function RowSkeleton() {
-  return (
-    <div className="px-4 py-3 flex items-center gap-3 animate-pulse">
-      <div className="w-4 h-4 rounded bg-gray-200 dark:bg-zinc-700" />
-      <div className="w-16 h-16 bg-gray-200 dark:bg-zinc-700 rounded-md" />
-      <div className="flex-1">
-        <div className="w-48 h-4 bg-gray-200 dark:bg-zinc-700 rounded" />
-      </div>
-      <div className="w-20 h-4 bg-gray-200 dark:bg-zinc-700 rounded" />
-      <div className="w-16 h-4 bg-gray-200 dark:bg-zinc-700 rounded" />
-      <div className="w-32 h-8 bg-gray-200 dark:bg-zinc-700 rounded" />
-    </div>
-  );
-}
-
 export default function AdminProducts() {
   const navigate = useNavigate();
 
-  const [q, setQ] = useState("");
+  // filter / UI state
   const [searchInput, setSearchInput] = useState("");
+  const [q, setQ] = useState("");
   const [inStockOnly, setInStockOnly] = useState(false);
   const [category, setCategory] = useState("");
   const [min, setMin] = useState("");
@@ -93,12 +157,14 @@ export default function AdminProducts() {
   const [page, setPage] = useState(1);
   const [limit] = useState(12);
 
+  // data + UI flags
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState([]);
   const [total, setTotal] = useState(0);
   const [categories, setCategories] = useState([]);
 
-  const [selected, setSelected] = useState({});
+  // selection map
+  const [selectedMap, setSelectedMap] = useState({});
   const mountedRef = useRef(true);
   const controllerRef = useRef(null);
   const debounceRef = useRef(null);
@@ -112,7 +178,11 @@ export default function AdminProducts() {
     };
   }, []);
 
-  const cacheKey = useMemo(() => `products:${q}|${inStockOnly ? 1 : 0}|${category}|${min}|${max}|${sort}|${page}|${limit}`, [q, inStockOnly, category, min, max, sort, page, limit]);
+  const cacheKey = useMemo(
+    () =>
+      `products:${q}|${inStockOnly ? 1 : 0}|${category}|${min}|${max}|${sort}|${page}|${limit}`,
+    [q, inStockOnly, category, min, max, sort, page, limit]
+  );
 
   const readCache = useCallback((key) => {
     try {
@@ -148,59 +218,66 @@ export default function AdminProducts() {
     return p.toString();
   }, [q, inStockOnly, category, min, max, sort, page, limit]);
 
-  const fetchProducts = useCallback(async (useCache = true) => {
-    setLoading(true);
+  const fetchProducts = useCallback(
+    async (useCache = true) => {
+      setLoading(true);
 
-    if (useCache) {
-      const cached = readCache(cacheKey);
-      if (cached) {
-        setList(cached.products || []);
-        setTotal(Number(cached.total || (cached.products || []).length) || 0);
-        setCategories(cached.categories || []);
-        setLoading(false);
-        // still fetch in background to refresh recent changes
+      if (useCache) {
+        const cached = readCache(cacheKey);
+        if (cached) {
+          setList(cached.products || []);
+          setTotal(Number(cached.total || (cached.products || []).length) || 0);
+          setCategories(cached.categories || []);
+          setLoading(false);
+          // fall through to background refresh
+        }
       }
-    }
 
-    if (controllerRef.current) {
-      try { controllerRef.current.abort(); } catch (e) {}
-    }
-    controllerRef.current = new AbortController();
+      if (controllerRef.current) {
+        try {
+          controllerRef.current.abort();
+        } catch {}
+      }
+      controllerRef.current = new AbortController();
+      const qs = serializeParams();
 
-    const qs = serializeParams();
-    try {
-      let res;
       try {
-        res = await api.get(`/api/products?${qs}`, { signal: controllerRef.current.signal });
+        let res;
+        try {
+          res = await api.get(`/api/products?${qs}`, { signal: controllerRef.current.signal });
+        } catch (err) {
+          if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
+          // fallback endpoint shape
+          res = await api.get(`/api/products/product?${qs}`, { signal: controllerRef.current.signal });
+        }
+
+        if (!mountedRef.current) return;
+        const payload = Array.isArray(res.data) ? { products: res.data, total: res.data.length } : res.data || {};
+        const products = payload.products || [];
+        const tot = Number(payload.total || products.length) || 0;
+
+        setList(products);
+        setTotal(tot);
+
+        const cats = Array.from(new Set((products || []).map((p) => p.category || "").filter(Boolean))).sort((a, b) =>
+          a.localeCompare(b)
+        );
+        setCategories(cats);
+
+        writeCache(cacheKey, { products, total: tot, categories: cats });
       } catch (err) {
         if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
-        // fallback endpoint shape
-        res = await api.get(`/api/products/product?${qs}`, { signal: controllerRef.current.signal });
+        console.error("fetch products error", err);
+        if (mountedRef.current) showToast("Failed to fetch products", "error");
+      } finally {
+        if (mountedRef.current) setLoading(false);
+        controllerRef.current = null;
       }
+    },
+    [cacheKey, readCache, serializeParams, writeCache]
+  );
 
-      if (!mountedRef.current) return;
-      const payload = Array.isArray(res.data) ? { products: res.data, total: res.data.length } : res.data || {};
-      const products = payload.products || [];
-      const tot = Number(payload.total || products.length) || 0;
-
-      setList(products);
-      setTotal(tot);
-
-      const cats = Array.from(new Set((products || []).map((p) => p.category || "").filter(Boolean))).sort((a, b) => a.localeCompare(b));
-      setCategories(cats);
-
-      writeCache(cacheKey, { products, total: tot, categories: cats });
-    } catch (err) {
-      if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
-      console.error("fetch products error", err);
-      if (mountedRef.current) showToast("Failed to fetch products", "error");
-    } finally {
-      if (mountedRef.current) setLoading(false);
-      controllerRef.current = null;
-    }
-  }, [cacheKey, readCache, serializeParams, writeCache]);
-
-  // initial + deps change
+  // initial + when deps change
   useEffect(() => {
     fetchProducts(true);
   }, [fetchProducts]);
@@ -211,69 +288,132 @@ export default function AdminProducts() {
     debounceRef.current = setTimeout(() => {
       setPage(1);
       setQ(searchInput.trim());
-    }, 280);
+    }, DEBOUNCE_MS);
     return () => clearTimeout(debounceRef.current);
   }, [searchInput]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
 
-  const handlePageChange = useCallback((newPage) => {
-    if (newPage < 1 || newPage > totalPages) return;
-    setPage(newPage);
-  }, [totalPages]);
+  const handlePageChange = useCallback(
+    (newPage) => {
+      if (newPage < 1 || newPage > totalPages) return;
+      setPage(newPage);
+    },
+    [totalPages]
+  );
 
-  const allChecked = useMemo(() => list.length > 0 && list.every((p) => selected[p._id]), [list, selected]);
-  const checkedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected]);
+  // precompute derived fields to avoid computing inside render map
+  const productsWithMeta = useMemo(() => {
+    return (list || []).map((p) => {
+      return {
+        p,
+        thumb: deriveThumbnail(p),
+        price: derivePrice(p),
+        totalStock: deriveTotalStock(p),
+      };
+    });
+  }, [list]);
+
+  const allChecked = useMemo(() => list.length > 0 && list.every((p) => !!selectedMap[p._id]), [list, selectedMap]);
+  const checkedIds = useMemo(() => Object.keys(selectedMap).filter((id) => selectedMap[id]), [selectedMap]);
 
   const toggleAll = useCallback(() => {
-    if (allChecked) setSelected({});
-    else {
+    if (allChecked) {
+      setSelectedMap({});
+    } else {
       const next = {};
       list.forEach((p) => (next[p._id] = true));
-      setSelected(next);
+      setSelectedMap(next);
     }
   }, [allChecked, list]);
 
-  const deleteOne = useCallback(async (id) => {
-    if (!window.confirm("Are you sure you want to delete this product?")) return;
-    const prevList = list;
-    const prevTotal = total;
-    setList((l) => l.filter((x) => x._id !== id));
-    setTotal((t) => Math.max(0, t - 1));
-    try {
-      await api.delete(`/api/products/${id}`);
-      showToast("Product deleted");
-    } catch (e) {
-      setList(prevList);
-      setTotal(prevTotal);
-      showToast(e?.response?.data?.message || e.message, "error");
-    }
-  }, [list, total]);
+  const toggleOne = useCallback((id, checked) => {
+    setSelectedMap((prev) => {
+      // small optimization: if same value, return prev
+      if (!!prev[id] === !!checked) return prev;
+      return { ...prev, [id]: checked };
+    });
+  }, []);
 
+  // delete a single product with optimistic UI
+  const deleteOne = useCallback(
+    async (id) => {
+      if (!window.confirm("Are you sure you want to delete this product?")) return;
+      const prevList = list;
+      const prevTotal = total;
+
+      setList((l) => l.filter((x) => x._id !== id));
+      setTotal((t) => Math.max(0, t - 1));
+      // also remove from selected
+      setSelectedMap((s) => {
+        if (!s[id]) return s;
+        const copy = { ...s };
+        delete copy[id];
+        return copy;
+      });
+
+      try {
+        await api.delete(`/api/products/${id}`);
+        showToast("Product deleted");
+      } catch (e) {
+        setList(prevList);
+        setTotal(prevTotal);
+        showToast(e?.response?.data?.message || e.message, "error");
+      }
+    },
+    [list, total]
+  );
+
+  // bulk delete in parallel (optimistic)
   const bulkDelete = useCallback(async () => {
     if (!checkedIds.length) return;
     if (!window.confirm(`Delete ${checkedIds.length} product(s)?`)) return;
+
     const prev = list;
+    // optimistic update
     setList((l) => l.filter((x) => !checkedIds.includes(x._id)));
-    setSelected({});
+    setSelectedMap({});
+
     try {
-      for (const id of checkedIds) {
-        await api.delete(`/api/products/${id}`);
+      const promises = checkedIds.map((id) => api.delete(`/api/products/${id}`));
+      const results = await Promise.allSettled(promises);
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length) {
+        // revert if any failed
+        setList(prev);
+        showToast(`${failed.length} deletions failed`, "error");
+      } else {
+        showToast(`${checkedIds.length} products deleted`);
       }
-      showToast(`${checkedIds.length} products deleted`);
     } catch (e) {
       setList(prev);
       showToast(e?.response?.data?.message || e.message, "error");
     }
   }, [checkedIds, list]);
 
-  // small helpers to avoid runtime crashes
   const safeNumber = useCallback((v) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
   }, []);
 
-  const displayedCountText = useMemo(() => (checkedIds.length > 0 ? `${checkedIds.length} selected` : `Showing ${list.length} of ${total} products`), [checkedIds.length, list.length, total]);
+  const displayedCountText = useMemo(
+    () => (checkedIds.length > 0 ? `${checkedIds.length} selected` : `Showing ${list.length} of ${total} products`),
+    [checkedIds.length, list.length, total]
+  );
+
+  const onView = useCallback(
+    (id) => {
+      navigate(`/product/${id}`);
+    },
+    [navigate]
+  );
+
+  const onEdit = useCallback(
+    (id) => {
+      navigate(`/admin/product/${id}`);
+    },
+    [navigate]
+  );
 
   return (
     <AdminLayout>
@@ -295,11 +435,18 @@ export default function AdminProducts() {
               <label className="text-xs text-gray-500 dark:text-gray-400">Category</label>
               <select
                 value={category}
-                onChange={(e) => { setPage(1); setCategory(e.target.value); }}
+                onChange={(e) => {
+                  setPage(1);
+                  setCategory(e.target.value);
+                }}
                 className="w-full mt-1 bg-white border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
               >
                 <option value="">All</option>
-                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -309,7 +456,10 @@ export default function AdminProducts() {
                 <input
                   value={min}
                   type="number"
-                  onChange={(e) => { setPage(1); setMin(e.target.value); }}
+                  onChange={(e) => {
+                    setPage(1);
+                    setMin(e.target.value);
+                  }}
                   className="w-full mt-1 bg-white border border-gray-300 rounded-lg px-3 py-2 outline-none dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
                 />
               </div>
@@ -318,7 +468,10 @@ export default function AdminProducts() {
                 <input
                   value={max}
                   type="number"
-                  onChange={(e) => { setPage(1); setMax(e.target.value); }}
+                  onChange={(e) => {
+                    setPage(1);
+                    setMax(e.target.value);
+                  }}
                   className="w-full mt-1 bg-white border border-gray-300 rounded-lg px-3 py-2 outline-none dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
                 />
               </div>
@@ -329,7 +482,10 @@ export default function AdminProducts() {
                 <input
                   type="checkbox"
                   checked={inStockOnly}
-                  onChange={(e) => { setPage(1); setInStockOnly(e.target.checked); }}
+                  onChange={(e) => {
+                    setPage(1);
+                    setInStockOnly(e.target.checked);
+                  }}
                   className="accent-indigo-600"
                 />
                 In stock only
@@ -342,11 +498,17 @@ export default function AdminProducts() {
           <div className="text-sm text-gray-600 dark:text-gray-400">{displayedCountText}</div>
           <div className="flex items-center gap-2">
             {!!checkedIds.length && (
-              <button onClick={bulkDelete} className="px-3 py-1.5 rounded-lg border border-red-500 text-red-600 hover:bg-red-50 text-sm dark:border-red-500 dark:text-red-400 dark:hover:bg-red-500/10">
+              <button
+                onClick={bulkDelete}
+                className="px-3 py-1.5 rounded-lg border border-red-500 text-red-600 hover:bg-red-50 text-sm dark:border-red-500 dark:text-red-400 dark:hover:bg-red-500/10"
+              >
                 Delete selected ({checkedIds.length})
               </button>
             )}
-            <button onClick={() => navigate("/admin/create-product")} className="px-3 py-1.5 rounded-lg bg-black text-white font-medium hover:opacity-90 text-sm dark:bg-white dark:text-black dark:hover:bg-gray-200">
+            <button
+              onClick={() => navigate("/admin/create-product")}
+              className="px-3 py-1.5 rounded-lg bg-black text-white font-medium hover:opacity-90 text-sm dark:bg-white dark:text-black dark:hover:bg-gray-200"
+            >
               Create product
             </button>
           </div>
@@ -367,47 +529,42 @@ export default function AdminProducts() {
           ) : list.length === 0 ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">No products found.</div>
           ) : (
-            list.map((p) => {
-              const thumb = deriveThumbnail(p);
-              const totalStock = deriveTotalStock(p);
-              const price = derivePrice(p);
-              return (
-                <div key={String(p._id)} className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition dark:hover:bg-zinc-700/50">
-                  <input
-                    type="checkbox"
-                    checked={!!selected[p._id]}
-                    onChange={(e) => setSelected((s) => ({ ...s, [p._id]: e.target.checked }))}
-                    className="accent-indigo-600"
-                    aria-label={`Select product ${p.title || p._id}`}
-                  />
-                  <div className="w-16 h-16 rounded-md overflow-hidden bg-gray-100 dark:bg-zinc-700 shrink-0">
-                    {thumb ? (
-                      <img src={thumb} alt={p.title || "product"} className="object-cover w-full h-full" loading="lazy" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.png"; }} />
-                    ) : (
-                      <div className="w-full h-full grid place-items-center text-xs text-gray-400">No image</div>
-                    )}
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="font-medium dark:text-white">{p.title}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{p.slug}</div>
-                  </div>
-
-                  <div className="w-28 text-right dark:text-white">₹{safeNumber(price).toFixed(2)}</div>
-                  <div className="w-24 text-right">{Number(totalStock) > 0 ? <span className="text-green-700 dark:text-green-400">{totalStock}</span> : <span className="text-red-700 dark:text-red-400">0</span>}</div>
-
-                  <div className="w-44 text-right flex justify-end gap-2 text-sm">
-                    <button onClick={() => navigate(`/product/${p._id}`)} className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-100 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-700">View</button>
-                    <button onClick={() => navigate(`/admin/product/${p._id}`)} className="px-3 py-1 bg-yellow-400 text-black rounded-md hover:opacity-80 dark:bg-yellow-500 dark:hover:bg-yellow-400">Edit</button>
-                    <button onClick={() => deleteOne(p._id)} className="px-3 py-1 border border-red-500 text-red-600 rounded-md hover:bg-red-50 dark:border-red-500 dark:text-red-400 dark:hover:bg-red-500/10">Delete</button>
-                  </div>
-                </div>
-              );
-            })
+            productsWithMeta.map(({ p, thumb, price, totalStock }) => (
+              <ProductRow
+                key={String(p._id)}
+                p={p}
+                thumb={thumb}
+                price={price}
+                totalStock={totalStock}
+                checked={!!selectedMap[p._id]}
+                onToggle={toggleOne}
+                onView={onView}
+                onEdit={onEdit}
+                onDelete={deleteOne}
+              />
+            ))
           )}
         </div>
 
-        {!loading && totalPages > 1 && <PaginationControls currentPage={page} totalPages={totalPages} onPageChange={handlePageChange} />}
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6">
+            <button
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page === 1}
+              className="px-4 py-2 text-sm font-medium border rounded-md bg-white disabled:opacity-50 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-300"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-gray-700 dark:text-gray-300">Page {page} of {totalPages}</span>
+            <button
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page === totalPages}
+              className="px-4 py-2 text-sm font-medium border rounded-md bg-white disabled:opacity-50 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-300"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

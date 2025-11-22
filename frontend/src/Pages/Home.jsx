@@ -1,3 +1,4 @@
+// src/pages/Home.jsx
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
 import { useDispatch } from "react-redux";
@@ -11,6 +12,7 @@ import ProductCarousel from "../components/home/ProductCarousel";
 import TrustIconsSection from "../components/home/TrustIconsSection";
 import NewsletterSection from "../components/home/NewsletterSection";
 import TestimonialSection from "../components/home/TestimonialSection";
+import Promo from "../components/home/Promo";
 
 const DEFAULT_HERO_SLIDES = [
   {
@@ -65,41 +67,96 @@ const DEFAULT_CATEGORIES = [
   },
 ];
 
+const FALLBACK_PROMO = {
+  title: "Mid-Season Sale",
+  subtitle: "Up to 30% off",
+  buttonText: "Shop Now",
+  href: "/sale",
+  img: "/images/default-banner.jpg",
+};
+
 export default function Home() {
   const [homepageContent, setHomepageContent] = useState({
     heroSlides: DEFAULT_HERO_SLIDES,
     categories: DEFAULT_CATEGORIES,
+    promo: null,
   });
   const [loadingHomepage, setLoadingHomepage] = useState(true);
   const [newArrivals, setNewArrivals] = useState([]);
   const [loadingArrivals, setLoadingArrivals] = useState(true);
   const dispatch = useDispatch();
 
+  // Normalize different response shapes into expected { heroSlides, categories, promo }
+  const normalizeHomepage = (raw = {}) => {
+    // raw might be: { heroSlides, categories, promo } OR { data: { ... } } OR { homepage: { ... } } etc.
+    let maybe = raw;
+    if (raw?.data) maybe = raw.data;
+    if (raw?.homepage) maybe = raw.homepage;
+    if (raw?.content) maybe = raw.content;
+
+    // If the whole object seems like promo directly (e.g., admin returned only promo), handle it.
+    const looksLikePromoOnly =
+      (maybe && (maybe.title || maybe.img || maybe.buttonText)) && !maybe.heroSlides && !maybe.categories;
+
+    return {
+      heroSlides: Array.isArray(maybe?.heroSlides) && maybe.heroSlides.length ? maybe.heroSlides : DEFAULT_HERO_SLIDES,
+      categories: Array.isArray(maybe?.categories) && maybe.categories.length ? maybe.categories : DEFAULT_CATEGORIES,
+      promo: looksLikePromoOnly ? maybe : maybe?.promo ?? null,
+    };
+  };
+
+  // Load homepage content (with live-update listeners)
   useEffect(() => {
+    let mounted = true;
+
     const loadHomepageContent = async () => {
+      if (mounted) setLoadingHomepage(true);
       try {
-        const { data } = await api.get("/api/content/homepage");
-        if (data && (data.heroSlides?.length || data.categories?.length))
-          setHomepageContent(data);
-      } catch (error) {
-        console.warn(
-          "Could not load dynamic homepage content. Using defaults.",
-          error
-        );
+        const resp = await api.get("/api/content/homepage");
+        console.log("homepage content response:", resp?.data);
+        if (!mounted) return;
+
+        const normalized = normalizeHomepage(resp?.data || {});
+        setHomepageContent((prev) => ({
+          heroSlides: normalized.heroSlides || prev.heroSlides,
+          categories: normalized.categories || prev.categories,
+          promo: typeof normalized.promo !== "undefined" ? normalized.promo : prev.promo,
+        }));
+      } catch (err) {
+        console.warn("Could not load dynamic homepage content. Using defaults.", err);
       } finally {
-        setLoadingHomepage(false);
+        if (mounted) setLoadingHomepage(false);
       }
     };
-    loadHomepageContent();
-  }, []);
 
+    loadHomepageContent();
+
+    const onHomepageUpdated = () => {
+      loadHomepageContent();
+    };
+    const onStorage = (e) => {
+      if (e.key === "homepage_last_updated_at") loadHomepageContent();
+    };
+
+    window.addEventListener("homepage:updated", onHomepageUpdated);
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("homepage:updated", onHomepageUpdated);
+      window.removeEventListener("storage", onStorage);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once
+
+  // Load new arrivals / products
   useEffect(() => {
     let mounted = true;
     async function loadNewArrivals() {
-      setLoadingArrivals(true);
+      if (mounted) setLoadingArrivals(true);
       try {
         const { data } = await api.get("/api/products?limit=8");
-        const list = Array.isArray(data) ? data : data.products || [];
+        const list = Array.isArray(data) ? data : data?.products || [];
         if (mounted) setNewArrivals(list);
       } catch (err) {
         console.error("Failed to load new arrivals", err);
@@ -118,17 +175,11 @@ export default function Home() {
     if (!prod || !prod._id) return;
 
     const firstVariant =
-      Array.isArray(prod.variants) && prod.variants.length
-        ? prod.variants[0]
-        : null;
+      Array.isArray(prod.variants) && prod.variants.length ? prod.variants[0] : null;
     const chosenSize =
-      firstVariant?.sizes && firstVariant.sizes.length
-        ? firstVariant.sizes[0]
-        : null;
+      firstVariant?.sizes && firstVariant.sizes.length ? firstVariant.sizes[0] : null;
 
-    const imageFromVariant = firstVariant?.images?.length
-      ? firstVariant.images[0]
-      : null;
+    const imageFromVariant = firstVariant?.images?.length ? firstVariant.images[0] : null;
     const priceFromVariant = chosenSize
       ? Number(chosenSize.price || 0)
       : prod.price
@@ -143,8 +194,7 @@ export default function Home() {
       title: prod.title || prod.name,
       price: priceFromVariant,
       qty: 1,
-      image:
-        imageFromVariant || (prod.images && prod.images[0]) || prod.image || "",
+      image: imageFromVariant || (prod.images && prod.images[0]) || prod.image || "",
       size: chosenSize?.size || "",
       color: firstVariant?.color || "",
       countInStock: stockFromVariant,
@@ -153,17 +203,30 @@ export default function Home() {
     dispatch(addToCart(payload));
     showToast(`${payload.title} added to cart`);
   };
+
   return (
     <div className="min-h-screen w-full bg-[#fdf7f7] dark:bg-zinc-900">
-      <HeroSlider slides={homepageContent.heroSlides} />
+      {/* Hero */}
+      <HeroSlider slides={homepageContent.heroSlides} loading={loadingHomepage} />
+
+      {/* Scrolling marquee */}
       <ScrollingMarquee />
-      <CategoryGrid categories={homepageContent.categories} />
+
+      {/* Categories */}
+      {/* <CategoryGrid categories={homepageContent.categories} /> */}
+
+      {/* New Arrivals / Product carousel */}
       <ProductCarousel
         title="New Arrivals"
         products={newArrivals}
         loading={loadingArrivals}
         onAddToCart={handleAddToCart}
       />
+      <Promo promo={homepageContent.promo || FALLBACK_PROMO} />
+
+      {/* Promo: use backend promo if present; otherwise fallback to a default promo */}
+
+      {/* Other sections */}
       <TrustIconsSection />
       <NewsletterSection />
       <TestimonialSection />

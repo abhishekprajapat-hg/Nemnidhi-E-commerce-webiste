@@ -1,7 +1,11 @@
+// controllers/productController.js
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
-const Product = require('../models/Product');
+const Product = require('../models/Product'); // adjust path if needed
 
+/* ---------------------------
+   Helpers
+   --------------------------- */
 function isValidObjectId(id) {
   return mongoose.Types.ObjectId.isValid(String(id));
 }
@@ -10,137 +14,291 @@ function escapeRegExp(str = '') {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function parseListParam(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map(String).map((s) => s.trim()).filter(Boolean);
+  return String(v)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/* ---------------------------
+   GET /api/products/categories
+   Returns unique categories
+   --------------------------- */
 exports.getProductCategories = asyncHandler(async (req, res) => {
   const categories = await Product.distinct('category');
   res.json((categories || []).filter(Boolean));
 });
 
-// Replace your existing getProducts handler with this patched version.
-
+/* ---------------------------
+   GET /api/products
+   Advanced filtering + sorting + pagination.
+   Supports two modes:
+     1) Denormalized mode (fast) — product has minPrice, totalStock, aggColors, aggSizes
+     2) Aggregation fallback — unwinds variants & sizes and groups (slower)
+   Query params supported from frontend:
+     q, category, minPrice, maxPrice, brands, colors, sizes, minRating,
+     inStock, sort, sortBy, order, page, limit
+   --------------------------- */
 exports.getProducts = asyncHandler(async (req, res) => {
   const {
-    q,
+    q = '',
     category,
-    min,
-    max,
-    sort = '-createdAt',
-    page = 1,
-    limit = 12,
+    minPrice,
+    maxPrice,
+    brands = '',
+    colors = '',
+    sizes = '',
+    minRating,
     inStock,
+    sort = '-createdAt',
+    sortBy,
+    order = 'desc',
+    page = '1',
+    limit = '12',
   } = req.query;
-
-  const filter = {};
-  const andConditions = [];
-
-  if (q && String(q).trim()) {
-    const safe = escapeRegExp(String(q).trim());
-    const regex = new RegExp(safe, 'i');
-    filter.$or = [{ title: regex }, { slug: regex }, { description: regex }];
-  }
-
-  if (category && String(category).trim()) {
-    filter.category = new RegExp(escapeRegExp(String(category).trim()), 'i');
-  }
-
-  if (String(inStock).toLowerCase() === '1' || String(inStock).toLowerCase() === 'true') {
-    andConditions.push({ variants: { $elemMatch: { 'sizes.stock': { $gt: 0 } } } });
-  }
-
-  const priceMatch = {};
-  const minNum = (min !== undefined && min !== null && String(min).trim() !== '') ? Number(min) : null;
-  const maxNum = (max !== undefined && max !== null && String(max).trim() !== '') ? Number(max) : null;
-  if (!Number.isNaN(minNum) && minNum !== null) priceMatch.$gte = minNum;
-  if (!Number.isNaN(maxNum) && maxNum !== null) priceMatch.$lte = maxNum;
-  if (Object.keys(priceMatch).length) {
-    andConditions.push({ variants: { $elemMatch: { sizes: { $elemMatch: { price: priceMatch } } } } });
-  }
-
-  if (andConditions.length) {
-    filter.$and = andConditions;
-  }
 
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const perPage = Math.max(1, Math.min(100, parseInt(limit, 10) || 12));
   const skip = (pageNum - 1) * perPage;
 
-  const sortObj = {};
-  String(sort)
-    .split(',')
-    .forEach((s) => {
-      const t = s.trim();
-      if (!t) return;
-      if (t.startsWith('-')) sortObj[t.slice(1)] = -1;
-      else sortObj[t] = 1;
-    });
+  const brandArr = parseListParam(brands);
+  const colorArr = parseListParam(colors);
+  const sizeArr = parseListParam(sizes);
 
-  // Include variants in projection so frontend gets variant images & sizes
-  // (If payload size is a concern, you can limit fields inside variants, e.g. 'variants.color variants.images variants.sizes')
-  const projection = 'title slug price images countInStock category rating numReviews createdAt variants';
+  const minP = minPrice !== undefined && String(minPrice).trim() !== '' ? Number(minPrice) : null;
+  const maxP = maxPrice !== undefined && String(maxPrice).trim() !== '' ? Number(maxPrice) : null;
+  const minR = minRating !== undefined && String(minRating).trim() !== '' ? Number(minRating) : null;
+  const inStockBool = String(inStock).toLowerCase() === '1' || String(inStock).toLowerCase() === 'true';
 
-  let total;
-  if (Object.keys(filter).length === 0) {
-    total = await Product.estimatedDocumentCount();
+  // Decide if model has denormalized fields
+  const hasDenorm =
+    Boolean(Product.schema.path('minPrice')) ||
+    Boolean(Product.schema.path('totalStock')) ||
+    Boolean(Product.schema.path('aggColors')) ||
+    Boolean(Product.schema.path('aggSizes'));
+
+  // Build sort object
+  let sortObj = {};
+  if (sortBy) {
+    const dir = String(order).toLowerCase() === 'asc' ? 1 : -1;
+    if (sortBy === 'price') sortObj = { minPrice: dir };
+    else sortObj[sortBy] = dir;
+  } else if (sort) {
+    String(sort)
+      .split(',')
+      .forEach((s) => {
+        const t = String(s).trim();
+        if (!t) return;
+        if (t.startsWith('-')) sortObj[t.slice(1)] = -1;
+        else sortObj[t] = 1;
+      });
   } else {
-    total = await Product.countDocuments(filter);
+    sortObj = { createdAt: -1 };
   }
 
-  // fetch products including variants (lean() -> plain objects)
-  const products = await Product.find(filter)
-    .select(projection)
-    .lean()
-    .sort(sortObj)
-    .skip(skip)
-    .limit(perPage)
-    .exec();
+  // Projection — keep variants so frontend can use images/sizes; adjust to trim payload
+  const projection = 'title slug description category brand minPrice maxPrice totalStock aggColors aggSizes rating numReviews createdAt variants reviews images';
 
-  // Optional: compute small derived fields for frontend convenience
-  const normalized = (products || []).map((p) => {
-    // ensure arrays exist
-    const variants = Array.isArray(p.variants) ? p.variants : [];
+  if (hasDenorm) {
+    // Fast path using denormalized fields and regular queries
+    const filter = {};
 
-    // collect first non-empty image from variants (flatten), fallback to p.images
-    const variantImages = variants.flatMap((v) => (Array.isArray(v.images) ? v.images : []));
-    const previewImages = variantImages.length ? variantImages : (Array.isArray(p.images) ? p.images : []);
+    if (q && String(q).trim()) {
+      const safe = String(q).trim();
+      const reg = new RegExp(escapeRegExp(safe), 'i');
+      filter.$or = [{ title: reg }, { slug: reg }, { description: reg }];
+    }
 
-    // compute min price across variant sizes if present
-    const prices = variants.flatMap((v) => (Array.isArray(v.sizes) ? v.sizes.map((s) => Number(s.price || 0)) : []));
-    const minVariantPrice = prices.length ? Math.min(...prices) : (Number(p.price || 0));
+    if (category && String(category).trim()) filter.category = String(category).trim();
+    if (brandArr.length) filter.brand = { $in: brandArr };
+    if (minR != null) filter.rating = { $gte: minR };
 
-    // convert possible BSON-like numeric wrappers (if any) to plain numbers defensively
-    const safeNum = (val) => {
-      if (val == null) return 0;
-      if (typeof val === 'number') return val;
-      if (typeof val === 'string' && val.trim() !== '') {
-        const asn = Number(val);
-        return Number.isFinite(asn) ? asn : 0;
+    if (minP != null || maxP != null) {
+      filter.minPrice = {};
+      if (minP != null) filter.minPrice.$gte = minP;
+      if (maxP != null) filter.minPrice.$lte = maxP;
+    }
+
+    if (colorArr.length) filter.aggColors = { $in: colorArr };
+    if (sizeArr.length) filter.aggSizes = { $in: sizeArr };
+    if (inStockBool) filter.totalStock = { $gt: 0 };
+
+    const total = Object.keys(filter).length === 0 ? await Product.estimatedDocumentCount() : await Product.countDocuments(filter);
+    const pages = Math.max(1, Math.ceil((total || 0) / perPage));
+
+    const products = await Product.find(filter)
+      .select(projection)
+      .lean()
+      .sort(sortObj)
+      .skip(skip)
+      .limit(perPage)
+      .exec();
+
+    // Normalize small conveniences: previewImages, minVariantPrice (if variants available)
+    const normalized = (products || []).map((p) => {
+      const variants = Array.isArray(p.variants) ? p.variants : [];
+      const variantImages = variants.flatMap((v) => (Array.isArray(v.images) ? v.images : []));
+      const previewImages = variantImages.length ? variantImages : (Array.isArray(p.images) ? p.images : []);
+      const prices = variants.flatMap((v) => (Array.isArray(v.sizes) ? v.sizes.map((s) => Number(s.price || 0)) : []));
+      const minVariantPrice = prices.length ? Math.min(...prices) : (p.minPrice || 0);
+      const toNum = (val) => (val == null ? 0 : Number(val) || 0);
+
+      return {
+        ...p,
+        previewImages: Array.isArray(previewImages) ? previewImages : [],
+        minVariantPrice: toNum(minVariantPrice),
+        totalStock: toNum(p.totalStock),
+      };
+    });
+
+    return res.json({ products: normalized, total, page: pageNum, pages });
+  } else {
+    // Fallback: aggregation that unwinds variants & sizes, computes aggregated fields, then filters & paginates
+    // This is heavier but works with original nested schema.
+    const colorsFilter = colorArr;
+    const sizesFilter = sizeArr;
+
+    const pipeline = [];
+
+    // Text / regex search & category/minRating at top-level (reduce set early)
+    const topMatch = {};
+    if (category && String(category).trim()) topMatch.category = String(category).trim();
+    if (minR != null) topMatch.rating = { $gte: minR };
+    if (q && String(q).trim()) {
+      const safe = String(q).trim();
+      const reg = new RegExp(escapeRegExp(safe), 'i');
+      // use $or regex search to avoid reliance on text index (works universally)
+      topMatch.$or = [{ title: reg }, { slug: reg }, { description: reg }];
+    }
+    if (Object.keys(topMatch).length) pipeline.push({ $match: topMatch });
+
+    // Unwind variants and sizes to compute price & stock aggregates
+    pipeline.push(
+      { $unwind: { path: '$variants', preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: '$variants.sizes', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          _sizePrice: '$variants.sizes.price',
+          _sizeStock: '$variants.sizes.stock',
+          _variantColor: '$variants.color',
+          _sizeName: '$variants.sizes.size',
+        },
+      },
+      {
+        $group: {
+          _id: '$_id',
+          doc: { $first: '$$ROOT' },
+          minPrice: { $min: { $ifNull: ['$_sizePrice', null] } },
+          maxPrice: { $max: { $ifNull: ['$_sizePrice', null] } },
+          totalStock: { $sum: { $ifNull: ['$_sizeStock', 0] } },
+          aggColors: { $addToSet: { $ifNull: ['$_variantColor', null] } },
+          aggSizes: { $addToSet: { $ifNull: ['$_sizeName', null] } },
+        },
+      },
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: [
+              '$doc',
+              {
+                minPrice: '$minPrice',
+                maxPrice: '$maxPrice',
+                totalStock: '$totalStock',
+                aggColors: '$aggColors',
+                aggSizes: '$aggSizes',
+              },
+            ],
+          },
+        },
+      },
+      {
+        $addFields: {
+          aggColors: {
+            $filter: { input: '$aggColors', as: 'c', cond: { $ne: ['$$c', null] } },
+          },
+          aggSizes: {
+            $filter: { input: '$aggSizes', as: 's', cond: { $ne: ['$$s', null] } },
+          },
+        },
       }
-      if (typeof val === 'object') {
-        if ('$numberInt' in val) return Number(val.$numberInt) || 0;
-        if ('$numberLong' in val) return Number(val.$numberLong) || 0;
-        if ('$numberDouble' in val) return Number(val.$numberDouble) || 0;
-        if ('$decimal128' in val) return Number(val.$decimal128) || 0;
-      }
-      return 0;
-    };
+    );
 
-    return {
-      ...p,
-      previewImages: Array.isArray(previewImages) ? previewImages : [],
-      minVariantPrice: safeNum(minVariantPrice),
-      // keep variants as-is (frontend may need full structure)
-      variants,
-    };
-  });
+    // Advanced filters applied after aggregation
+    const advancedMatch = {};
 
-  res.json({
-    products: normalized,
-    total,
-    page: pageNum,
-    pages: Math.ceil(total / perPage),
-  });
+    if (minP != null || maxP != null) {
+      advancedMatch.minPrice = {};
+      if (minP != null) advancedMatch.minPrice.$gte = minP;
+      if (maxP != null) advancedMatch.minPrice.$lte = maxP;
+    }
+    if (colorsFilter.length) advancedMatch.aggColors = { $in: colorsFilter };
+    if (sizesFilter.length) advancedMatch.aggSizes = { $in: sizesFilter };
+    if (inStockBool) advancedMatch.totalStock = { $gt: 0 };
+    if (brandArr.length) advancedMatch.brand = { $in: brandArr }; // brand must be top-level to match
+
+    if (Object.keys(advancedMatch).length) pipeline.push({ $match: advancedMatch });
+
+    // Sorting stage: map price -> minPrice
+    let aggSort = {};
+    if (sortBy) {
+      const dir = String(order).toLowerCase() === 'asc' ? 1 : -1;
+      if (sortBy === 'price') aggSort = { minPrice: dir };
+      else aggSort[sortBy] = dir;
+    } else if (sort) {
+      String(sort)
+        .split(',')
+        .forEach((s) => {
+          const t = String(s).trim();
+          if (!t) return;
+          if (t.startsWith('-')) aggSort[t.slice(1)] = -1;
+          else aggSort[t] = 1;
+        });
+    } else {
+      aggSort = { createdAt: -1 };
+    }
+
+    // Facet for pagination + total count
+    pipeline.push({ $sort: aggSort });
+    pipeline.push({
+      $facet: {
+        paginatedResults: [{ $skip: skip }, { $limit: perPage }],
+        totalCount: [{ $count: 'count' }],
+      },
+    });
+
+    const aggResult = await Product.aggregate(pipeline).allowDiskUse(true).exec();
+    const paginated = aggResult[0]?.paginatedResults || [];
+    const total = (aggResult[0]?.totalCount?.[0]?.count) || 0;
+    const pages = Math.max(1, Math.ceil(total / perPage));
+
+    // Normalize: ensure previewImages & minVariantPrice for UI
+    const normalized = (paginated || []).map((p) => {
+      const variants = Array.isArray(p.variants) ? p.variants : [];
+      const variantImages = variants.flatMap((v) => (Array.isArray(v.images) ? v.images : []));
+      const previewImages = variantImages.length ? variantImages : (Array.isArray(p.images) ? p.images : []);
+      const prices = variants.flatMap((v) => (Array.isArray(v.sizes) ? v.sizes.map((s) => Number(s.price || 0)) : []));
+      const minVariantPrice = prices.length ? Math.min(...prices) : (p.minPrice || 0);
+      const toNum = (val) => (val == null ? 0 : Number(val) || 0);
+
+      return {
+        ...p,
+        previewImages: Array.isArray(previewImages) ? previewImages : [],
+        minVariantPrice: toNum(minVariantPrice),
+        totalStock: toNum(p.totalStock),
+      };
+    });
+
+    return res.json({ products: normalized, total, page: pageNum, pages });
+  }
 });
 
-
+/* ---------------------------
+   GET /api/products/:idOrSlug
+   returns product by id or slug
+   --------------------------- */
 exports.getProductByIdOrSlug = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   let product = null;
@@ -161,14 +319,12 @@ exports.getProductByIdOrSlug = asyncHandler(async (req, res) => {
   res.json(product);
 });
 
+/* ---------------------------
+   POST /api/products
+   create product
+   --------------------------- */
 exports.createProduct = asyncHandler(async (req, res) => {
-  const {
-    title,
-    slug,
-    description,
-    category,
-    variants,
-  } = req.body;
+  const { title, slug, description, category, brand, variants } = req.body;
 
   if (!title || !String(title).trim()) {
     res.status(400);
@@ -178,8 +334,9 @@ exports.createProduct = asyncHandler(async (req, res) => {
   const product = new Product({
     title: String(title).trim(),
     slug: slug ? String(slug).trim() : undefined,
-    description,
-    category,
+    description: description || '',
+    category: category || '',
+    brand: brand || '',
     variants: Array.isArray(variants) ? variants : [],
   });
 
@@ -187,10 +344,13 @@ exports.createProduct = asyncHandler(async (req, res) => {
   res.status(201).json(created);
 });
 
-// inside productController.js (updateProduct)
+/* ---------------------------
+   PUT /api/products/:id
+   update product (partial allowed)
+   --------------------------- */
 exports.updateProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+  if (!id || !isValidObjectId(id)) {
     res.status(400);
     throw new Error('Invalid product id');
   }
@@ -201,7 +361,7 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     throw new Error('Product not found');
   }
 
-  // Accept partial updates; if variants provided, validate structure
+  // Accept partial updates; if variants provided, replace only if array
   const updates = req.body || {};
 
   // Basic validation examples
@@ -210,10 +370,8 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     throw new Error('Invalid slug');
   }
 
-  // Merge safely
   Object.keys(updates).forEach((k) => {
     if (k === 'variants') {
-      // Replace variants array only if it's an array
       if (Array.isArray(updates.variants)) product.variants = updates.variants;
     } else {
       product[k] = updates[k];
@@ -221,17 +379,18 @@ exports.updateProduct = asyncHandler(async (req, res) => {
   });
 
   try {
-    const saved = await product.save();
+    const saved = await product.save(); // triggers pre('save') if present in model
     res.json(saved);
   } catch (err) {
     console.error('Product update error:', err && err.stack ? err.stack : err);
-    // Mongoose validation error -> send message
     res.status(500);
     throw new Error(err.message || 'Failed to update product');
   }
 });
 
-
+/* ---------------------------
+   DELETE /api/products/:id
+   --------------------------- */
 exports.deleteProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -250,6 +409,10 @@ exports.deleteProduct = asyncHandler(async (req, res) => {
   res.json({ message: 'Product deleted', id });
 });
 
+/* ---------------------------
+   POST /api/products/:id/reviews
+   create review
+   --------------------------- */
 exports.createProductReview = asyncHandler(async (req, res) => {
   const { rating, comment } = req.body;
   const { id } = req.params;
