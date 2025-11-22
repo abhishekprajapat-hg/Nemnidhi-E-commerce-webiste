@@ -30,7 +30,7 @@ import { useTheme } from "../../../context/ThemeContext";
  *  - showSummary: boolean (default true)
  *  - onBarClick: function(record, index) optional
  */
-export default function RevenueChartE({
+export default function RevenueChart({
   data = [],
   height = 320,
   showSummary = true,
