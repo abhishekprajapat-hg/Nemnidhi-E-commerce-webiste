@@ -28,41 +28,41 @@ const DEFAULT_HERO_SLIDES = [
     alt: "Designer Kurta Sets",
     title: "CONTEMPORARY KURTA SETS",
     subtitle: "Modern designs for every occasion.",
-    href: "/products?category=Kurta",
+    href: "/products?category=kurta",
   },
   {
     img: "/images/img-3.jpg",
     alt: "Stunning Lehengas",
     title: "THE BRIDAL COLLECTION",
     subtitle: "Find the perfect lehenga for your special day.",
-    href: "/products?category=Lehenga",
+    href: "/products?category=lehenga",
   },
 ];
 
 const DEFAULT_CATEGORIES = [
   {
     name: "Sarees",
-    href: "/products?category=Saree",
+    href: "/products?category=sarees",
     img: "/images/img-1.jpg",
   },
   {
     name: "Western",
-    href: "/products?category=Western",
+    href: "/products?category=western",
     img: "/images/img-2.jpg",
   },
   {
     name: "Tops",
-    href: "/products?category=Tops",
+    href: "/products?category=tops",
     img: "/images/img-3.jpg",
   },
   {
     name: "Sweaters",
-    href: "/products?category=Sweaters",
+    href: "/products?category=sweaters",
     img: "/images/img-1.jpg",
   },
   {
     name: "Jeans",
-    href: "/products?category=Jeans",
+    href: "/products?category=jeans",
     img: "/images/img-2.jpg",
   },
 ];
@@ -88,19 +88,32 @@ export default function Home() {
 
   // Normalize different response shapes into expected { heroSlides, categories, promo }
   const normalizeHomepage = (raw = {}) => {
-    // raw might be: { heroSlides, categories, promo } OR { data: { ... } } OR { homepage: { ... } } etc.
     let maybe = raw;
     if (raw?.data) maybe = raw.data;
     if (raw?.homepage) maybe = raw.homepage;
     if (raw?.content) maybe = raw.content;
 
-    // If the whole object seems like promo directly (e.g., admin returned only promo), handle it.
     const looksLikePromoOnly =
       (maybe && (maybe.title || maybe.img || maybe.buttonText)) && !maybe.heroSlides && !maybe.categories;
 
+    // normalize categories coming from backend if any: ensure href uses lowercase category query
+    const normalizedCats = Array.isArray(maybe?.categories) && maybe.categories.length
+      ? maybe.categories.map((c) => {
+          // c can be string or object
+          if (typeof c === "string") {
+            const name = c;
+            return { name, href: `/products?category=${String(name).toLowerCase()}`, img: "/images/img-1.jpg" };
+          }
+          const name = c.name || c.title || "";
+          // If backend already gives href, keep it but normalize query param (if possible)
+          const href = c.href || `/products?category=${String(name).toLowerCase()}`;
+          return { name, href, img: c.img || c.image || "/images/img-1.jpg" };
+        })
+      : DEFAULT_CATEGORIES;
+
     return {
       heroSlides: Array.isArray(maybe?.heroSlides) && maybe.heroSlides.length ? maybe.heroSlides : DEFAULT_HERO_SLIDES,
-      categories: Array.isArray(maybe?.categories) && maybe.categories.length ? maybe.categories : DEFAULT_CATEGORIES,
+      categories: normalizedCats,
       promo: looksLikePromoOnly ? maybe : maybe?.promo ?? null,
     };
   };
@@ -213,7 +226,7 @@ export default function Home() {
       <ScrollingMarquee />
 
       {/* Categories */}
-      {/* <CategoryGrid categories={homepageContent.categories} /> */}
+      <CategoryGrid categories={homepageContent.categories} />
 
       {/* New Arrivals / Product carousel */}
       <ProductCarousel
@@ -223,8 +236,6 @@ export default function Home() {
         onAddToCart={handleAddToCart}
       />
       <Promo promo={homepageContent.promo || FALLBACK_PROMO} />
-
-      {/* Promo: use backend promo if present; otherwise fallback to a default promo */}
 
       {/* Other sections */}
       <TrustIconsSection />

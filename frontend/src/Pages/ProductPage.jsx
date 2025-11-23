@@ -90,7 +90,7 @@ export default function ProductsPage() {
     const next = new URLSearchParams();
     if (qDebounced) next.set("q", qDebounced);
     if (sort) next.set("sort", sort);
-    if (category) next.set("category", category);
+    if (category) next.set("category", category); // PRESERVE EXACT CASE
     if (page > 1) next.set("page", String(page));
     // Replace so back/forward semantics remain predictable
     setParams(next, { replace: true });
@@ -113,7 +113,7 @@ export default function ProductsPage() {
       p.set("order", isDesc ? "desc" : "asc");
     }
 
-    if (category) p.set("category", category);
+    if (category) p.set("category", category); // PRESERVE EXACT CASE
     if (page > 1) p.set("page", String(page));
 
     return p.toString() ? `?${p.toString()}` : "";
@@ -131,10 +131,11 @@ export default function ProductsPage() {
         if (Array.isArray(home.data?.categories) && home.data.categories.length) {
           const formatted = home.data.categories.map((c) =>
             typeof c === "string"
-              ? { name: c, slug: c, img: DEFAULT_CAT_IMAGE }
+              ? { name: c, slug: c, img: DEFAULT_CAT_IMAGE } // preserve case
               : {
                   name: c.name || c.title || "",
-                  slug: c.slug || (c.name || "").toLowerCase().replace(/\s+/g, "-"),
+                  // preserve backend-provided slug or use name (preserve case)
+                  slug: c.slug || c.name || "",
                   img: c.img || c.image || DEFAULT_CAT_IMAGE,
                 }
           );
@@ -152,16 +153,19 @@ export default function ProductsPage() {
         setCategories(
           list.map((c) =>
             typeof c === "string"
-              ? { name: c, slug: c, img: DEFAULT_CAT_IMAGE }
+              ? { name: c, slug: c, img: DEFAULT_CAT_IMAGE } // preserve case
               : { name: c.name || c, slug: c.slug || c.name || c, img: c.img || DEFAULT_CAT_IMAGE }
           )
         );
       } catch (err) {
         if (alive) {
+          // fallback with capitalized defaults (exact-case)
           setCategories([
-            { name: "Sarees", slug: "sarees", img: DEFAULT_CAT_IMAGE },
-            { name: "Western", slug: "western", img: DEFAULT_CAT_IMAGE },
-            { name: "Tops", slug: "tops", img: DEFAULT_CAT_IMAGE },
+            { name: "Sarees", slug: "Sarees", img: DEFAULT_CAT_IMAGE },
+            { name: "Western", slug: "Western", img: DEFAULT_CAT_IMAGE },
+            { name: "Tops", slug: "Tops", img: DEFAULT_CAT_IMAGE },
+            { name: "Sweaters", slug: "Sweaters", img: DEFAULT_CAT_IMAGE },
+            { name: "Jeans", slug: "Jeans", img: DEFAULT_CAT_IMAGE },
           ]);
         }
       }
@@ -225,7 +229,8 @@ export default function ProductsPage() {
   -------------------------- */
   const handleCategoryClick = useCallback((cat) => {
     // if CategoryTabs returns an object, accept either slug or object
-    const slug = cat && typeof cat === "object" ? cat.slug || "" : cat || "";
+    // preserve exact case (Option B)
+    const slug = cat && typeof cat === "object" ? (cat.slug || "") : (cat || "");
     setCategory(slug);
     setPage(1);
   }, []);
