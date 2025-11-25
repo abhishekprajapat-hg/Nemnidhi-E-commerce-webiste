@@ -1,4 +1,3 @@
-// src/pages/ProductsPage.jsx
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../api/axios";
@@ -190,13 +189,13 @@ export default function ProductsPage() {
         const { data } = await api.get(`/api/products${queryString}`, { signal: controller.signal });
 
         // Helpful debug info while developing — remove in production
-        console.debug("Products fetch", {
-          queryString,
-          url: `/api/products${queryString}`,
-          returnedCount: (data?.products || (Array.isArray(data) ? data : [])).length,
-          page: data?.page,
-          pages: data?.pages,
-        });
+        // console.debug("Products fetch", {
+        //   queryString,
+        //   url: `/api/products${queryString}`,
+        //   returnedCount: (data?.products || (Array.isArray(data) ? data : [])).length,
+        //   page: data?.page,
+        //   pages: data?.pages,
+        // });
 
         if (!alive || fetchIdRef.current !== thisFetchId) return;
 
@@ -301,8 +300,8 @@ export default function ProductsPage() {
               className="border rounded-lg px-3 py-2 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
             >
               <option value="-createdAt">Newest</option>
-              <option value="-price">Price: Low to High</option>
-              <option value="price">Price: High to Low</option>
+              <option value="price">Price: Low to High</option>
+              <option value="-price">Price: High to Low</option>
               <option value="title">Title A–Z</option>
               <option value="-title">Title Z–A</option>
             </select>

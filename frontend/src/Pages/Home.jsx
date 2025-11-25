@@ -7,7 +7,6 @@ import { showToast } from "../utils/toast";
 
 import { HeroSlider } from "../components/home/HeroSlider";
 import ScrollingMarquee from "../components/home/ScrollingMarquee";
-import CategoryGrid from "../components/home/CategoryGrid";
 import ProductCarousel from "../components/home/ProductCarousel";
 import TrustIconsSection from "../components/home/TrustIconsSection";
 import NewsletterSection from "../components/home/NewsletterSection";
@@ -226,7 +225,6 @@ export default function Home() {
       <ScrollingMarquee />
 
       {/* Categories */}
-      <CategoryGrid categories={homepageContent.categories} />
 
       {/* New Arrivals / Product carousel */}
       <ProductCarousel

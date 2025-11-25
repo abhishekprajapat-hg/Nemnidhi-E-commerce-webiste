@@ -15,6 +15,7 @@ const AboutPage = lazy(() => import("./Pages/AboutPage"));
 const OrderSuccess = lazy(() => import("./Pages/OrderSuccess"));
 const VerifyOtp = lazy(() => import("./Pages/VerifyOtp"));
 const Contact = lazy(() => import("./Pages/Contact"));
+const PoliciesPage = lazy(() => import("./Pages/PoliciesPage"));
 
 // Admin pages
 const AdminLogin = lazy(() => import("./Pages/AdminLogin"));
@@ -68,6 +69,7 @@ export default function App() {
     { path: "/about", element: AboutPage },
     { path: "/contact", element: Contact },
     { path: "/verify-otp", element: VerifyOtp },
+    { path: "/policies", element: PoliciesPage },
   ];
 
   const protectedRoutes = [
