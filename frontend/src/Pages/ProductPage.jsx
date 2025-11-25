@@ -187,16 +187,6 @@ export default function ProductsPage() {
       try {
         setLoading(true);
         const { data } = await api.get(`/api/products${queryString}`, { signal: controller.signal });
-
-        // Helpful debug info while developing — remove in production
-        // console.debug("Products fetch", {
-        //   queryString,
-        //   url: `/api/products${queryString}`,
-        //   returnedCount: (data?.products || (Array.isArray(data) ? data : [])).length,
-        //   page: data?.page,
-        //   pages: data?.pages,
-        // });
-
         if (!alive || fetchIdRef.current !== thisFetchId) return;
 
         setItems(data.products || (Array.isArray(data) ? data : []));

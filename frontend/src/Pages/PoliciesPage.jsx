@@ -38,7 +38,7 @@ const SECTIONS = {
       "All product images, descriptions and content are property of Nemnidhi Glam. Slight colour variations due to lighting or screen settings are not defects.",
       "Orders are subject to availability and acceptance. We may cancel an order for payment issues, incorrect pricing, or suspected fraud.",
       "We may block users who misuse the site or attempt fraudulent orders.",
-      "Governing law: India. Disputes are resolved in courts in your registered city (replace with your city).",
+      "Governing law: India. Disputes are resolved in courts in Indore, Madhya Pradesh.",
     ],
   },
 
