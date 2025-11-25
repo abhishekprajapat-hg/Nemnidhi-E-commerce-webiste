@@ -124,31 +124,7 @@ export default function PoliciesPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Privacy, Terms, Shipping, Returns & FAQs — official store policies.</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <a
-              href="/mnt/data/Nemnidhi Glam Policies.docx"
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-pink-600 text-pink-600 text-sm font-medium hover:bg-pink-50 dark:text-pink-400 dark:border-pink-500 dark:hover:bg-pink-900/50"
-              download
-            >
-              Download Policies (DOCX)
-            </a>
-
-            <a
-              href="/mnt/data/Return & Exchange Policy.docx"
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-800"
-              download
-            >
-              Download Return Policy
-            </a>
-
-            <a
-              href="/mnt/data/Nemnidhi Glam FAQs.docx"
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-800"
-              download
-            >
-              Download FAQs
-            </a>
-          </div>
+          
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
