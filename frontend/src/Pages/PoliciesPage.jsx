@@ -105,7 +105,7 @@ const FAQS = [
   },
   {
     q: "How do I contact support?",
-    a: "Email: support@nemnidhiglam.com | WhatsApp: +91-XXXXXXXXXX | Support hours: 10 AM – 7 PM (Mon–Sat). Replace with real contact details.",
+    a: "Email: support@nemnidhiglam.com | WhatsApp: +91-70004 45463 | Support hours: 10 AM – 7 PM (Mon–Sat). Replace with real contact details.",
   },
 ];
 
