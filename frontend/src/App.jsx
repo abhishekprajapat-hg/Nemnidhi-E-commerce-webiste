@@ -2,7 +2,7 @@
 import React, { Suspense, lazy, useMemo } from "react";
 import { Routes, Route, useLocation, Outlet } from "react-router-dom";
 
-// Lazy-load pages (same as you had)
+// Lazy-load user pages
 const Home = lazy(() => import("./Pages/Home"));
 const ProductsPage = lazy(() => import("./Pages/ProductPage"));
 const ProductDetails = lazy(() => import("./Pages/ProductDetails"));
@@ -26,27 +26,27 @@ const AdminProducts = lazy(() => import("./Pages/AdminProducts"));
 const AdminProductEdit = lazy(() => import("./Pages/AdminProductEdit"));
 const AdminHomepageEditor = lazy(() => import("./Pages/AdminHomePageEditor"));
 
-// Non-lazy shared (leave them non-lazy so they are available immediately)
+// Shared components
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import ToastContainer from "./components/ToastContainer";
-import ProtectedRoute from "./components/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
+import ProtectedRoute from "./components/ProtectedRoute";
+import ChatbotWidget from "./components/chatbot/ChatbotWidget"; // chatbot import
 
-/* Small Suspense wrapper so we can give each route its own fallback.
-   This avoids showing a big global spinner when navigating between pages. */
+// Suspense wrapper
 const RouteSuspense = ({ children }) => (
-  <Suspense fallback={
-    <div className="w-full h-40 flex items-center justify-center">
-      <div className="text-sm">Loading…</div>
-    </div>
-  }>
+  <Suspense
+    fallback={
+      <div className="w-full h-40 flex items-center justify-center">
+        <div className="text-sm">Loading…</div>
+      </div>
+    }
+  >
     {children}
   </Suspense>
 );
 
-/* AdminOutlet: groups admin routes under one ProtectedRoute
-   so Header/Footer toggling logic remains simple (based on path). */
 function AdminOutlet() {
   return <Outlet />;
 }
@@ -54,78 +54,123 @@ function AdminOutlet() {
 export default function App() {
   const location = useLocation();
 
-  // small perf: memoize check
-  const isAdminRoute = useMemo(() => location.pathname.startsWith("/admin"), [location.pathname]);
-
-  // Declarative route lists reduce duplication and are easier to maintain
-  const publicRoutes = [
-    { path: "/", element: Home },
-    { path: "/products", element: ProductsPage },
-    { path: "/product/:id", element: ProductDetails },
-    { path: "/cart", element: CartPage },
-    { path: "/login", element: LoginPage },
-    { path: "/register", element: RegisterPage },
-    { path: "/order/success/:id", element: OrderSuccess },
-    { path: "/about", element: AboutPage },
-    { path: "/contact", element: Contact },
-    { path: "/verify-otp", element: VerifyOtp },
-    { path: "/policies", element: PoliciesPage },
-  ];
-
-  const protectedRoutes = [
-    { path: "/checkout", element: CheckoutPage },
-    { path: "/profile", element: ProfilePage },
-  ];
-
-  const adminRoutes = [
-    { index: true, path: "", element: AdminDashboard }, // /admin
-    { path: "orders", element: AdminOrders },
-    { path: "order/:id", element: AdminOrderDetail },
-    { path: "products", element: AdminProducts },
-    { path: "create-product", element: AdminProductEdit },
-    { path: "product/:id", element: AdminProductEdit },
-    { path: "homepage", element: AdminHomepageEditor },
-  ];
+  const isAdminRoute = useMemo(
+    () => location.pathname.startsWith("/admin"),
+    [location.pathname]
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header/Footer not shown on admin pages */}
+      {/* Public Navbar/Topbar */}
       {!isAdminRoute && <Header />}
 
-      {/* main area */}
       <main className="flex-1">
         <ScrollToTop />
 
         <Routes>
-          {/* Public routes (each route wrapped in small Suspense) */}
-          {publicRoutes.map(({ path, element: Component }) => (
-            <Route
-              key={path}
-              path={path}
-              element={
+          {/* Public routes */}
+          <Route
+            path="/"
+            element={
+              <RouteSuspense>
+                <Home />
+              </RouteSuspense>
+            }
+          />
+          <Route
+            path="/products"
+            element={
+              <RouteSuspense>
+                <ProductsPage />
+              </RouteSuspense>
+            }
+          />
+          <Route
+            path="/product/:id"
+            element={
+              <RouteSuspense>
+                <ProductDetails />
+              </RouteSuspense>
+            }
+          />
+
+          <Route
+            path="/contact"
+            element={
+              <RouteSuspense>
+                <Contact />
+              </RouteSuspense>
+            }
+          />
+
+          <Route
+            path="/policies"
+            element={
+              <RouteSuspense>
+                <PoliciesPage />
+              </RouteSuspense>
+            }
+          />
+
+          <Route
+            path="/order/success/:id"
+            element={
+              <RouteSuspense>
+                <OrderSuccess />
+              </RouteSuspense>
+            }
+          />
+
+          {/* Auth */}
+          <Route
+            path="/register"
+            element={
+              <RouteSuspense>
+                <RegisterPage />
+              </RouteSuspense>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <RouteSuspense>
+                <LoginPage />
+              </RouteSuspense>
+            }
+          />
+          <Route
+            path="/verify-otp"
+            element={
+              <RouteSuspense>
+                <VerifyOtp />
+              </RouteSuspense>
+            }
+          />
+
+          {/* Protected routes */}
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute>
                 <RouteSuspense>
-                  <Component />
+                  <CheckoutPage />
                 </RouteSuspense>
-              }
-            />
-          ))}
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Protected user routes */}
-          {protectedRoutes.map(({ path, element: Component }) => (
-            <Route
-              key={path}
-              path={path}
-              element={
-                <ProtectedRoute>
-                  <RouteSuspense>
-                    <Component />
-                  </RouteSuspense>
-                </ProtectedRoute>
-              }
-            />
-          ))}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <RouteSuspense>
+                  <ProfilePage />
+                </RouteSuspense>
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Admin login (no admin layout / header) */}
+          {/* Admin Login */}
           <Route
             path="/admin/login"
             element={
@@ -135,7 +180,7 @@ export default function App() {
             }
           />
 
-          {/* Admin nested routes — single ProtectedRoute wrapper */}
+          {/* Admin Area */}
           <Route
             path="/admin/*"
             element={
@@ -144,29 +189,69 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            {adminRoutes.map(({ path = undefined, element: Component, index = false }) => {
-              const key = path ?? "admin-index";
-              return (
-                <Route
-                  key={key}
-                  index={index}
-                  path={path}
-                  element={
-                    <RouteSuspense>
-                      <Component />
-                    </RouteSuspense>
-                  }
-                />
-              );
-            })}
+            <Route
+              index
+              element={
+                <RouteSuspense>
+                  <AdminDashboard />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="orders"
+              element={
+                <RouteSuspense>
+                  <AdminOrders />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="order/:id"
+              element={
+                <RouteSuspense>
+                  <AdminOrderDetail />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="products"
+              element={
+                <RouteSuspense>
+                  <AdminProducts />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="product/:id"
+              element={
+                <RouteSuspense>
+                  <AdminProductEdit />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="homepage"
+              element={
+                <RouteSuspense>
+                  <AdminHomepageEditor />
+                </RouteSuspense>
+              }
+            />
           </Route>
 
-          {/* fallback 404 */}
-          <Route path="*" element={<div className="p-8 text-center">404 — Page not found</div>} />
+          {/* 404 fallback */}
+          <Route
+            path="*"
+            element={<div className="p-8 text-center">404 — Page not found</div>}
+          />
         </Routes>
       </main>
 
       <ToastContainer />
+
+      {/* FLOATING CHATBOT — HIDE ON ADMIN ROUTES */}
+      {!isAdminRoute && <ChatbotWidget />}
+
       {!isAdminRoute && <Footer />}
     </div>
   );

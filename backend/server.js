@@ -14,6 +14,8 @@ const orderRoutes = require('./src/routes/orderRoutes');
 const contentRoutes = require('./src/routes/contentRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
+const chatRoutes = require('./src/routes/chatRoutes');
+const recoRoutes = require('./src/routes/recoRoutes');
 
 const { notFound, errorHandler } = require('./src/middleware/errorMiddleware');
 
@@ -77,6 +79,9 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/recommend', recoRoutes);
+
 
 try {
   const paymentRoutesPath = path.join(__dirname, 'src', 'routes', 'paymentRoutes.js');
