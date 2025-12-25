@@ -1,4 +1,4 @@
-// App.jsx (optimized)
+// App.jsx (optimized & fixed)
 import React, { Suspense, lazy, useMemo } from "react";
 import { Routes, Route, useLocation, Outlet } from "react-router-dom";
 
@@ -6,7 +6,7 @@ import { Routes, Route, useLocation, Outlet } from "react-router-dom";
 const Home = lazy(() => import("./Pages/Home"));
 const ProductsPage = lazy(() => import("./Pages/ProductPage"));
 const ProductDetails = lazy(() => import("./Pages/ProductDetails"));
-const CartPage = lazy(() => import("./Pages/CartPage"));
+const CartPage = lazy(() => import("./Pages/CartPage")); // ✅ CART
 const CheckoutPage = lazy(() => import("./Pages/CheckoutPage"));
 const LoginPage = lazy(() => import("./Pages/LoginPage"));
 const RegisterPage = lazy(() => import("./Pages/RegisterPage"));
@@ -32,7 +32,7 @@ import Footer from "./components/Footer";
 import ToastContainer from "./components/ToastContainer";
 import ScrollToTop from "./components/ScrollToTop";
 import ProtectedRoute from "./components/ProtectedRoute";
-import ChatbotWidget from "./components/chatbot/ChatbotWidget"; // chatbot import
+import ChatbotWidget from "./components/chatbot/ChatbotWidget";
 
 // Suspense wrapper
 const RouteSuspense = ({ children }) => (
@@ -47,6 +47,7 @@ const RouteSuspense = ({ children }) => (
   </Suspense>
 );
 
+// Admin outlet
 function AdminOutlet() {
   return <Outlet />;
 }
@@ -61,14 +62,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Public Navbar/Topbar */}
+      {/* Header */}
       {!isAdminRoute && <Header />}
 
       <main className="flex-1">
         <ScrollToTop />
 
         <Routes>
-          {/* Public routes */}
+          {/* ---------------- PUBLIC ROUTES ---------------- */}
+
           <Route
             path="/"
             element={
@@ -77,6 +79,7 @@ export default function App() {
               </RouteSuspense>
             }
           />
+
           <Route
             path="/products"
             element={
@@ -85,6 +88,17 @@ export default function App() {
               </RouteSuspense>
             }
           />
+
+          {/* ✅ CART ROUTE (FIXED) */}
+          <Route
+            path="/cart"
+            element={
+              <RouteSuspense>
+                <CartPage />
+              </RouteSuspense>
+            }
+          />
+
           <Route
             path="/product/:id"
             element={
@@ -121,7 +135,8 @@ export default function App() {
             }
           />
 
-          {/* Auth */}
+          {/* ---------------- AUTH ROUTES ---------------- */}
+
           <Route
             path="/register"
             element={
@@ -130,6 +145,7 @@ export default function App() {
               </RouteSuspense>
             }
           />
+
           <Route
             path="/login"
             element={
@@ -138,6 +154,7 @@ export default function App() {
               </RouteSuspense>
             }
           />
+
           <Route
             path="/verify-otp"
             element={
@@ -147,7 +164,8 @@ export default function App() {
             }
           />
 
-          {/* Protected routes */}
+          {/* ---------------- PROTECTED USER ROUTES ---------------- */}
+
           <Route
             path="/checkout"
             element={
@@ -170,7 +188,8 @@ export default function App() {
             }
           />
 
-          {/* Admin Login */}
+          {/* ---------------- ADMIN ROUTES ---------------- */}
+
           <Route
             path="/admin/login"
             element={
@@ -180,7 +199,6 @@ export default function App() {
             }
           />
 
-          {/* Admin Area */}
           <Route
             path="/admin/*"
             element={
@@ -197,6 +215,7 @@ export default function App() {
                 </RouteSuspense>
               }
             />
+
             <Route
               path="orders"
               element={
@@ -205,6 +224,7 @@ export default function App() {
                 </RouteSuspense>
               }
             />
+
             <Route
               path="order/:id"
               element={
@@ -213,6 +233,7 @@ export default function App() {
                 </RouteSuspense>
               }
             />
+
             <Route
               path="products"
               element={
@@ -221,6 +242,7 @@ export default function App() {
                 </RouteSuspense>
               }
             />
+
             <Route
               path="product/:id"
               element={
@@ -229,6 +251,7 @@ export default function App() {
                 </RouteSuspense>
               }
             />
+
             <Route
               path="homepage"
               element={
@@ -239,19 +262,24 @@ export default function App() {
             />
           </Route>
 
-          {/* 404 fallback */}
+          {/* ---------------- 404 ---------------- */}
           <Route
             path="*"
-            element={<div className="p-8 text-center">404 — Page not found</div>}
+            element={
+              <div className="p-8 text-center text-lg">
+                404 — Page not found
+              </div>
+            }
           />
         </Routes>
       </main>
 
       <ToastContainer />
 
-      {/* FLOATING CHATBOT — HIDE ON ADMIN ROUTES */}
+      {/* Chatbot */}
       {!isAdminRoute && <ChatbotWidget />}
 
+      {/* Footer */}
       {!isAdminRoute && <Footer />}
     </div>
   );
