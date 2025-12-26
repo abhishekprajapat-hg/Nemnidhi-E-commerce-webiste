@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
  * If not, replace iconSrc with a public URL or import an asset.
  */
 
-const WHATSAPP_NUMBER = "+917000445463"; // <- change to your number (include country code)
+const WHATSAPP_NUMBER = "+918269150205"; // <- change to your number (include country code)
 const WHATSAPP_ICON_SRC = "/images/whatsapp-icon.webp"; // <- change to your WhatsApp icon path
 
 function Field({ label, children }) {
@@ -165,7 +165,7 @@ export default function Contact() {
             <div className="p-6 bg-white dark:bg-zinc-900 rounded-2xl shadow border border-gray-200 dark:border-zinc-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Contact Info</h3>
               <p className="mt-2 text-gray-700 dark:text-gray-400">Indore, Madhya Pradesh, India</p>
-              <p className="mt-1 text-gray-700 dark:text-gray-400">Phone: +91 70004 45463</p>
+              <p className="mt-1 text-gray-700 dark:text-gray-400">Phone: +91-8269150205</p>
               <p className="mt-1 text-gray-700 dark:text-gray-400">Email: support@glam.nemnidhi.com</p>
             </div>
 
@@ -182,7 +182,7 @@ export default function Contact() {
                 </button>
 
                 <a
-                  href={`tel:+91-7000445463`}
+                  href={`tel:+91-8269150205`}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50"
                 >
                   Call us

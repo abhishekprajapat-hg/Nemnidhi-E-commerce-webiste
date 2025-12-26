@@ -118,6 +118,16 @@ export default function App() {
           />
 
           <Route
+            path="/about"
+            element={
+              <RouteSuspense>
+                <AboutPage />
+              </RouteSuspense>
+            }
+          />
+
+
+          <Route
             path="/policies"
             element={
               <RouteSuspense>
@@ -251,6 +261,11 @@ export default function App() {
                 </RouteSuspense>
               }
             />
+            <Route path="create-product" element={
+              <RouteSuspense>
+                <AdminProductEdit />
+              </RouteSuspense>
+            } />
 
             <Route
               path="homepage"
