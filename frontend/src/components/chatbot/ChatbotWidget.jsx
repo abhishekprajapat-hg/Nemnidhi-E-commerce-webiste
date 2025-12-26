@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 export default function ChatbotWidget({ cart }) {
   const [open, setOpen] = useState(false);
@@ -43,7 +44,7 @@ export default function ChatbotWidget({ cart }) {
 
     try {
       setIsTyping(true);
-      const res = await fetch("http://localhost:5000/api/chat", {
+      const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: msg, cart, history }),
