@@ -14,7 +14,8 @@ const CategoriesEditor = lazy(() =>
 const PromoEditor = lazy(() => import("../components/admin/PromoEditor"));
 
 const EMPTY_SLIDE = { img: "", alt: "", title: "", subtitle: "", href: "" };
-const EMPTY_CATEGORY = { name: "", href: "", img: "" };
+const EMPTY_CATEGORY = { name: "", slug: "", href: "", img: "" };
+
 const EMPTY_PROMO = {
   title: "",
   subtitle: "",
@@ -25,6 +26,13 @@ const EMPTY_PROMO = {
 
 const CACHE_KEY = "admin_homepage_cache_v1";
 const FETCH_TIMEOUT = 7000; // ms - abort if backend too slow
+
+const makeSlug = (str = "") =>
+  str
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
 
 function useCachedHomepage(initialState) {
   const [data, setData] = useState(() => {
@@ -123,20 +131,22 @@ export default function AdminHomepageEditor() {
                   img: "https://img.freepik.com/premium-photo/stack-folded-silk-sarees-vibrant-hues-created-with-generative-ai_419341-23285.jpg",
                   title: "Elegance Woven",
                   subtitle: "Discover our handloom sarees.",
-                  href: "/products?category=Saree",
+                  href: "/products?category=sarees",
                 },
               ],
               categories: [
                 {
                   ...EMPTY_CATEGORY,
                   name: "Banarasi Sarees",
-                  href: "/products?category=Banarasi",
+                  slug: "banarasi-sarees",
+                  href: "/products?category=banarasi-sarees",
                   img: "https://images.unsplash.com/photo-1621612423739-b6b58675b47a?w=500&auto=format&fit=crop&q=60",
                 },
                 {
                   ...EMPTY_CATEGORY,
                   name: "Designer Lehengas",
-                  href: "/products?category=Lehenga",
+                  slug: "designer-lehengas",
+                  href: "/products?category=designer-lehengas",
                   img: "https://images.unsplash.com/photo-1598141226207-e8036696a2b8?w=500&auto=format&fit=crop&q=60",
                 },
               ],
@@ -145,7 +155,7 @@ export default function AdminHomepageEditor() {
                 title: "Mid-Season Sale",
                 subtitle: "Up to 30% off on selected items. Don't miss out!",
                 buttonText: "Shop Sale",
-                href: "/products?category=Sale",
+                href: "/products?category=sale",
                 img: "",
               },
             };
@@ -189,7 +199,14 @@ export default function AdminHomepageEditor() {
       showToast("Saving homepage…", "info");
       setSaving(true);
 
-      const payload = stripDataUris(data);
+      const normalizedCategories = (data.categories || []).map((c) => ({
+        ...c,
+        slug: c.slug || makeSlug(c.name), // slug empty ho to auto-generate
+      }));
+      const payload = stripDataUris({
+        ...data,
+        categories: normalizedCategories,
+      });
 
       try {
         const sizeKB = new Blob([JSON.stringify(payload)]).size / 1024;

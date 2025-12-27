@@ -1,5 +1,11 @@
 // src/components/HeroSlider.jsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "/src/api/axios";
@@ -17,7 +23,8 @@ export function HeroSlider({
   slides = [
     {
       title: "Products you Love.",
-      subtitle: "Quality we Trust. Handpicked collections for your special moments.",
+      subtitle:
+        "Quality we Trust. Handpicked collections for your special moments.",
       img: HERO_IMAGE,
       href: "/shop",
       cta: "Shop Now",
@@ -66,19 +73,14 @@ export function HeroSlider({
               typeof c === "string"
                 ? { title: c, slug: c, img: DEFAULT_CAT_IMAGE }
                 : {
-                    title: c.name || c.title || c.label || "",
-                    slug:
-                      c.slug ||
-                      (c.name || c.title || "")
-                        .toString()
-                        .toLowerCase()
-                        .replace(/[^a-z0-9]+/g, "-")
-                        .replace(/^-+|-+$/g, ""),
+                    title: c.name || c.title || "",
+                    slug: c.slug || "", // 🔒 DO NOT GENERATE
                     img: c.img || c.image || DEFAULT_CAT_IMAGE,
                     href: c.href || null,
                   }
             )
           );
+
           return;
         }
       } catch (err) {
@@ -186,7 +188,14 @@ export function HeroSlider({
 
   // ---------------- autoplay (controlled) ----------------
   const canAutoplay = useCallback(() => {
-    return !isPaused && !prefersReduced && Boolean(isVisible) && !isDragging && slidesRef.current && slidesRef.current.length > 1;
+    return (
+      !isPaused &&
+      !prefersReduced &&
+      Boolean(isVisible) &&
+      !isDragging &&
+      slidesRef.current &&
+      slidesRef.current.length > 1
+    );
   }, [isPaused, prefersReduced, isVisible, isDragging]);
 
   const startAutoplay = useCallback(() => {
@@ -253,17 +262,33 @@ export function HeroSlider({
   // category click
   const handleCategoryClick = useCallback(
     (cat) => {
+      if (!cat) return;
+
       if (typeof onCategoryClick === "function") return onCategoryClick(cat);
-      if (cat && (cat.slug || cat.href)) {
-        if (cat.href) return (window.location.href = cat.href);
-        return navigate(`/products?sort=-createdAt&category=${encodeURIComponent(cat.slug)}`);
+
+      if (cat.href) {
+        window.location.href = cat.href;
+        return;
       }
+
+      if (!cat.slug) {
+        console.warn("Category clicked without slug:", cat);
+        return;
+      }
+
+      navigate(
+        `/products?sort=-createdAt&category=${encodeURIComponent(cat.slug)}`
+      );
     },
     [navigate, onCategoryClick]
   );
 
   // derived/memoized things
-  const slide = useMemo(() => slides[index] || { title: "", subtitle: "", img: HERO_IMAGE, href: "/" }, [slides, index]);
+  const slide = useMemo(
+    () =>
+      slides[index] || { title: "", subtitle: "", img: HERO_IMAGE, href: "/" },
+    [slides, index]
+  );
   const isMobilePreview = previewViewport === "mobile";
   const cats = useMemo(() => localCategories || [], [localCategories]);
 
@@ -280,7 +305,11 @@ export function HeroSlider({
       role="region"
       aria-label="Gold hero slider"
     >
-      <div className={`max-w-7xl mx-auto px-6 lg:px-12 py-12 lg:py-20 ${isMobilePreview ? "overflow-hidden" : ""}`}>
+      <div
+        className={`max-w-7xl mx-auto px-6 lg:px-12 py-12 lg:py-20 ${
+          isMobilePreview ? "overflow-hidden" : ""
+        }`}
+      >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           {/* LEFT: Upgraded Image Carousel */}
           <div className="relative h-[420px] lg:h-[640px] rounded-2xl overflow-hidden">
@@ -305,8 +334,10 @@ export function HeroSlider({
                   setIsPaused(false);
                   const offset = info.offset.x;
                   const velocity = info.velocity.x;
-                  if (offset < -SWIPE_OFFSET || velocity < -SWIPE_VELOCITY) manualNext();
-                  else if (offset > SWIPE_OFFSET || velocity > SWIPE_VELOCITY) manualPrev();
+                  if (offset < -SWIPE_OFFSET || velocity < -SWIPE_VELOCITY)
+                    manualNext();
+                  else if (offset > SWIPE_OFFSET || velocity > SWIPE_VELOCITY)
+                    manualPrev();
                 }}
                 className="absolute inset-0 flex touch-pan-x will-change-transform"
               >
@@ -345,15 +376,25 @@ export function HeroSlider({
                   transition={{ duration: 0.45, ease: "easeOut" }}
                   className="pointer-events-auto"
                 >
-                  <h1 className="text-4xl lg:text-6xl font-extrabold leading-tight tracking-tight text-yellow-100">{slide.title}</h1>
-                  <p className="mt-3 text-sm lg:text-base text-yellow-200/90 max-w-md">{slide.subtitle}</p>
+                  <h1 className="text-4xl lg:text-6xl font-extrabold leading-tight tracking-tight text-yellow-100">
+                    {slide.title}
+                  </h1>
+                  <p className="mt-3 text-sm lg:text-base text-yellow-200/90 max-w-md">
+                    {slide.subtitle}
+                  </p>
 
                   <div className="mt-6 flex gap-4 items-center">
-                    <Link to={slide.href} className="inline-block bg-[#5b2f1a] border border-yellow-300/60 text-yellow-100 px-6 py-3 rounded-lg shadow-lg hover:scale-[1.02] transform-gpu transition pointer-events-auto">
+                    <Link
+                      to={slide.href}
+                      className="inline-block bg-[#5b2f1a] border border-yellow-300/60 text-yellow-100 px-6 py-3 rounded-lg shadow-lg hover:scale-[1.02] transform-gpu transition pointer-events-auto"
+                    >
                       {slide.cta || "Shop Now"}
                     </Link>
 
-                    <Link to={slide.href} className="inline-block px-4 py-2 rounded-md bg-white/10 ring-1 ring-white/10 text-sm pointer-events-auto">
+                    <Link
+                      to={slide.href}
+                      className="inline-block px-4 py-2 rounded-md bg-white/10 ring-1 ring-white/10 text-sm pointer-events-auto"
+                    >
                       Explore
                     </Link>
                   </div>
@@ -363,12 +404,26 @@ export function HeroSlider({
 
             {/* badge */}
             <div className="absolute left-8 top-10 z-20 pointer-events-none">
-              <div className="bg-black/40 text-white px-4 py-2 rounded-full backdrop-blur text-sm shadow-xl">{slide.badge || "Limited drop"}</div>
+              <div className="bg-black/40 text-white px-4 py-2 rounded-full backdrop-blur text-sm shadow-xl">
+                {slide.badge || "Limited drop"}
+              </div>
             </div>
 
             {/* controls */}
-            <button onClick={manualPrev} aria-label="Previous slide" className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/30 text-white shadow-sm">‹</button>
-            <button onClick={manualNext} aria-label="Next slide" className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/30 text-white shadow-sm">›</button>
+            <button
+              onClick={manualPrev}
+              aria-label="Previous slide"
+              className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/30 text-white shadow-sm"
+            >
+              ‹
+            </button>
+            <button
+              onClick={manualNext}
+              aria-label="Next slide"
+              className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/30 text-white shadow-sm"
+            >
+              ›
+            </button>
 
             {/* dots + progress */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3">
@@ -382,13 +437,24 @@ export function HeroSlider({
                     window.setTimeout(() => setIsPaused(false), 650);
                   }}
                   aria-label={`Go to slide ${i + 1}`}
-                  className={`rounded-full transition-all ${i === index ? "bg-yellow-100 w-10 h-2 shadow-lg" : "bg-yellow-100/40 w-3 h-3"}`}
+                  className={`rounded-full transition-all ${
+                    i === index
+                      ? "bg-yellow-100 w-10 h-2 shadow-lg"
+                      : "bg-yellow-100/40 w-3 h-3"
+                  }`}
                 />
               ))}
             </div>
 
             {!prefersReduced && (
-              <motion.div key={`progress-${index}`} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: SLIDE_MS / 1000, ease: "linear" }} className="absolute left-0 right-0 bottom-0 h-1 origin-left bg-gradient-to-r from-yellow-400 to-yellow-200 z-40" style={{ transformOrigin: "left" }} />
+              <motion.div
+                key={`progress-${index}`}
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: SLIDE_MS / 1000, ease: "linear" }}
+                className="absolute left-0 right-0 bottom-0 h-1 origin-left bg-gradient-to-r from-yellow-400 to-yellow-200 z-40"
+                style={{ transformOrigin: "left" }}
+              />
             )}
           </div>
 
@@ -396,18 +462,35 @@ export function HeroSlider({
           <div className="relative w-full flex items-center justify-center">
             <div className="grid grid-cols-2 gap-x-8 gap-y-6 lg:gap-x-10 lg:gap-y-8">
               {cats.map((c) => (
-                <button key={c.title || c.slug} onClick={() => handleCategoryClick(c)} aria-label={`Open ${c.title}`} className="flex flex-col items-center group transition-transform duration-400 hover:scale-105">
+                <button
+                  key={c.title || c.slug}
+                  onClick={() => handleCategoryClick(c)}
+                  aria-label={`Open ${c.title}`}
+                  className="flex flex-col items-center group transition-transform duration-400 hover:scale-105"
+                >
                   <div className="w-36 h-44 lg:w-40 lg:h-52 bg-gradient-to-b from-[#4a2f20] to-[#3b2416] rounded-tl-2xl rounded-tr-2xl border border-yellow-400/20 shadow-md overflow-hidden relative transition-transform duration-500 ease-out group-hover:scale-105">
                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-transparent pointer-events-none" />
-                    <img src={c.img || DEFAULT_CAT_IMAGE} alt={c.title} className="w-full h-full object-cover object-center opacity-95" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_CAT_IMAGE; }} />
+                    <img
+                      src={c.img || DEFAULT_CAT_IMAGE}
+                      alt={c.title}
+                      className="w-full h-full object-cover object-center opacity-95"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = DEFAULT_CAT_IMAGE;
+                      }}
+                    />
                     <div className="absolute bottom-0 left-0 right-0 py-2 text-center bg-gradient-to-t from-black/60 to-transparent">
-                      <span className="text-sm lg:text-base font-semibold text-yellow-100">{c.title}</span>
+                      <span className="text-sm lg:text-base font-semibold text-yellow-100">
+                        {c.title}
+                      </span>
                     </div>
                   </div>
                 </button>
               ))}
             </div>
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">{/* decorative area */}</div>
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              {/* decorative area */}
+            </div>
           </div>
         </div>
       </div>
