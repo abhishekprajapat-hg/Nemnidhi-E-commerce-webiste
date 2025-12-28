@@ -307,14 +307,14 @@ export default function CheckoutPage() {
                   <span className="dark:text-gray-300">Pay Online (Razorpay)</span>
                 </label>
 
-                <label className="flex items-center gap-3 cursor-pointer">
+                {/* <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="radio"
                     checked={paymentMethod === "COD"}
                     onChange={() => setPaymentMethod("COD")}
                   />
                   <span className="dark:text-gray-300">Cash on Delivery</span>
-                </label>
+                </label> */}
               </div>
 
               <button

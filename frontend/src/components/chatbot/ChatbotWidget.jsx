@@ -44,7 +44,7 @@ export default function ChatbotWidget({ cart }) {
 
     try {
       setIsTyping(true);
-      const res = await fetch(`${API_BASE}/chat`, {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: msg, cart, history }),
