@@ -39,9 +39,9 @@ export default function CheckoutPage() {
     if (!user) navigate("/login", { state: { from: "/checkout" } });
   }, [user]);
 
-  useEffect(() => {
-    if (cartItems.length === 0) navigate("/cart");
-  }, [cartItems]);
+  // useEffect(() => {
+  //   if (cartItems.length === 0) navigate("/cart");
+  // }, [cartItems]);
 
   useEffect(() => {
     if (user) {
@@ -66,18 +66,13 @@ export default function CheckoutPage() {
   // ⭐ Prices (No Tax)
   const itemsPrice = useMemo(
     () =>
-      cartItems.reduce(
-        (sum, it) => sum + Number(it.price) * Number(it.qty),
-        0
-      ),
+      cartItems.reduce((sum, it) => sum + Number(it.price) * Number(it.qty), 0),
     [cartItems]
   );
 
   // ✅ Free shipping when itemsPrice is >= ₹1000
   const shippingPrice =
-    itemsPrice >= FREE_SHIPPING_THRESHOLD
-      ? 0
-      : STANDARD_SHIPPING_CHARGE;
+    itemsPrice >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_CHARGE;
 
   // ❌ Removed tax
   const totalPrice = +(itemsPrice + shippingPrice).toFixed(2);
@@ -145,23 +140,32 @@ export default function CheckoutPage() {
 
       handler: async (res) => {
         try {
-          const verifyRes = await api.post("/api/payment/razorpay/verify", {
-            razorpay_order_id: res.razorpay_order_id,
-            razorpay_payment_id: res.razorpay_payment_id,
-            razorpay_signature: res.razorpay_signature,
+          const verifyRes = await api.post(
+            "/api/payment/razorpay/verify",
+            {
+              razorpay_order_id: res.razorpay_order_id,
+              razorpay_payment_id: res.razorpay_payment_id,
+              razorpay_signature: res.razorpay_signature,
 
-            orderPayload: {
-              orderItems: cartItems,
-              shippingAddress: shipping,
-              billingAddress: useDifferentBilling ? billing : shipping,
-              saveAddress,
-              paymentMethod: "Razorpay",
-              itemsPrice,
-              shippingPrice,
-              totalPrice,
+              orderPayload: {
+                orderItems: cartItems,
+                shippingAddress: shipping,
+                billingAddress: useDifferentBilling ? billing : shipping,
+                saveAddress,
+                paymentMethod: "Razorpay",
+                itemsPrice,
+                shippingPrice,
+                totalPrice,
+              },
             },
-          });
-
+            {
+              headers: {
+                Authorization: `Bearer ${user.token}`,
+              },
+            }
+            
+          );
+          
           dispatch(clearCart());
           navigate(`/order/success/${verifyRes.data.orderId}`);
         } catch (err) {
@@ -185,12 +189,19 @@ export default function CheckoutPage() {
     } finally {
       setLoading(false);
     }
+    console.log("USER OBJECT:", user);
+
   };
+  
+
+  
 
   return (
     <div className="bg-[#fdf7f7] min-h-screen dark:bg-black">
       <div className="max-w-7xl mx-auto px-4 py-10">
-        <h1 className="text-3xl font-extrabold dark:text-white mb-6">Checkout</h1>
+        <h1 className="text-3xl font-extrabold dark:text-white mb-6">
+          Checkout
+        </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Section */}
@@ -264,7 +275,9 @@ export default function CheckoutPage() {
               <div className="border-t pt-4 dark:border-zinc-700 space-y-2">
                 <div className="flex justify-between">
                   <span className="dark:text-gray-300">Items</span>
-                  <span className="dark:text-white">₹{itemsPrice.toFixed(2)}</span>
+                  <span className="dark:text-white">
+                    ₹{itemsPrice.toFixed(2)}
+                  </span>
                 </div>
 
                 <div className="flex justify-between items-center">
@@ -284,7 +297,9 @@ export default function CheckoutPage() {
                 {/* ❌ Tax Removed */}
 
                 <div className="border-t mt-3 pt-3 flex justify-between dark:border-zinc-700">
-                  <span className="font-semibold dark:text-gray-200">Total</span>
+                  <span className="font-semibold dark:text-gray-200">
+                    Total
+                  </span>
                   <span className="text-xl font-extrabold dark:text-white">
                     ₹{totalPrice.toFixed(2)}
                   </span>
@@ -304,7 +319,9 @@ export default function CheckoutPage() {
                     checked={paymentMethod === "Razorpay"}
                     onChange={() => setPaymentMethod("Razorpay")}
                   />
-                  <span className="dark:text-gray-300">Pay Online (Razorpay)</span>
+                  <span className="dark:text-gray-300">
+                    Pay Online (Razorpay)
+                  </span>
                 </label>
 
                 {/* <label className="flex items-center gap-3 cursor-pointer">
