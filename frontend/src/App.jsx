@@ -32,7 +32,7 @@ import Footer from "./components/Footer";
 import ToastContainer from "./components/ToastContainer";
 import ScrollToTop from "./components/ScrollToTop";
 import ProtectedRoute from "./components/ProtectedRoute";
-import ChatbotWidget from "./components/chatbot/ChatbotWidget";
+// import ChatbotWidget from "./components/chatbot/ChatbotWidget";
 
 // Suspense wrapper
 const RouteSuspense = ({ children }) => (
@@ -291,7 +291,7 @@ export default function App() {
 
       <ToastContainer />
 
-      {/* Chatbot */}
+      Chatbot
       {!isAdminRoute && <ChatbotWidget />}
 
       {/* Footer */}
