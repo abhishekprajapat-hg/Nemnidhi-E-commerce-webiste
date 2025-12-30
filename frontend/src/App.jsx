@@ -291,8 +291,8 @@ export default function App() {
 
       <ToastContainer />
 
-      Chatbot
-      {!isAdminRoute && <ChatbotWidget />}
+      {/* Chatbot
+      {!isAdminRoute && <ChatbotWidget />} */}
 
       {/* Footer */}
       {!isAdminRoute && <Footer />}
