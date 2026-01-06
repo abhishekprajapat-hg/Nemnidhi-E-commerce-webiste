@@ -9,6 +9,7 @@ import './index.css';
 import { ThemeProvider } from './context/ThemeContext';
 // JS entry: imports the CSS bundle so it's served from your origin
 import "@fortawesome/fontawesome-free/css/all.min.css";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 
 createRoot(document.getElementById('root')).render(
@@ -17,7 +18,9 @@ createRoot(document.getElementById('root')).render(
       {/* Opt into both v7 future flags to silence warnings and opt-in early */}
       <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
         <ThemeProvider>
+          <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
           <App />
+          </GoogleOAuthProvider>
         </ThemeProvider>
       </BrowserRouter>
     </Provider>

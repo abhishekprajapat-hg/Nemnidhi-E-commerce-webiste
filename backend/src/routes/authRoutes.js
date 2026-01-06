@@ -4,15 +4,24 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
-// Existing routes
+// -----------------------------
+// AUTH ROUTES
+// -----------------------------
+
+// Email + Password + OTP
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 
-// ⭐ ADD OTP ROUTES
+// OTP verification
 router.post('/verify-otp', authController.verifyOtp);
 router.post('/resend-otp', authController.resendOtp);
 
-// Profile (protected)
+// 🔥 GOOGLE LOGIN / REGISTER
+router.post('/google', authController.googleAuth);
+
+// -----------------------------
+// PROFILE (PROTECTED)
+// -----------------------------
 router.get('/profile', protect, authController.getProfile);
 router.put('/profile', protect, authController.updateProfile);
 
