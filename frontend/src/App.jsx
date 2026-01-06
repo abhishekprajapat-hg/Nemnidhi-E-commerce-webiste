@@ -4,6 +4,7 @@ import { Routes, Route, useLocation, Outlet } from "react-router-dom";
 
 // Lazy-load user pages
 const Home = lazy(() => import("./Pages/Home"));
+import NewArrivals from "./pages/NewArrivals";
 const ProductsPage = lazy(() => import("./Pages/ProductPage"));
 const ProductDetails = lazy(() => import("./Pages/ProductDetails"));
 const CartPage = lazy(() => import("./Pages/CartPage")); // ✅ CART
@@ -107,6 +108,7 @@ export default function App() {
               </RouteSuspense>
             }
           />
+          <Route path="/new-arrivals" element={<NewArrivals />} />
 
           <Route
             path="/contact"
@@ -125,7 +127,6 @@ export default function App() {
               </RouteSuspense>
             }
           />
-
 
           <Route
             path="/policies"
@@ -261,11 +262,14 @@ export default function App() {
                 </RouteSuspense>
               }
             />
-            <Route path="create-product" element={
-              <RouteSuspense>
-                <AdminProductEdit />
-              </RouteSuspense>
-            } />
+            <Route
+              path="create-product"
+              element={
+                <RouteSuspense>
+                  <AdminProductEdit />
+                </RouteSuspense>
+              }
+            />
 
             <Route
               path="homepage"

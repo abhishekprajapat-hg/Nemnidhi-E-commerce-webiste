@@ -11,6 +11,7 @@ import TrustIconsSection from "../components/home/TrustIconsSection";
 import NewsletterSection from "../components/home/NewsletterSection";
 import TestimonialSection from "../components/home/TestimonialSection";
 import Promo from "../components/home/Promo";
+import { Link } from "react-router-dom";
 
 /* ================= DEFAULTS ================= */
 
@@ -123,21 +124,12 @@ export default function Home() {
         homepageCache = normalized;
         homepageCacheTime = now;
 
-        localStorage.setItem(
-          "homepage_content",
-          JSON.stringify(normalized)
-        );
-        localStorage.setItem(
-          "homepage_content_time",
-          String(now)
-        );
+        localStorage.setItem("homepage_content", JSON.stringify(normalized));
+        localStorage.setItem("homepage_content_time", String(now));
 
         setHomepageContent(normalized);
       } catch (err) {
-        console.warn(
-          "Could not load homepage content, using defaults",
-          err
-        );
+        console.warn("Could not load homepage content, using defaults", err);
       } finally {
         mounted && setLoadingHomepage(false);
       }
@@ -157,9 +149,7 @@ export default function Home() {
       setLoadingArrivals(true);
       try {
         const { data } = await api.get("/api/products?limit=8");
-        const list = Array.isArray(data)
-          ? data
-          : data?.products || [];
+        const list = Array.isArray(data) ? data : data?.products || [];
         mounted && setNewArrivals(list);
       } catch (err) {
         console.error("Failed to load new arrivals", err);
@@ -184,23 +174,19 @@ export default function Home() {
         ? prod.variants[0]
         : null;
 
-    const chosenSize =
-      firstVariant?.sizes?.length ? firstVariant.sizes[0] : null;
+    const chosenSize = firstVariant?.sizes?.length
+      ? firstVariant.sizes[0]
+      : null;
 
     const payload = {
       product: prod._id,
       title: prod.title || prod.name,
       price: Number(chosenSize?.price || prod.price || 0),
       qty: 1,
-      image:
-        firstVariant?.images?.[0] ||
-        prod.images?.[0] ||
-        prod.image ||
-        "",
+      image: firstVariant?.images?.[0] || prod.images?.[0] || prod.image || "",
       size: chosenSize?.size || "",
       color: firstVariant?.color || "",
-      countInStock:
-        Number(chosenSize?.stock || prod.countInStock || 0),
+      countInStock: Number(chosenSize?.stock || prod.countInStock || 0),
     };
 
     dispatch(addToCart(payload));
@@ -221,6 +207,16 @@ export default function Home() {
       <ScrollingMarquee />
 
       {/* NEW ARRIVALS */}
+      <ProductCarousel
+        title={
+          <Link to="/new-arrivals" className="hover:underline">
+            New Arrivals
+          </Link>
+        }
+        products={newArrivals}
+        loading={loadingArrivals}
+        onAddToCart={handleAddToCart}
+      />
       <ProductCarousel
         title="New Arrivals"
         products={newArrivals}
