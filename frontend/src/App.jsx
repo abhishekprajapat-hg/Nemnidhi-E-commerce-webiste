@@ -4,7 +4,7 @@ import { Routes, Route, useLocation, Outlet } from "react-router-dom";
 
 // Lazy-load user pages
 const Home = lazy(() => import("./Pages/Home"));
-import NewArrivals from "./pages/NewArrivals";
+const NewArrivals = lazy(() => import("./Pages/NewArrivals"));
 const ProductsPage = lazy(() => import("./Pages/ProductPage"));
 const ProductDetails = lazy(() => import("./Pages/ProductDetails"));
 const CartPage = lazy(() => import("./Pages/CartPage")); // ✅ CART
