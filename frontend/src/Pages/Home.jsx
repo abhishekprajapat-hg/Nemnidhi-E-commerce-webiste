@@ -1,4 +1,3 @@
-// src/pages/Home.jsx
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
 import { useDispatch } from "react-redux";
@@ -13,6 +12,8 @@ import NewsletterSection from "../components/home/NewsletterSection";
 import TestimonialSection from "../components/home/TestimonialSection";
 import Promo from "../components/home/Promo";
 
+/* ================= DEFAULTS ================= */
+
 const DEFAULT_HERO_SLIDES = [
   {
     img: "/images/img-1.jpg",
@@ -21,49 +22,16 @@ const DEFAULT_HERO_SLIDES = [
     subtitle:
       "A luxurious silk canvas, where vibrant green hues dance with opulent golden threads.",
     href: "/product/6918c0b7272e5abff761c00a",
-  },
-  {
-    img: "/images/img-1.jpg",
-    alt: "Designer Kurta Sets",
-    title: "CONTEMPORARY KURTA SETS",
-    subtitle: "Modern designs for every occasion.",
-    href: "/products?category=kurta",
-  },
-  {
-    img: "/images/img-3.jpg",
-    alt: "Stunning Lehengas",
-    title: "THE BRIDAL COLLECTION",
-    subtitle: "Find the perfect lehenga for your special day.",
-    href: "/products?category=lehenga",
+    cta: "View Product",
   },
 ];
 
 const DEFAULT_CATEGORIES = [
-  {
-    name: "Sarees",
-    href: "/products?category=sarees",
-    img: "/images/img-1.jpg",
-  },
-  {
-    name: "Western",
-    href: "/products?category=western",
-    img: "/images/img-2.jpg",
-  },
-  {
-    name: "Tops",
-    href: "/products?category=tops",
-    img: "/images/img-3.jpg",
-  },
-  {
-    name: "Sweaters",
-    href: "/products?category=sweaters",
-    img: "/images/img-1.jpg",
-  },
-  {
-    name: "Jeans",
-    href: "/products?category=jeans",
-    img: "/images/img-2.jpg",
-  },
+  { title: "Sarees", slug: "sarees" },
+  { title: "Western", slug: "western" },
+  { title: "Tops", slug: "tops" },
+  { title: "Sweaters", slug: "sweaters" },
+  { title: "Jeans", slug: "jeans" },
 ];
 
 const FALLBACK_PROMO = {
@@ -74,168 +42,196 @@ const FALLBACK_PROMO = {
   img: "/images/default-banner.jpg",
 };
 
+/* ================= CACHE ================= */
+let homepageCache = null;
+let homepageCacheTime = 0;
+const CACHE_TTL = 60 * 1000; // 1 minute
+
 export default function Home() {
+  const dispatch = useDispatch();
+
   const [homepageContent, setHomepageContent] = useState({
     heroSlides: DEFAULT_HERO_SLIDES,
     categories: DEFAULT_CATEGORIES,
-    promo: null,
+    promo: FALLBACK_PROMO,
   });
+
   const [loadingHomepage, setLoadingHomepage] = useState(true);
   const [newArrivals, setNewArrivals] = useState([]);
   const [loadingArrivals, setLoadingArrivals] = useState(true);
-  const dispatch = useDispatch();
 
-  // Normalize different response shapes into expected { heroSlides, categories, promo }
+  /* ================= NORMALIZER ================= */
   const normalizeHomepage = (raw = {}) => {
-    let maybe = raw;
-    if (raw?.data) maybe = raw.data;
-    if (raw?.homepage) maybe = raw.homepage;
-    if (raw?.content) maybe = raw.content;
+    const heroSlides =
+      Array.isArray(raw.heroSlides) && raw.heroSlides.length
+        ? raw.heroSlides
+        : DEFAULT_HERO_SLIDES;
 
-    const looksLikePromoOnly =
-      (maybe && (maybe.title || maybe.img || maybe.buttonText)) && !maybe.heroSlides && !maybe.categories;
-
-    // normalize categories coming from backend if any: ensure href uses lowercase category query
-    const normalizedCats = Array.isArray(maybe?.categories) && maybe.categories.length
-      ? maybe.categories.map((c) => {
-          // c can be string or object
-          if (typeof c === "string") {
-            const name = c;
-            return { name, href: `/products?category=${String(name).toLowerCase()}`, img: "/images/img-1.jpg" };
-          }
-          const name = c.name || c.title || "";
-          // If backend already gives href, keep it but normalize query param (if possible)
-          const href = c.href || `/products?category=${String(name).toLowerCase()}`;
-          return { name, href, img: c.img || c.image || "/images/img-1.jpg" };
-        })
-      : DEFAULT_CATEGORIES;
+    const categories =
+      Array.isArray(raw.categories) && raw.categories.length
+        ? raw.categories.map((c) =>
+            typeof c === "string"
+              ? { title: c, slug: c.toLowerCase() }
+              : {
+                  title: c.name || c.title || "",
+                  slug: c.slug || c.name?.toLowerCase() || "",
+                }
+          )
+        : DEFAULT_CATEGORIES;
 
     return {
-      heroSlides: Array.isArray(maybe?.heroSlides) && maybe.heroSlides.length ? maybe.heroSlides : DEFAULT_HERO_SLIDES,
-      categories: normalizedCats,
-      promo: looksLikePromoOnly ? maybe : maybe?.promo ?? null,
+      heroSlides,
+      categories,
+      promo: raw.promo || FALLBACK_PROMO,
     };
   };
 
-  // Load homepage content (with live-update listeners)
+  /* ================= LOAD HOMEPAGE (ONCE) ================= */
   useEffect(() => {
     let mounted = true;
 
-    const loadHomepageContent = async () => {
-      if (mounted) setLoadingHomepage(true);
+    async function loadHomepage() {
+      const now = Date.now();
+      setLoadingHomepage(true);
+
+      /* 1️⃣ MEMORY CACHE */
+      if (homepageCache && now - homepageCacheTime < CACHE_TTL) {
+        mounted && setHomepageContent(homepageCache);
+        mounted && setLoadingHomepage(false);
+        return;
+      }
+
+      /* 2️⃣ LOCAL STORAGE CACHE */
+      const stored = localStorage.getItem("homepage_content");
+      const storedTime = localStorage.getItem("homepage_content_time");
+
+      if (stored && storedTime && now - Number(storedTime) < CACHE_TTL) {
+        const parsed = JSON.parse(stored);
+        homepageCache = parsed;
+        homepageCacheTime = now;
+        mounted && setHomepageContent(parsed);
+        mounted && setLoadingHomepage(false);
+        return;
+      }
+
+      /* 3️⃣ API CALL (ONLY IF NEEDED) */
       try {
-        const resp = await api.get("/api/content/homepage");
-        console.log("homepage content response:", resp?.data);
+        const res = await api.get("/api/content/homepage");
         if (!mounted) return;
 
-        const normalized = normalizeHomepage(resp?.data || {});
-        setHomepageContent((prev) => ({
-          heroSlides: normalized.heroSlides || prev.heroSlides,
-          categories: normalized.categories || prev.categories,
-          promo: typeof normalized.promo !== "undefined" ? normalized.promo : prev.promo,
-        }));
+        const normalized = normalizeHomepage(res.data || {});
+        homepageCache = normalized;
+        homepageCacheTime = now;
+
+        localStorage.setItem(
+          "homepage_content",
+          JSON.stringify(normalized)
+        );
+        localStorage.setItem(
+          "homepage_content_time",
+          String(now)
+        );
+
+        setHomepageContent(normalized);
       } catch (err) {
-        console.warn("Could not load dynamic homepage content. Using defaults.", err);
+        console.warn(
+          "Could not load homepage content, using defaults",
+          err
+        );
       } finally {
-        if (mounted) setLoadingHomepage(false);
-      }
-    };
-
-    loadHomepageContent();
-
-    const onHomepageUpdated = () => {
-      loadHomepageContent();
-    };
-    const onStorage = (e) => {
-      if (e.key === "homepage_last_updated_at") loadHomepageContent();
-    };
-
-    window.addEventListener("homepage:updated", onHomepageUpdated);
-    window.addEventListener("storage", onStorage);
-
-    return () => {
-      mounted = false;
-      window.removeEventListener("homepage:updated", onHomepageUpdated);
-      window.removeEventListener("storage", onStorage);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once
-
-  // Load new arrivals / products
-  useEffect(() => {
-    let mounted = true;
-    async function loadNewArrivals() {
-      if (mounted) setLoadingArrivals(true);
-      try {
-        const { data } = await api.get("/api/products?limit=8");
-        const list = Array.isArray(data) ? data : data?.products || [];
-        if (mounted) setNewArrivals(list);
-      } catch (err) {
-        console.error("Failed to load new arrivals", err);
-        if (mounted) setNewArrivals([]);
-      } finally {
-        if (mounted) setLoadingArrivals(false);
+        mounted && setLoadingHomepage(false);
       }
     }
+
+    loadHomepage();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  /* ================= LOAD NEW ARRIVALS ================= */
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadNewArrivals() {
+      setLoadingArrivals(true);
+      try {
+        const { data } = await api.get("/api/products?limit=8");
+        const list = Array.isArray(data)
+          ? data
+          : data?.products || [];
+        mounted && setNewArrivals(list);
+      } catch (err) {
+        console.error("Failed to load new arrivals", err);
+        mounted && setNewArrivals([]);
+      } finally {
+        mounted && setLoadingArrivals(false);
+      }
+    }
+
     loadNewArrivals();
     return () => {
       mounted = false;
     };
   }, []);
 
+  /* ================= ADD TO CART ================= */
   const handleAddToCart = (prod) => {
     if (!prod || !prod._id) return;
 
     const firstVariant =
-      Array.isArray(prod.variants) && prod.variants.length ? prod.variants[0] : null;
-    const chosenSize =
-      firstVariant?.sizes && firstVariant.sizes.length ? firstVariant.sizes[0] : null;
+      Array.isArray(prod.variants) && prod.variants.length
+        ? prod.variants[0]
+        : null;
 
-    const imageFromVariant = firstVariant?.images?.length ? firstVariant.images[0] : null;
-    const priceFromVariant = chosenSize
-      ? Number(chosenSize.price || 0)
-      : prod.price
-      ? Number(prod.price)
-      : 0;
-    const stockFromVariant = chosenSize
-      ? Number(chosenSize.stock || 0)
-      : prod.countInStock || 0;
+    const chosenSize =
+      firstVariant?.sizes?.length ? firstVariant.sizes[0] : null;
 
     const payload = {
       product: prod._id,
       title: prod.title || prod.name,
-      price: priceFromVariant,
+      price: Number(chosenSize?.price || prod.price || 0),
       qty: 1,
-      image: imageFromVariant || (prod.images && prod.images[0]) || prod.image || "",
+      image:
+        firstVariant?.images?.[0] ||
+        prod.images?.[0] ||
+        prod.image ||
+        "",
       size: chosenSize?.size || "",
       color: firstVariant?.color || "",
-      countInStock: stockFromVariant,
+      countInStock:
+        Number(chosenSize?.stock || prod.countInStock || 0),
     };
 
     dispatch(addToCart(payload));
     showToast(`${payload.title} added to cart`);
   };
 
+  /* ================= RENDER ================= */
   return (
     <div className="min-h-screen w-full bg-[#fdf7f7] dark:bg-zinc-900">
-      {/* Hero */}
-      <HeroSlider slides={homepageContent.heroSlides} loading={loadingHomepage} />
+      {/* HERO */}
+      <HeroSlider
+        slides={homepageContent.heroSlides}
+        categories={homepageContent.categories}
+        loading={loadingHomepage}
+      />
 
-      {/* Scrolling marquee */}
+      {/* MARQUEE */}
       <ScrollingMarquee />
 
-      {/* Categories */}
-
-      {/* New Arrivals / Product carousel */}
+      {/* NEW ARRIVALS */}
       <ProductCarousel
         title="New Arrivals"
         products={newArrivals}
         loading={loadingArrivals}
         onAddToCart={handleAddToCart}
       />
-      <Promo promo={homepageContent.promo || FALLBACK_PROMO} />
 
-      {/* Other sections */}
+      {/* PROMO */}
+      <Promo promo={homepageContent.promo} />
+
+      {/* TRUST + NEWSLETTER + TESTIMONIAL */}
       <TrustIconsSection />
       <NewsletterSection />
       <TestimonialSection />
