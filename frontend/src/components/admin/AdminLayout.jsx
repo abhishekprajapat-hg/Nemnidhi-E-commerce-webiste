@@ -129,7 +129,9 @@ export default function AdminLayout({ children }) {
       {/* Desktop Sidebar */}
       <aside className="w-72 bg-white border-r border-gray-200 hidden lg:flex flex-col flex-shrink-0 dark:bg-zinc-800 dark:border-zinc-700">
         <div className="px-6 py-5 border-b border-gray-200 dark:border-zinc-700">
-          <div className="text-lg font-bold font-serif dark:text-white">NEMNIDHI</div>
+          <Link to="/" className="text-lg font-bold font-serif dark:text-white">
+            NEMNIDHI
+          </Link>
           <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Admin Dashboard</div>
         </div>
         <nav className="p-4 space-y-1 flex-1">
