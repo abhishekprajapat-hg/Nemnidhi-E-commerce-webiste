@@ -217,12 +217,6 @@ export default function Home() {
         loading={loadingArrivals}
         onAddToCart={handleAddToCart}
       />
-      <ProductCarousel
-        title="New Arrivals"
-        products={newArrivals}
-        loading={loadingArrivals}
-        onAddToCart={handleAddToCart}
-      />
 
       {/* PROMO */}
       <Promo promo={homepageContent.promo} />
