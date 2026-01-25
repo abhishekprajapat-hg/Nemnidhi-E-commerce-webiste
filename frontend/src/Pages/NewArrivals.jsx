@@ -75,28 +75,29 @@ export default function NewArrivals() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fdf7f7] dark:bg-zinc-900 px-6 py-10">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
-          New Arrivals
-        </h1>
+  <div className="min-h-screen bg-[#fdf7f7] dark:bg-zinc-900 px-6 py-10">
+    <div className="max-w-7xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center sm:text-left">
+        New Arrivals
+      </h1>
 
-        <div className="flex flex-wrap gap-6">
-          {loading &&
-            Array.from({ length: 8 }).map((_, i) => (
-              <SkeletonProductCard key={i} />
-            ))}
+      <div className="grid grid-cols-1 place-items-center gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {loading &&
+          Array.from({ length: 8 }).map((_, i) => (
+            <SkeletonProductCard key={i} />
+          ))}
 
-          {!loading &&
-            products.map((p) => (
-              <ProductCard
-                key={p._id}
-                p={p}
-                onAddToCart={handleAddToCart}
-              />
-            ))}
-        </div>
+        {!loading &&
+          products.map((p) => (
+            <ProductCard
+              key={p._id}
+              p={p}
+              onAddToCart={handleAddToCart}
+            />
+          ))}
       </div>
     </div>
-  );
+  </div>
+);
+
 }

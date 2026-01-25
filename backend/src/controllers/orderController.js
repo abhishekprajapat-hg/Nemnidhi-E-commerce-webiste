@@ -1,7 +1,8 @@
-const asyncHandler = require('express-async-handler');
-const mongoose = require('mongoose');
-const Order = require('../models/Order');
-const Product = require('../models/Product');
+const asyncHandler = require("express-async-handler");
+const mongoose = require("mongoose");
+const Order = require("../models/Order");
+const Product = require("../models/Product");
+const { v4: uuidv4 } = require("uuid");
 
 function isValidObjectId(id) {
   return mongoose.Types.ObjectId.isValid(String(id));
@@ -18,22 +19,26 @@ exports.getAllOrders = asyncHandler(async (req, res) => {
     to,
     min,
     max,
-    sort = '-createdAt',
+    sort = "-createdAt",
     page = 1,
     limit = 20,
-    facets = 'true',
+    facets = "true",
   } = req.query;
 
   const filter = {};
 
   if (status) {
-    const statuses = String(status).split(',').map((s) => s.trim()).filter(Boolean);
+    const statuses = String(status)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (statuses.length) filter.status = { $in: statuses };
   }
 
   if (paymentMethod) filter.paymentMethod = paymentMethod;
-  if (city) filter['shippingAddress.city'] = new RegExp(String(city), 'i');
-  if (country) filter['shippingAddress.country'] = new RegExp(String(country), 'i');
+  if (city) filter["shippingAddress.city"] = new RegExp(String(city), "i");
+  if (country)
+    filter["shippingAddress.country"] = new RegExp(String(country), "i");
 
   if (from || to) {
     const createdAt = {};
@@ -50,17 +55,19 @@ exports.getAllOrders = asyncHandler(async (req, res) => {
 
   if (min || max) {
     const totalPrice = {};
-    if (min !== undefined && min !== null && String(min).trim() !== '') totalPrice.$gte = Number(min);
-    if (max !== undefined && max !== null && String(max).trim() !== '') totalPrice.$lte = Number(max);
+    if (min !== undefined && min !== null && String(min).trim() !== "")
+      totalPrice.$gte = Number(min);
+    if (max !== undefined && max !== null && String(max).trim() !== "")
+      totalPrice.$lte = Number(max);
     if (Object.keys(totalPrice).length) filter.totalPrice = totalPrice;
   }
 
   if (q && String(q).trim()) {
     const qq = String(q).trim();
-    const regex = new RegExp(qq, 'i');
+    const regex = new RegExp(qq, "i");
     filter.$or = [
-      { 'shippingAddress.fullName': { $regex: regex } },
-      { 'orderItems.title': { $regex: regex } },
+      { "shippingAddress.fullName": { $regex: regex } },
+      { "orderItems.title": { $regex: regex } },
       { userEmail: { $regex: regex } },
     ];
     if (isValidObjectId(qq)) {
@@ -76,47 +83,52 @@ exports.getAllOrders = asyncHandler(async (req, res) => {
 
   const sortObj = {};
   String(sort)
-    .split(',')
+    .split(",")
     .forEach((s) => {
       const key = s.trim();
       if (!key) return;
-      if (key.startsWith('-')) sortObj[key.slice(1)] = -1;
+      if (key.startsWith("-")) sortObj[key.slice(1)] = -1;
       else sortObj[key] = 1;
     });
 
   const total = await Order.countDocuments(filter);
 
   const projection =
-    'user orderItems shippingAddress paymentMethod itemsPrice shippingPrice taxPrice totalPrice isPaid isDelivered status createdAt paidAt deliveredAt';
-
+    "user orderItems shippingAddress paymentMethod itemsPrice shippingPrice taxPrice totalPrice isPaid isDelivered status tracking createdAt paidAt deliveredAt";
   const orders = await Order.find(filter)
     .select(projection)
     .sort(sortObj)
     .skip(skip)
     .limit(perPage)
-    .populate('user', 'name email')
+    .populate("user", "name email")
     .lean()
     .exec();
 
   let facetResult = {};
-  const wantFacets = String(facets).toLowerCase() === 'true';
+  const wantFacets = String(facets).toLowerCase() === "true";
   if (wantFacets) {
     try {
       const [statusCounts, paymentCounts] = await Promise.all([
         Order.aggregate([
           { $match: filter },
-          { $group: { _id: '$status', count: { $sum: 1 } } },
-          { $project: { _id: 0, status: '$_id', count: 1 } },
+          { $group: { _id: "$status", count: { $sum: 1 } } },
+          { $project: { _id: 0, status: "$_id", count: 1 } },
         ]).allowDiskUse(true),
         Order.aggregate([
           { $match: filter },
-          { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
-          { $project: { _id: 0, paymentMethod: '$_id', count: 1 } },
+          { $group: { _id: "$paymentMethod", count: { $sum: 1 } } },
+          { $project: { _id: 0, paymentMethod: "$_id", count: 1 } },
         ]).allowDiskUse(true),
       ]);
-      facetResult = { status: statusCounts || [], paymentMethod: paymentCounts || [] };
+      facetResult = {
+        status: statusCounts || [],
+        paymentMethod: paymentCounts || [],
+      };
     } catch (aggErr) {
-      console.error('Order facets aggregation error:', aggErr && aggErr.stack ? aggErr.stack : aggErr);
+      console.error(
+        "Order facets aggregation error:",
+        aggErr && aggErr.stack ? aggErr.stack : aggErr,
+      );
       facetResult = { status: [], paymentMethod: [] };
     }
   }
@@ -137,17 +149,24 @@ async function recomputeAndSetCountInStock(productId, session = null) {
   const p = await Product.findById(productId).session(session).lean();
   if (!p) return;
   const total = (p.variants || []).reduce((pv, v) => {
-    const s = (v.sizes || []).reduce((acc, si) => acc + (Number(si.stock) || 0), 0);
+    const s = (v.sizes || []).reduce(
+      (acc, si) => acc + (Number(si.stock) || 0),
+      0,
+    );
     return pv + s;
   }, 0);
-  await Product.updateOne({ _id: productId }, { $set: { countInStock: total } }, { session });
+  await Product.updateOne(
+    { _id: productId },
+    { $set: { countInStock: total } },
+    { session },
+  );
 }
 
 exports.createOrder = asyncHandler(async (req, res) => {
   const {
     orderItems,
     shippingAddress,
-    paymentMethod = 'COD',
+    paymentMethod = "COD",
     itemsPrice,
     shippingPrice = 0,
     taxPrice = 0,
@@ -156,7 +175,7 @@ exports.createOrder = asyncHandler(async (req, res) => {
 
   if (!orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
     res.status(400);
-    throw new Error('No order items');
+    throw new Error("No order items");
   }
 
   const session = await mongoose.startSession();
@@ -176,10 +195,10 @@ exports.createOrder = asyncHandler(async (req, res) => {
       const { product: productId, color, size, qty } = it;
       const quantity = Number(qty || 1);
       if (!productId) {
-        throw new Error('Order item missing product id');
+        throw new Error("Order item missing product id");
       }
       if (!color || !size) {
-        throw new Error('Order item must include color and size');
+        throw new Error("Order item must include color and size");
       }
 
       const query = {
@@ -193,55 +212,76 @@ exports.createOrder = asyncHandler(async (req, res) => {
       };
 
       const update = {
-        $inc: { 'variants.$[v].sizes.$[s].stock': -quantity },
+        $inc: { "variants.$[v].sizes.$[s].stock": -quantity },
       };
 
-      const arrayFilters = [{ 'v.color': color }, { 's.size': size }];
+      const arrayFilters = [{ "v.color": color }, { "s.size": size }];
 
       const opts = { arrayFilters, session };
 
       const updateResult = await Product.updateOne(query, update, opts);
 
-      const matched = (updateResult && (updateResult.matchedCount || updateResult.n || updateResult.ok)) ? (updateResult.matchedCount || updateResult.n) : 0;
-      const modified = (updateResult && (updateResult.modifiedCount || updateResult.nModified)) ? (updateResult.modifiedCount || updateResult.nModified) : 0;
+      const matched =
+        updateResult &&
+        (updateResult.matchedCount || updateResult.n || updateResult.ok)
+          ? updateResult.matchedCount || updateResult.n
+          : 0;
+      const modified =
+        updateResult && (updateResult.modifiedCount || updateResult.nModified)
+          ? updateResult.modifiedCount || updateResult.nModified
+          : 0;
 
       if (!updateResult || matched === 0 || modified === 0) {
         if (usingTransaction) await session.abortTransaction();
         res.status(400);
-        throw new Error(`Insufficient stock or variant/size not found for product ${productId} (${color}/${size})`);
+        throw new Error(
+          `Insufficient stock or variant/size not found for product ${productId} (${color}/${size})`,
+        );
       }
 
-      const prod = await Product.findById(productId).session(usingTransaction ? session : null);
+      const prod = await Product.findById(productId).session(
+        usingTransaction ? session : null,
+      );
       if (!prod) {
         if (usingTransaction) await session.abortTransaction();
         res.status(404);
-        throw new Error('Product not found after stock decrement');
+        throw new Error("Product not found after stock decrement");
       }
 
-      const variant = (prod.variants || []).find((v) => String(v.color) === String(color));
+      const variant = (prod.variants || []).find(
+        (v) => String(v.color) === String(color),
+      );
       if (!variant) {
         if (usingTransaction) await session.abortTransaction();
         res.status(400);
-        throw new Error('Variant not found in product after update');
+        throw new Error("Variant not found in product after update");
       }
-      const sizeObj = (variant.sizes || []).find((s) => String(s.size) === String(size));
+      const sizeObj = (variant.sizes || []).find(
+        (s) => String(s.size) === String(size),
+      );
       if (!sizeObj) {
         if (usingTransaction) await session.abortTransaction();
         res.status(400);
-        throw new Error('Size object not found after update');
+        throw new Error("Size object not found after update");
       }
 
       try {
-        await recomputeAndSetCountInStock(productId, usingTransaction ? session : null);
+        await recomputeAndSetCountInStock(
+          productId,
+          usingTransaction ? session : null,
+        );
       } catch (e) {
-        console.warn('Failed to recompute countInStock', e && e.message ? e.message : e);
+        console.warn(
+          "Failed to recompute countInStock",
+          e && e.message ? e.message : e,
+        );
       }
 
       const image =
         (Array.isArray(variant.images) && variant.images[0]) ||
         prod.image ||
         (Array.isArray(prod.images) && prod.images[0]) ||
-        '';
+        "";
 
       itemsSnapshot.push({
         product: prod._id,
@@ -255,6 +295,7 @@ exports.createOrder = asyncHandler(async (req, res) => {
     }
 
     const order = new Order({
+      orderId: `ORD-${uuidv4().slice(0, 8).toUpperCase()}`,
       user: req.user ? req.user._id : null,
       orderItems: itemsSnapshot,
       shippingAddress,
@@ -264,10 +305,12 @@ exports.createOrder = asyncHandler(async (req, res) => {
       taxPrice,
       totalPrice,
       isPaid: false,
-      status: 'Created',
+      status: "Created",
     });
 
-    const savedOrder = usingTransaction ? await order.save({ session }) : await order.save();
+    const savedOrder = usingTransaction
+      ? await order.save({ session })
+      : await order.save();
 
     if (usingTransaction) {
       await session.commitTransaction();
@@ -290,19 +333,25 @@ exports.getOrderById = asyncHandler(async (req, res) => {
   const id = req.params.id;
   if (!isValidObjectId(id)) {
     res.status(400);
-    throw new Error('Invalid order id');
+    throw new Error("Invalid order id");
   }
-  const order = await Order.findById(id).populate('user', 'name email').lean();
+  const order = await Order.findById(id).populate("user", "name email").lean();
   if (!order) {
     res.status(404);
-    throw new Error('Order not found');
+    throw new Error("Order not found");
   }
-  const currentUserId = req.user && (req.user._id ? req.user._id.toString() : req.user.toString());
-  const orderUserId = order.user && order.user._id ? order.user._id.toString() : (order.user ? String(order.user) : null);
+  const currentUserId =
+    req.user && (req.user._id ? req.user._id.toString() : req.user.toString());
+  const orderUserId =
+    order.user && order.user._id
+      ? order.user._id.toString()
+      : order.user
+        ? String(order.user)
+        : null;
   const isOwner = currentUserId && orderUserId && currentUserId === orderUserId;
   if (!isOwner && !(req.user && req.user.isAdmin)) {
     res.status(403);
-    throw new Error('Not authorized to view this order');
+    throw new Error("Not authorized to view this order");
   }
   res.json(order);
 });
@@ -311,29 +360,34 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
   const id = req.params.id;
   if (!isValidObjectId(id)) {
     res.status(400);
-    throw new Error('Invalid order id');
+    throw new Error("Invalid order id");
   }
   const order = await Order.findById(id);
   if (!order) {
     res.status(404);
-    throw new Error('Order not found');
+    throw new Error("Order not found");
   }
-  if (!(req.user && (String(order.user) === String(req.user._id) || req.user.isAdmin))) {
+  if (
+    !(
+      req.user &&
+      (String(order.user) === String(req.user._id) || req.user.isAdmin)
+    )
+  ) {
     res.status(403);
-    throw new Error('Not authorized to cancel this order');
+    throw new Error("Not authorized to cancel this order");
   }
   if (order.isDelivered) {
     res.status(400);
-    throw new Error('Cannot cancel delivered order');
+    throw new Error("Cannot cancel delivered order");
   }
-  if (order.status === 'Cancelled') {
+  if (order.status === "Cancelled") {
     res.status(400);
-    throw new Error('Order already cancelled');
+    throw new Error("Order already cancelled");
   }
 
   const { reason } = req.body || {};
-  order.status = 'Cancelled';
-  order.cancelReason = reason || '';
+  order.status = "Cancelled";
+  order.cancelReason = reason || "";
   order.cancelledAt = Date.now();
 
   for (const item of order.orderItems) {
@@ -341,31 +395,45 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
       const { product: productId, color, size, qty } = item;
       if (!productId || !color || !size) continue;
 
-      const update = { $inc: { 'variants.$[v].sizes.$[s].stock': Number(qty || 0) } };
-      const arrayFilters = [{ 'v.color': color }, { 's.size': size }];
+      const update = {
+        $inc: { "variants.$[v].sizes.$[s].stock": Number(qty || 0) },
+      };
+      const arrayFilters = [{ "v.color": color }, { "s.size": size }];
 
       await Product.updateOne({ _id: productId }, update, { arrayFilters });
 
       try {
         await recomputeAndSetCountInStock(productId);
       } catch (e) {
-        console.warn('Failed to recompute countInStock after cancel', e && e.message ? e.message : e);
+        console.warn(
+          "Failed to recompute countInStock after cancel",
+          e && e.message ? e.message : e,
+        );
       }
     } catch (err) {
-      console.error('Stock restore error', err && err.message ? err.message : err);
+      console.error(
+        "Stock restore error",
+        err && err.message ? err.message : err,
+      );
     }
   }
 
   await order.save();
-  res.json({ message: 'Order cancelled', order });
+  res.json({ message: "Order cancelled", order });
 });
 
 exports.getMyOrders = asyncHandler(async (req, res) => {
   if (!req.user || !req.user._id) {
     res.status(401);
-    throw new Error('Not authenticated');
+    throw new Error("Not authenticated");
   }
-  const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 }).lean();
+  const orders = await Order.find(
+    { user: req.user._id },
+    "orderItems totalPrice status tracking createdAt",
+  )
+    .sort({ createdAt: -1 })
+    .lean();
+
   res.json(orders);
 });
 
@@ -373,43 +441,80 @@ exports.markOrderDelivered = asyncHandler(async (req, res) => {
   const id = req.params.id;
   if (!isValidObjectId(id)) {
     res.status(400);
-    throw new Error('Invalid order id');
+    throw new Error("Invalid order id");
   }
   const order = await Order.findById(id);
   if (!order) {
     res.status(404);
-    throw new Error('Order not found');
+    throw new Error("Order not found");
   }
   if (order.isDelivered) {
-    return res.json({ message: 'Already delivered', order });
+    return res.json({ message: "Already delivered", order });
   }
   order.isDelivered = true;
   order.deliveredAt = Date.now();
-  order.status = 'Delivered';
+  order.status = "Delivered";
   await order.save();
-  res.json({ message: 'Order marked delivered', order });
+  res.json({ message: "Order marked delivered", order });
 });
 
 exports.updateOrderToPaid = asyncHandler(async (req, res) => {
   const id = req.params.id;
   if (!isValidObjectId(id)) {
     res.status(400);
-    throw new Error('Invalid order id');
+    throw new Error("Invalid order id");
   }
   const order = await Order.findById(id);
   if (!order) {
     res.status(404);
-    throw new Error('Order not found');
+    throw new Error("Order not found");
   }
   order.isPaid = true;
   order.paidAt = Date.now();
   order.paymentResult = {
-    id: req.body.id || '',
-    status: req.body.status || '',
-    update_time: req.body.update_time || '',
-    email_address: req.body.email_address || '',
+    id: req.body.id || "",
+    status: req.body.status || "",
+    update_time: req.body.update_time || "",
+    email_address: req.body.email_address || "",
   };
-  order.status = 'Paid';
+  order.status = "Paid";
   await order.save();
-  res.json({ message: 'Order marked as paid', order });
+  res.json({ message: "Order marked as paid", order });
+});
+
+exports.updateOrderTracking = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { courier, trackingId } = req.body;
+
+  if (!courier || !trackingId) {
+    res.status(400);
+    throw new Error("Courier name and tracking ID are required");
+  }
+
+  const order = await Order.findById(id);
+
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  // Update tracking
+  order.tracking = {
+    courier,
+    trackingId,
+    trackingUrl: courier.toLowerCase().includes("dtdc")
+      ? `https://www.dtdc.in/tracking.asp?strCnno=${trackingId}`
+      : "",
+    shippedAt: new Date(),
+  };
+
+  // Auto status update
+  order.status = "Shipped";
+
+  await order.save();
+
+  res.json({
+    message: "Tracking updated successfully",
+    order,
+  });
 });

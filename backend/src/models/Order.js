@@ -1,8 +1,13 @@
 const mongoose = require("mongoose");
 
+/* ---------------- Order Item ---------------- */
 const orderItemSchema = new mongoose.Schema(
   {
-    product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
     title: { type: String, required: true, trim: true },
     price: { type: Number, required: true, min: 0, default: 0 },
     qty: { type: Number, required: true, min: 1, default: 1 },
@@ -10,9 +15,10 @@ const orderItemSchema = new mongoose.Schema(
     color: { type: String, default: "" },
     image: { type: String, default: "" },
   },
-  { _id: false }
+  { _id: false },
 );
 
+/* ---------------- Payment Result ---------------- */
 const paymentResultSchema = new mongoose.Schema(
   {
     id: { type: String, default: "" },
@@ -20,9 +26,21 @@ const paymentResultSchema = new mongoose.Schema(
     update_time: { type: String, default: "" },
     email_address: { type: String, default: "" },
   },
-  { _id: false }
+  { _id: false },
 );
 
+/* ---------------- 🚚 Tracking Schema (NEW) ---------------- */
+const trackingSchema = new mongoose.Schema(
+  {
+    courier: { type: String, default: "" }, // Delhivery, Bluedart, Shiprocket
+    trackingId: { type: String, default: "" }, // AWB / Tracking No
+    trackingUrl: { type: String, default: "" }, // Courier tracking link
+    shippedAt: { type: Date },
+  },
+  { _id: false },
+);
+
+/* ---------------- Order Schema ---------------- */
 const orderSchema = new mongoose.Schema(
   {
     //--------------------------------------
@@ -32,7 +50,7 @@ const orderSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      index: true, 
+      index: true,
       trim: true,
     },
 
@@ -74,7 +92,7 @@ const orderSchema = new mongoose.Schema(
     deliveredAt: { type: Date },
 
     //--------------------------------------
-    // 🌸 chatbot + admin readable status
+    // 🌸 order status
     //--------------------------------------
     status: {
       type: String,
@@ -91,17 +109,31 @@ const orderSchema = new mongoose.Schema(
       ],
     },
 
+    //--------------------------------------
+    // 🚚 Tracking (ADMIN CONTROLLED)
+    //--------------------------------------
+    tracking: {
+      type: trackingSchema,
+      default: {},
+    },
+
+    tracking: {
+      courier: { type: String, default: "" },
+      trackingId: { type: String, default: "" },
+      trackingUrl: { type: String, default: "" },
+      shippedAt: { type: Date },
+    },
     cancelReason: { type: String, default: "" },
+
     cancelledAt: { type: Date },
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 orderSchema.index({ user: 1, createdAt: -1 });
 
-module.exports =
-  mongoose.models.Order || mongoose.model("Order", orderSchema);
+module.exports = mongoose.models.Order || mongoose.model("Order", orderSchema);

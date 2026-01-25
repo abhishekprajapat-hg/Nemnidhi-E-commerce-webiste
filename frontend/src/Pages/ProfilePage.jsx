@@ -1,5 +1,11 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../api/axios";
 import { useDispatch } from "react-redux";
 import { setUser } from "../store/authSlice";
@@ -17,7 +23,9 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
 
-  const [activeTab, setActiveTab] = useState("profile");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const activeTab = searchParams.get("tab") || "profile";
 
   // Profile state
   const [name, setName] = useState("");
@@ -75,7 +83,11 @@ export default function ProfilePage() {
           // fetch aborted - ignore
           return;
         }
-        setError(err.response?.data?.message || err.message || "Failed to load profile.");
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "Failed to load profile.",
+        );
       } finally {
         if (mountedRef.current) setLoading(false);
       }
@@ -99,7 +111,7 @@ export default function ProfilePage() {
         // swallow
       }
     },
-    [dispatch]
+    [dispatch],
   );
 
   // compute dirty state: have changes been made since initial load?
@@ -108,7 +120,8 @@ export default function ProfilePage() {
     try {
       return (
         initialData.name !== name ||
-        JSON.stringify(initialData.shippingAddress || {}) !== JSON.stringify(shippingAddress || {})
+        JSON.stringify(initialData.shippingAddress || {}) !==
+          JSON.stringify(shippingAddress || {})
       );
     } catch {
       return true;
@@ -147,26 +160,37 @@ export default function ProfilePage() {
 
         showToast("Profile updated successfully");
       } catch (err) {
-        showToast("Failed to save profile: " + (err.response?.data?.message || err.message), "error");
+        showToast(
+          "Failed to save profile: " +
+            (err.response?.data?.message || err.message),
+          "error",
+        );
       } finally {
         if (mountedRef.current) setSaving(false);
       }
     },
-    [name, shippingAddress, safeDispatchUser, isDirty]
+    [name, shippingAddress, safeDispatchUser, isDirty],
   );
 
   // Optimistic cancel order: update UI immediately, revert on failure
   const cancelOrder = useCallback(
     async (orderId) => {
-      if (!window.confirm("Are you sure you want to cancel this order?")) return;
+      if (!window.confirm("Are you sure you want to cancel this order?"))
+        return;
 
       // mark optimistic update
       const prevOrders = orders;
-      const optimistic = prevOrders.map((o) => (o._id === orderId ? { ...o, status: "Cancelled", isDelivered: false } : o));
+      const optimistic = prevOrders.map((o) =>
+        o._id === orderId
+          ? { ...o, status: "Cancelled", isDelivered: false }
+          : o,
+      );
       setOrders(optimistic);
 
       try {
-        await api.put(`/api/orders/${orderId}/cancel`, { reason: "Cancelled by user" });
+        await api.put(`/api/orders/${orderId}/cancel`, {
+          reason: "Cancelled by user",
+        });
         // fetch fresh orders to ensure accuracy
         const { data } = await api.get("/api/orders/myorders");
         if (mountedRef.current) setOrders(data || []);
@@ -174,10 +198,13 @@ export default function ProfilePage() {
       } catch (err) {
         // revert
         if (mountedRef.current) setOrders(prevOrders);
-        showToast("Cancel failed: " + (err.response?.data?.message || err.message), "error");
+        showToast(
+          "Cancel failed: " + (err.response?.data?.message || err.message),
+          "error",
+        );
       }
     },
-    [orders]
+    [orders],
   );
 
   const handleLogout = useCallback(() => {
@@ -220,7 +247,9 @@ export default function ProfilePage() {
     <div className="bg-[#fdf7f7] dark:bg-zinc-900 min-h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-6">
-          <h1 className="text-3xl font-extrabold dark:text-white">My Account</h1>
+          <h1 className="text-3xl font-extrabold dark:text-white">
+            My Account
+          </h1>
         </div>
 
         {error && (
@@ -232,7 +261,7 @@ export default function ProfilePage() {
         <div className="border-b border-gray-200 dark:border-zinc-700 mb-6">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button
-              onClick={() => setActiveTab("profile")}
+              onClick={() => setSearchParams({ tab: "profile" })}
               className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "profile"
                   ? "border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
@@ -242,7 +271,7 @@ export default function ProfilePage() {
               Profile Details
             </button>
             <button
-              onClick={() => setActiveTab("orders")}
+              onClick={() => setSearchParams({ tab: "orders" })}
               className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "orders"
                   ? "border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
@@ -258,11 +287,22 @@ export default function ProfilePage() {
         </div>
 
         {activeTab === "profile" && (
-          <form onSubmit={saveProfile} className="space-y-6" aria-disabled={saving}>
+          <form
+            onSubmit={saveProfile}
+            className="space-y-6"
+            aria-disabled={saving}
+          >
             <div className="rounded-xl border bg-[#fffcfc] p-6 shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
-              <h2 className="text-lg font-semibold mb-4 dark:text-white">Account Information</h2>
+              <h2 className="text-lg font-semibold mb-4 dark:text-white">
+                Account Information
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input label="Name" id="name" value={name} onChange={(e) => setName(e.target.value)} />
+                <Input
+                  label="Name"
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
                 <div>
                   <Input
                     label="Email"
@@ -280,14 +320,18 @@ export default function ProfilePage() {
             </div>
 
             <div className="rounded-xl border bg-[#fffcfc] p-6 shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
-              <h2 className="text-lg font-semibold mb-4 dark:text-white">Shipping Address</h2>
+              <h2 className="text-lg font-semibold mb-4 dark:text-white">
+                Shipping Address
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <Input
                     label="Full Name"
                     id="fullName"
                     value={shippingAddress.fullName}
-                    onChange={(e) => updateShippingField("fullName", e.target.value)}
+                    onChange={(e) =>
+                      updateShippingField("fullName", e.target.value)
+                    }
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -295,7 +339,9 @@ export default function ProfilePage() {
                     label="Address"
                     id="address"
                     value={shippingAddress.address}
-                    onChange={(e) => updateShippingField("address", e.target.value)}
+                    onChange={(e) =>
+                      updateShippingField("address", e.target.value)
+                    }
                   />
                 </div>
                 <Input
@@ -308,13 +354,17 @@ export default function ProfilePage() {
                   label="Postal Code"
                   id="postalCode"
                   value={shippingAddress.postalCode}
-                  onChange={(e) => updateShippingField("postalCode", e.target.value)}
+                  onChange={(e) =>
+                    updateShippingField("postalCode", e.target.value)
+                  }
                 />
                 <Input
                   label="Country"
                   id="country"
                   value={shippingAddress.country}
-                  onChange={(e) => updateShippingField("country", e.target.value)}
+                  onChange={(e) =>
+                    updateShippingField("country", e.target.value)
+                  }
                 />
               </div>
             </div>
@@ -342,7 +392,9 @@ export default function ProfilePage() {
           </form>
         )}
 
-        {activeTab === "orders" && <OrdersList orders={orders} cancelOrder={cancelOrder} />}
+        {activeTab === "orders" && (
+          <OrdersList orders={orders} cancelOrder={cancelOrder} />
+        )}
       </div>
     </div>
   );

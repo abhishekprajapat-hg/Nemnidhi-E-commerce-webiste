@@ -26,6 +26,7 @@ const AdminOrderDetail = lazy(() => import("./Pages/AdminOrderDetail"));
 const AdminProducts = lazy(() => import("./Pages/AdminProducts"));
 const AdminProductEdit = lazy(() => import("./Pages/AdminProductEdit"));
 const AdminHomepageEditor = lazy(() => import("./Pages/AdminHomePageEditor"));
+const AdminOrderTracking = lazy(() => import("./Pages/AdminOrderTracking"));
 
 // Shared components
 import Header from "./components/Header";
@@ -241,6 +242,14 @@ export default function App() {
               element={
                 <RouteSuspense>
                   <AdminOrderDetail />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="order/:id/tracking"
+              element={
+                <RouteSuspense>
+                  <AdminOrderTracking />
                 </RouteSuspense>
               }
             />

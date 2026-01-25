@@ -36,7 +36,8 @@ export default function CheckoutPage() {
   const STANDARD_SHIPPING_CHARGE = 99;
 
   useEffect(() => {
-    if (!user) navigate("/login", { state: { from: "/checkout" } });
+    if (!user) navigate("/login", { state
+      : { from: "/checkout" } });
   }, [user]);
 
   // useEffect(() => {
@@ -72,7 +73,7 @@ export default function CheckoutPage() {
 
   // ✅ Free shipping when itemsPrice is >= ₹1000
   const shippingPrice =
-    itemsPrice >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_CHARGE;
+    itemsPrice <= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_CHARGE;
 
   // ❌ Removed tax
   const totalPrice = +(itemsPrice + shippingPrice).toFixed(2);
