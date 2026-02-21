@@ -16,47 +16,40 @@ const EMPTY_ADDRESS = {
   phone: "",
 };
 
+const FREE_SHIPPING_THRESHOLD = 1000;
+const STANDARD_SHIPPING_CHARGE = 99;
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const user = useSelector((s) => s.auth.user);
-  const cartItems = useSelector((s) => s.cart.items);
+  const user = useSelector((state) => state.auth.user);
+  const cartItems = useSelector((state) => state.cart.items);
 
   const [shipping, setShipping] = useState(EMPTY_ADDRESS);
   const [billing, setBilling] = useState(EMPTY_ADDRESS);
   const [useDifferentBilling, setUseDifferentBilling] = useState(false);
   const [saveAddress, setSaveAddress] = useState(false);
-
   const [paymentMethod, setPaymentMethod] = useState("Razorpay");
   const [loading, setLoading] = useState(false);
 
-  // Free shipping threshold (₹1000 or more)
-  const FREE_SHIPPING_THRESHOLD = 1000;
-  const STANDARD_SHIPPING_CHARGE = 99;
-
   useEffect(() => {
-    if (!user) navigate("/login", { state
-      : { from: "/checkout" } });
-  }, [user]);
-
-  // useEffect(() => {
-  //   if (cartItems.length === 0) navigate("/cart");
-  // }, [cartItems]);
+    if (!user) navigate("/login", { state: { from: "/checkout" } });
+  }, [user, navigate]);
 
   useEffect(() => {
     if (user) {
-      const sa = user.shippingAddress || {};
-      const pf = {
-        fullName: sa.fullName || user.name || "",
-        address: sa.address || "",
-        city: sa.city || "",
-        postalCode: sa.postalCode || "",
-        country: sa.country || "",
-        phone: sa.phone || "",
+      const saved = user.shippingAddress || {};
+      const prefill = {
+        fullName: saved.fullName || user.name || "",
+        address: saved.address || "",
+        city: saved.city || "",
+        postalCode: saved.postalCode || "",
+        country: saved.country || "",
+        phone: saved.phone || "",
       };
-      setShipping(pf);
-      setBilling(pf);
+      setShipping(prefill);
+      setBilling(prefill);
     }
   }, [user]);
 
@@ -64,23 +57,15 @@ export default function CheckoutPage() {
     if (!useDifferentBilling) setBilling(shipping);
   }, [shipping, useDifferentBilling]);
 
-  // ⭐ Prices (No Tax)
   const itemsPrice = useMemo(
-    () =>
-      cartItems.reduce((sum, it) => sum + Number(it.price) * Number(it.qty), 0),
+    () => cartItems.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0),
     [cartItems]
   );
+  const shippingPrice = itemsPrice >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_CHARGE;
+  const totalPrice = Number((itemsPrice + shippingPrice).toFixed(2));
 
-  // ✅ Free shipping when itemsPrice is >= ₹1000
-  const shippingPrice =
-    itemsPrice >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_CHARGE;
-
-  // ❌ Removed tax
-  const totalPrice = +(itemsPrice + shippingPrice).toFixed(2);
-
-  // Validation
-  const validateAddress = (a) =>
-    a.fullName && a.address && a.city && a.postalCode && a.country;
+  const validateAddress = (address) =>
+    Boolean(address.fullName && address.address && address.city && address.postalCode && address.country);
 
   const validate = () => {
     if (!validateAddress(shipping)) {
@@ -94,7 +79,6 @@ export default function CheckoutPage() {
     return true;
   };
 
-  // ⭐ COD Order (No Tax in payload)
   const placeOrderCOD = async () => {
     const payload = {
       orderItems: cartItems,
@@ -111,11 +95,10 @@ export default function CheckoutPage() {
     navigate(`/order/success/${data._id}`);
   };
 
-  // ⭐ Razorpay Payment (No Tax in order)
   const handleRazorpayPayment = async () => {
-    const ok = await loadRazorpayScript();
-    if (!ok) {
-      showToast("Payment gateway failed", "error");
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      showToast("Payment gateway failed to load", "error");
       return;
     }
 
@@ -128,7 +111,7 @@ export default function CheckoutPage() {
       amount: rpOrder.amount,
       currency: rpOrder.currency,
       order_id: rpOrder.id,
-      name: "Your Shop",
+      name: "Nemnidhi",
       description: "Order Payment",
       prefill: {
         name: shipping.fullName,
@@ -138,16 +121,14 @@ export default function CheckoutPage() {
       modal: {
         ondismiss: () => showToast("Payment cancelled", "info"),
       },
-
-      handler: async (res) => {
+      handler: async (response) => {
         try {
           const verifyRes = await api.post(
             "/api/payment/razorpay/verify",
             {
-              razorpay_order_id: res.razorpay_order_id,
-              razorpay_payment_id: res.razorpay_payment_id,
-              razorpay_signature: res.razorpay_signature,
-
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
               orderPayload: {
                 orderItems: cartItems,
                 shippingAddress: shipping,
@@ -164,12 +145,11 @@ export default function CheckoutPage() {
                 Authorization: `Bearer ${user.token}`,
               },
             }
-            
           );
-          
+
           dispatch(clearCart());
           navigate(`/order/success/${verifyRes.data.orderId}`);
-        } catch (err) {
+        } catch {
           showToast("Payment verification failed", "error");
         }
       },
@@ -180,171 +160,135 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (!validate()) return;
-    setLoading(true);
+    if (cartItems.length === 0) {
+      showToast("Your cart is empty", "error");
+      return;
+    }
 
+    setLoading(true);
     try {
-      if (paymentMethod === "COD") await placeOrderCOD();
-      else await handleRazorpayPayment();
-    } catch (err) {
+      if (paymentMethod === "COD") {
+        await placeOrderCOD();
+      } else {
+        await handleRazorpayPayment();
+      }
+    } catch {
       showToast("Order failed", "error");
     } finally {
       setLoading(false);
     }
-    console.log("USER OBJECT:", user);
-
   };
-  
-
-  
 
   return (
-    <div className="bg-[#fdf7f7] min-h-screen dark:bg-black">
-      <div className="max-w-7xl mx-auto px-4 py-10">
-        <h1 className="text-3xl font-extrabold dark:text-white mb-6">
-          Checkout
-        </h1>
+    <div className="nm-shell py-8 sm:py-10">
+      <div className="mb-7">
+        <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">Checkout</p>
+        <h1 className="nm-display mt-2 text-5xl font-semibold leading-none">Secure Payment</h1>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Section */}
-          <div className="lg:col-span-7 space-y-6">
-            <AddressForm
-              title="Shipping address"
-              address={shipping}
-              onAddressChange={setShipping}
-              disabled={loading}
-            />
+      <div className="grid gap-6 lg:grid-cols-[1.25fr_0.9fr]">
+        <section className="space-y-5">
+          <AddressForm
+            title="Shipping Address"
+            address={shipping}
+            onAddressChange={setShipping}
+            disabled={loading}
+          />
 
-            <div className="rounded-xl border bg-[#fffcfc] p-6 dark:bg-zinc-800 dark:border-zinc-700">
-              <div className="flex items-center mb-3">
-                <input
-                  type="checkbox"
-                  checked={saveAddress}
-                  onChange={(e) => setSaveAddress(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <span className="ml-2 dark:text-gray-300">Save Address</span>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={useDifferentBilling}
-                  onChange={(e) => setUseDifferentBilling(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <span className="ml-2 dark:text-gray-300">
-                  Use a different billing address
-                </span>
-              </div>
-            </div>
-
-            {useDifferentBilling && (
-              <AddressForm
-                title="Billing address"
-                address={billing}
-                onAddressChange={setBilling}
-                disabled={loading}
+          <div className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={saveAddress}
+                onChange={(event) => setSaveAddress(event.target.checked)}
+                className="accent-[var(--nm-accent)]"
               />
-            )}
+              Save this address for next time
+            </label>
+
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={useDifferentBilling}
+                onChange={(event) => setUseDifferentBilling(event.target.checked)}
+                className="accent-[var(--nm-accent)]"
+              />
+              Use a different billing address
+            </label>
           </div>
 
-          {/* Right Section */}
-          <aside className="lg:col-span-5 space-y-6">
-            <div className="rounded-xl border p-6 bg-[#fffcfc] dark:bg-zinc-800">
-              <h3 className="text-lg font-semibold mb-4 dark:text-white">
-                Order Summary
-              </h3>
+          {useDifferentBilling && (
+            <AddressForm
+              title="Billing Address"
+              address={billing}
+              onAddressChange={setBilling}
+              disabled={loading}
+            />
+          )}
+        </section>
 
-              <div className="max-h-64 overflow-y-auto space-y-4 mb-4">
-                {cartItems.map((it) => (
-                  <div className="flex items-center gap-4" key={it.product}>
-                    <img
-                      src={it.image}
-                      className="w-16 h-16 rounded-md object-cover"
-                    />
-                    <div className="flex-1 dark:text-gray-200">
-                      <div>{it.title}</div>
-                      <div className="text-xs text-gray-400">Qty: {it.qty}</div>
-                    </div>
-                    <div className="font-medium dark:text-white">
-                      ₹{(it.price * it.qty).toFixed(2)}
-                    </div>
+        <aside className="space-y-5">
+          <article className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 sm:p-6">
+            <h2 className="text-lg font-semibold">Order Summary</h2>
+
+            <div className="mt-4 max-h-64 space-y-3 overflow-y-auto pr-1">
+              {cartItems.map((item) => (
+                <div key={`${item.product}-${item.size}-${item.color}`} className="flex items-center gap-3">
+                  <img
+                    src={item.image || "/placeholder.png"}
+                    alt={item.title}
+                    className="h-14 w-14 rounded-xl border border-[var(--nm-border)] object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-1 text-sm font-semibold">{item.title}</p>
+                    <p className="text-xs text-[var(--nm-muted)]">Qty {item.qty}</p>
                   </div>
-                ))}
-              </div>
-
-              <div className="border-t pt-4 dark:border-zinc-700 space-y-2">
-                <div className="flex justify-between">
-                  <span className="dark:text-gray-300">Items</span>
-                  <span className="dark:text-white">
-                    ₹{itemsPrice.toFixed(2)}
-                  </span>
+                  <p className="text-sm font-semibold">Rs {(item.price * item.qty).toFixed(2)}</p>
                 </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="dark:text-gray-300">Shipping</span>
-                  <div className="flex items-center gap-3">
-                    <span className="dark:text-white">
-                      {shippingPrice === 0 ? "Free" : `₹${shippingPrice}`}
-                    </span>
-                    {shippingPrice === 0 && (
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
-                        Free for orders ₹{FREE_SHIPPING_THRESHOLD}+
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* ❌ Tax Removed */}
-
-                <div className="border-t mt-3 pt-3 flex justify-between dark:border-zinc-700">
-                  <span className="font-semibold dark:text-gray-200">
-                    Total
-                  </span>
-                  <span className="text-xl font-extrabold dark:text-white">
-                    ₹{totalPrice.toFixed(2)}
-                  </span>
-                </div>
-              </div>
+              ))}
             </div>
 
-            <div className="rounded-xl border p-6 bg-[#fffcfc] dark:bg-zinc-800">
-              <h3 className="text-lg font-semibold mb-4 dark:text-white">
-                Payment Method
-              </h3>
-
-              <div className="space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={paymentMethod === "Razorpay"}
-                    onChange={() => setPaymentMethod("Razorpay")}
-                  />
-                  <span className="dark:text-gray-300">
-                    Pay Online (Razorpay)
-                  </span>
-                </label>
-
-                {/* <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={paymentMethod === "COD"}
-                    onChange={() => setPaymentMethod("COD")}
-                  />
-                  <span className="dark:text-gray-300">Cash on Delivery</span>
-                </label> */}
+            <div className="mt-4 space-y-2 border-t border-[var(--nm-border)] pt-4 text-sm">
+              <div className="flex justify-between text-[var(--nm-muted)]">
+                <span>Items</span>
+                <span className="font-semibold text-[var(--nm-text)]">Rs {itemsPrice.toFixed(2)}</span>
               </div>
-
-              <button
-                onClick={handlePlaceOrder}
-                disabled={loading}
-                className="mt-6 w-full px-4 py-3 rounded-md text-white font-semibold bg-black dark:bg-white dark:text-black"
-              >
-                {loading ? "Processing..." : `Place Order (${paymentMethod})`}
-              </button>
+              <div className="flex justify-between text-[var(--nm-muted)]">
+                <span>Shipping</span>
+                <span className="font-semibold text-[var(--nm-text)]">
+                  {shippingPrice === 0 ? "Free" : `Rs ${shippingPrice}`}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-[var(--nm-border)] pt-3 text-base font-semibold">
+                <span>Total</span>
+                <span>Rs {totalPrice.toFixed(2)}</span>
+              </div>
             </div>
-          </aside>
-        </div>
+          </article>
+
+          <article className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 sm:p-6">
+            <h2 className="text-lg font-semibold">Payment Method</h2>
+            <div className="mt-3 space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  checked={paymentMethod === "Razorpay"}
+                  onChange={() => setPaymentMethod("Razorpay")}
+                  className="accent-[var(--nm-accent)]"
+                />
+                Pay Online (Razorpay)
+              </label>
+            </div>
+
+            <button
+              onClick={handlePlaceOrder}
+              disabled={loading}
+              className="nm-btn-primary mt-5 w-full text-sm disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? "Processing..." : `Place Order (${paymentMethod})`}
+            </button>
+          </article>
+        </aside>
       </div>
     </div>
   );

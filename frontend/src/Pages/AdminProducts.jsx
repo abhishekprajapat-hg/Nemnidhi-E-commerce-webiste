@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../api/axios";
 import AdminLayout from "../components/admin/AdminLayout";
 import { showToast } from "../utils/toast";
@@ -24,18 +24,25 @@ import {
 const CACHE_TTL = 30 * 1000;
 const DEBOUNCE_MS = 280;
 
+function parsePositiveInt(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.floor(parsed);
+}
+
 export default function AdminProducts() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // filter / UI state
-  const [searchInput, setSearchInput] = useState("");
-  const [q, setQ] = useState("");
-  const [inStockOnly, setInStockOnly] = useState(false);
-  const [category, setCategory] = useState("");
-  const [min, setMin] = useState("");
-  const [max, setMax] = useState("");
+  const [searchInput, setSearchInput] = useState(() => searchParams.get("q") || "");
+  const [q, setQ] = useState(() => searchParams.get("q") || "");
+  const [inStockOnly, setInStockOnly] = useState(() => searchParams.get("inStock") === "1");
+  const [category, setCategory] = useState(() => searchParams.get("category") || "");
+  const [min, setMin] = useState(() => searchParams.get("min") || "");
+  const [max, setMax] = useState(() => searchParams.get("max") || "");
   const [sort] = useState("-createdAt");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => parsePositiveInt(searchParams.get("page"), 1));
   const [limit] = useState(12);
 
   // data + UI flags
@@ -86,7 +93,9 @@ export default function AdminProducts() {
         key,
         JSON.stringify({ _cachedAt: Date.now(), data })
       );
-    } catch {}
+    } catch {
+      // Ignore storage write errors (quota/private mode).
+    }
   }, []);
 
   const serializeParams = useCallback(() => {
@@ -155,13 +164,33 @@ export default function AdminProducts() {
   }, [fetchProducts]);
 
   useEffect(() => {
+    const nextParams = new URLSearchParams();
+    if (q) nextParams.set("q", q);
+    if (inStockOnly) nextParams.set("inStock", "1");
+    if (category) nextParams.set("category", category);
+    if (min !== "") nextParams.set("min", min);
+    if (max !== "") nextParams.set("max", max);
+    if (page > 1) nextParams.set("page", String(page));
+
+    const nextQuery = nextParams.toString();
+    const currentQuery = searchParams.toString();
+    if (nextQuery !== currentQuery) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [q, inStockOnly, category, min, max, page, searchParams, setSearchParams]);
+
+  useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    const nextQuery = searchInput.trim();
+    if (nextQuery === q) return undefined;
+
     debounceRef.current = setTimeout(() => {
       setPage(1);
-      setQ(searchInput.trim());
+      setQ(nextQuery);
     }, DEBOUNCE_MS);
     return () => clearTimeout(debounceRef.current);
-  }, [searchInput]);
+  }, [searchInput, q]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / limit)),
@@ -212,7 +241,7 @@ export default function AdminProducts() {
       try {
         await api.delete(`/api/products/${id}`);
         showToast("Product deleted");
-      } catch (e) {
+      } catch {
         setList(prev);
         showToast("Delete failed", "error");
       }
@@ -246,7 +275,14 @@ export default function AdminProducts() {
 
   return (
     <AdminLayout>
-      <div className="max-w-[1200px] mx-auto">
+      <div className="space-y-5">
+        <header>
+          <h1 className="nm-display text-4xl font-semibold leading-none sm:text-5xl">Products</h1>
+          <p className="mt-2 text-sm text-[var(--nm-muted)]">
+            Manage catalog entries, pricing, stock, and bulk actions.
+          </p>
+        </header>
+
         <FiltersBar
           searchInput={searchInput}
           setSearchInput={setSearchInput}

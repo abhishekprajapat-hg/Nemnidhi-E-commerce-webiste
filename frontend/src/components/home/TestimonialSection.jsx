@@ -1,28 +1,59 @@
 import React from "react";
 import Section from "./Section";
 
-
-export default function TestimonialSection() {
-const testimonials = [
-{ name: "Priya S.", quote: "The quality of the silk is amazing! The color is so vibrant and exactly as shown on the website." },
-{ name: "Rohan M.", quote: "Wore this lehenga to a wedding and got so many compliments. Fast shipping and perfect fit!" },
-{ name: "Anjali K.", quote: "The handwork on my kurta set is so intricate. You can tell it's made with care. Worth every penny." },
+const TESTIMONIALS = [
+  {
+    name: "Priya S.",
+    city: "Bengaluru",
+    quote: "The drape and color were exactly as shown. The fabric feels premium and looked stunning at my event.",
+  },
+  {
+    name: "Rohan M.",
+    city: "Pune",
+    quote: "Fast delivery, careful packaging, and the finishing quality exceeded expectations.",
+  },
+  {
+    name: "Anjali K.",
+    city: "Jaipur",
+    quote: "Beautiful craftsmanship and comfortable fit. I now check Nemnidhi first for festive wear.",
+  },
 ];
 
+export default function TestimonialSection() {
+  return (
+    <Section>
+      <div className="nm-shell">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[var(--nm-muted)]">
+              Client Reviews
+            </p>
+            <h2 className="nm-display mt-2 text-4xl font-semibold sm:text-5xl">
+              Loved by modern Indian wardrobes
+            </h2>
+          </div>
+        </div>
 
-return (
-<Section className="bg-[#fdf7f7] dark:bg-zinc-900">
-<div className="max-w-7xl mx-auto px-6 lg:px-8">
-<h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white text-center mb-12">What Our Customers Say</h2>
-<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-{testimonials.map((t) => (
-<div key={t.name} className="p-6 bg-gray-50 border border-gray-200 rounded-xl shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
-<p className="text-gray-700 dark:text-gray-300">"{t.quote}"</p>
-<p className="mt-4 font-semibold text-gray-900 dark:text-white">— {t.name}</p>
-</div>
-))}
-</div>
-</div>
-</Section>
-);
+        <div className="grid gap-4 md:grid-cols-3">
+          {TESTIMONIALS.map((testimonial) => (
+            <article
+              key={testimonial.name}
+              className="flex h-full flex-col rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 shadow-lg shadow-black/5"
+            >
+              <span className="text-3xl leading-none text-[var(--nm-accent)]">&quot;</span>
+              <p className="mt-2 flex-1 text-sm leading-6 text-[var(--nm-text)] sm:text-base">
+                {testimonial.quote}
+              </p>
+              <div className="mt-5 border-t border-[var(--nm-border)] pt-3">
+                <p className="text-sm font-semibold">{testimonial.name}</p>
+                <p className="text-xs uppercase tracking-[0.15em] text-[var(--nm-muted)]">
+                  {testimonial.city}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </Section>
+  );
 }

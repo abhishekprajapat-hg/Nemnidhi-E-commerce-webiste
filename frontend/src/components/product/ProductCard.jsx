@@ -1,42 +1,40 @@
-// src/components/product/ProductCard.jsx
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 
 const ProductCard = ({ p }) => {
-  const thumb = (p?.variants && p.variants.length > 0 && p.variants[0].images?.[0]) ||
-    (Array.isArray(p.images) && p.images[0]) ||
-    p.image ||
+  const thumb =
+    (Array.isArray(p?.variants) && p.variants.length > 0 && p.variants[0].images?.[0]) ||
+    (Array.isArray(p?.images) && p.images[0]) ||
+    p?.image ||
     "/placeholder.png";
 
-  const price = (p?.variants && p.variants.length > 0 && p.variants[0].sizes?.[0]?.price) ||
+  const price =
+    (Array.isArray(p?.variants) && p.variants.length > 0 && p.variants[0].sizes?.[0]?.price) ||
     Number(p?.price || 0);
 
   return (
-    <div className="group border rounded-lg overflow-hidden bg-white hover:shadow-md transition dark:bg-zinc-800 dark:border-zinc-700 flex flex-col">
-      <div className="aspect-[4/5] sm:aspect-[3/4] bg-gray-100 dark:bg-zinc-700 relative">
-        <Link to={`/product/${p._id}`} className="block h-full w-full">
+    <article className="group overflow-hidden rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-surface)] transition duration-300 hover:-translate-y-1 hover:shadow-lg">
+      <Link to={`/product/${p._id}`} className="block">
+        <div className="aspect-[4/5] overflow-hidden bg-[var(--nm-bg-elevated)]">
           <img
             src={thumb}
-            alt={p.title}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = "/placeholder.png";
+            alt={p.title || "product"}
+            className="h-full w-full object-cover object-[center_22%] sm:object-center transition duration-300 group-hover:scale-105"
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = "/placeholder.png";
             }}
           />
-        </Link>
-      </div>
+        </div>
+      </Link>
+
       <div className="p-3">
         <Link to={`/product/${p._id}`}>
-          <div className="font-medium line-clamp-1 dark:text-white hover:underline">
-            {p.title}
-          </div>
+          <p className="line-clamp-1 text-sm font-semibold transition group-hover:text-[var(--nm-accent)]">{p.title}</p>
         </Link>
-        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          ₹{Number(price || 0).toFixed(2)}
-        </div>
+        <p className="mt-1 text-sm text-[var(--nm-muted)]">Rs {Number(price || 0).toFixed(2)}</p>
       </div>
-    </div>
+    </article>
   );
 };
 

@@ -1,90 +1,99 @@
-// src/components/products/CategoryTabs.jsx
-import React from "react";
+import React, { memo, useMemo } from "react";
 
-const DEFAULT_CAT_IMAGE = "/mnt/data/d5ff4896-1e72-4950-a3f0-2be7cede2a70.png";
+const DEFAULT_CAT_IMAGE = "/placeholder.png";
 
-export default function CategoryTabs({
-  categories = [],
-  activeCategory,
-  onSelect,
+function normalize(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+const CategoryButton = memo(function CategoryButton({
+  label,
+  image,
+  active,
+  onClick,
+  isAll = false,
 }) {
-  const normalized = categories.map((c) => {
-    const name = c.name || c.title || "";
-    const slug =
-      c.slug ||
-      (typeof c.href === "string"
-        ? new URLSearchParams(c.href.split("?")[1]).get("category")
-        : "");
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      aria-label={label}
+      onClick={onClick}
+      className={`group flex min-w-[7.25rem] shrink-0 items-center gap-2 rounded-2xl border px-3 py-2 text-left transition ${
+        active
+          ? "border-[var(--nm-accent)] bg-[var(--nm-accent-soft)] shadow-sm"
+          : "border-[var(--nm-border)] bg-[var(--nm-card)] hover:border-[var(--nm-accent)]"
+      }`}
+    >
+      <span
+        className={`flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border ${
+          active ? "border-[var(--nm-accent)]" : "border-[var(--nm-border)]"
+        } bg-[var(--nm-bg-elevated)]`}
+      >
+        {isAll ? (
+          <svg className="h-4 w-4 text-[var(--nm-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" />
+          </svg>
+        ) : (
+          <img
+            src={image || DEFAULT_CAT_IMAGE}
+            alt={label}
+            loading="lazy"
+            className="h-full w-full object-cover"
+            onError={(event) => {
+              event.currentTarget.src = DEFAULT_CAT_IMAGE;
+            }}
+          />
+        )}
+      </span>
+      <span className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--nm-text)]">
+        {label}
+      </span>
+    </button>
+  );
+});
 
-    return {
-      name,
-      slug,
-      img: c.img || DEFAULT_CAT_IMAGE,
-    };
-  });
+export default function CategoryTabs({ categories = [], activeCategory, onSelect }) {
+  const normalizedCategories = useMemo(() => {
+    const seen = new Set();
+    return categories
+      .map((category) => {
+        const name = String(category?.name || category?.title || "").trim();
+        const slug = String(category?.slug || name).trim();
+        const key = normalize(slug);
+        if (!name || !slug || seen.has(key)) return null;
+        seen.add(key);
+        return { name, slug, img: category?.img || DEFAULT_CAT_IMAGE, key };
+      })
+      .filter(Boolean);
+  }, [categories]);
+
+  const activeKey = normalize(activeCategory);
 
   return (
-    <nav className="mb-6">
-      <div className="overflow-x-auto no-scrollbar">
-        <ul className="flex items-end gap-8 px-4 sm:px-6 lg:px-8">
-          {/* All Tab */}
-          <li className="flex-shrink-0">
-            <button
-              onClick={() => onSelect(null)}
-              className={`flex flex-col items-center gap-2 py-1 px-2 ${
-                !activeCategory ? "text-indigo-600" : "text-gray-500"
-              }`}
-            >
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-pink-50 flex items-center justify-center shadow-sm">
-                <div className="w-[84%] h-[84%] rounded-full bg-white flex items-center justify-center">
-                  <svg className="w-7 h-7 text-indigo-600" viewBox="0 0 24 24">
-                    <path
-                      fill="currentColor"
-                      d="M12 2L15 9H22L17 14L19 21L12 17 5 21 7 14 2 9H9z"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <span className="text-xs md:text-sm mt-1">All</span>
-            </button>
+    <nav className="mb-7" aria-label="Product categories">
+      <div className="overflow-x-auto pb-1 no-scrollbar">
+        <ul className="flex w-max items-center gap-2" role="tablist">
+          <li className="shrink-0">
+            <CategoryButton
+              label="All"
+              isAll
+              active={!activeCategory}
+              onClick={() => onSelect?.(null)}
+            />
           </li>
 
-          {/* Dynamic categories */}
-          {normalized.map((cat) => {
-            const isActive = activeCategory === cat.slug;
-
-            return (
-              <li key={cat.slug} className="flex-shrink-0">
-                <button
-                  onClick={() => onSelect(cat.slug)}
-                  className={`flex flex-col items-center gap-2 py-1 px-2 ${
-                    isActive
-                      ? "text-indigo-600"
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                >
-                  <div
-                    className={`relative w-20 h-20 md:w-24 md:h-24 rounded-t-2xl rounded-b-full flex items-end justify-center bg-pink-50 ${
-                      isActive ? "ring-2 ring-indigo-300" : "hover:scale-105"
-                    }`}
-                    style={{ paddingBottom: 6 }}
-                  >
-                    <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-white shadow-sm">
-                      <img
-                        src={cat.img}
-                        alt={cat.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
-
-                  <span className="text-xs md:text-sm mt-2 capitalize">
-                    {cat.name}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
+          {normalizedCategories.map((category) => (
+            <li key={category.key} className="shrink-0">
+              <CategoryButton
+                label={category.name}
+                image={category.img}
+                active={activeKey === category.key}
+                onClick={() => onSelect?.(category.slug)}
+              />
+            </li>
+          ))}
         </ul>
       </div>
     </nav>

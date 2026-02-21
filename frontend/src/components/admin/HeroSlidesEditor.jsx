@@ -118,8 +118,8 @@ export default function HeroSlidesEditor({ slides = [], setSlides, emptySlide })
           return (
             <div
               key={slide.id || index}
-              className={`grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border rounded-lg dark:border-zinc-700 transition-shadow relative ${
-                draggingIndex === index ? "opacity-60 ring-2 ring-dashed ring-slate-300" : "hover:shadow-lg"
+              className={`relative grid grid-cols-1 gap-3 rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-4 transition-shadow md:grid-cols-5 ${
+                draggingIndex === index ? "opacity-60 ring-2 ring-dashed ring-[var(--nm-accent)]" : "hover:shadow-lg"
               }`}
               draggable
               onDragStart={(e) => onDragStart(e, index)}
@@ -175,7 +175,7 @@ export default function HeroSlidesEditor({ slides = [], setSlides, emptySlide })
                       type="button"
                       onClick={() => move(index, index - 1)}
                       disabled={index === 0}
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-white border rounded-md text-sm shadow-sm hover:bg-slate-50 disabled:opacity-40"
+                      className="inline-flex items-center gap-2 rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-2 text-sm font-semibold hover:border-[var(--nm-accent)] disabled:opacity-40"
                       aria-label={`Move slide ${index + 1} up`}
                     >
                       {/* up icon */}
@@ -189,7 +189,7 @@ export default function HeroSlidesEditor({ slides = [], setSlides, emptySlide })
                       type="button"
                       onClick={() => move(index, index + 1)}
                       disabled={index === slides.length - 1}
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-white border rounded-md text-sm shadow-sm hover:bg-slate-50 disabled:opacity-40"
+                      className="inline-flex items-center gap-2 rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-2 text-sm font-semibold hover:border-[var(--nm-accent)] disabled:opacity-40"
                       aria-label={`Move slide ${index + 1} down`}
                     >
                       {/* down icon */}
@@ -202,7 +202,7 @@ export default function HeroSlidesEditor({ slides = [], setSlides, emptySlide })
                     <button
                       type="button"
                       onClick={() => duplicateSlide(index)}
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-white border rounded-md text-sm shadow-sm hover:bg-slate-50"
+                      className="inline-flex items-center gap-2 rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-2 text-sm font-semibold hover:border-[var(--nm-accent)]"
                       aria-label={`Duplicate slide ${index + 1}`}
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -215,7 +215,7 @@ export default function HeroSlidesEditor({ slides = [], setSlides, emptySlide })
                     <button
                       type="button"
                       onClick={() => previewSlide(slide)}
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-white border rounded-md text-sm shadow-sm hover:bg-slate-50"
+                      className="inline-flex items-center gap-2 rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-2 text-sm font-semibold hover:border-[var(--nm-accent)]"
                       aria-label={`Preview slide ${index + 1}`}
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -229,7 +229,7 @@ export default function HeroSlidesEditor({ slides = [], setSlides, emptySlide })
                   <div className="flex gap-2">
                     <button
                       onClick={() => deleteSlide(index)}
-                      className="px-3 py-2.5 bg-red-50 text-red-600 rounded-md h-11 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+                      className="h-11 rounded-full border border-red-300 px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"
                       aria-label={`Delete slide ${index + 1}`}
                     >
                       Delete
@@ -238,7 +238,7 @@ export default function HeroSlidesEditor({ slides = [], setSlides, emptySlide })
                     {/* quick restore if available */}
                     <button
                       onClick={restoreDeletedSlide}
-                      className="px-3 py-2.5 bg-yellow-50 text-yellow-800 rounded-md h-11"
+                      className="h-11 rounded-full border border-[var(--nm-border)] px-3 py-2.5 text-sm font-semibold text-[var(--nm-text)]"
                       title="Restore last deleted slide"
                       aria-label="Restore last deleted slide"
                     >
@@ -250,7 +250,7 @@ export default function HeroSlidesEditor({ slides = [], setSlides, emptySlide })
 
               {/* visual drop indicator */}
               {dropIndex === index && draggingIndex !== null && (
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-slate-100/60 to-transparent opacity-60" aria-hidden />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-[var(--nm-accent-soft)] to-transparent opacity-60" aria-hidden />
               )}
             </div>
           );
@@ -259,12 +259,12 @@ export default function HeroSlidesEditor({ slides = [], setSlides, emptySlide })
         <div className="flex items-center gap-3">
           <button
             onClick={addSlide}
-            className="mt-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium dark:border-zinc-700 dark:text-gray-300"
+            className="mt-2 rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-4 py-2 text-sm font-semibold hover:border-[var(--nm-accent)]"
           >
             + Add New Slide
           </button>
 
-          <div className="text-sm text-slate-500">{slides.length} slides</div>
+          <div className="text-sm text-[var(--nm-muted)]">{slides.length} slides</div>
         </div>
       </div>
 
@@ -281,28 +281,27 @@ export default function HeroSlidesEditor({ slides = [], setSlides, emptySlide })
             aria-hidden
           />
 
-          <div className="relative max-w-3xl w-full bg-white rounded-lg overflow-hidden shadow-xl">
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] shadow-xl">
             <div className="grid grid-cols-1 md:grid-cols-2">
-              <div className="p-4 flex items-center justify-center bg-gray-50">
+              <div className="flex items-center justify-center bg-[var(--nm-surface)] p-4">
                 {preview.img ? (
-                  // eslint-disable-next-line jsx-a11y/img-redundant-alt
-                  <img src={preview.img} alt={preview.imgAlt || 'Slide image'} className="max-h-80 object-contain" />
+                  <img src={preview.img} alt={preview.imgAlt || "Slide"} className="max-h-80 object-contain" />
                 ) : (
-                  <div className="text-sm text-slate-500">No image</div>
+                  <div className="text-sm text-[var(--nm-muted)]">No image</div>
                 )}
               </div>
 
               <div className="p-6">
                 <h3 className="text-2xl font-bold mb-2">{preview.title || "Untitled"}</h3>
-                {preview.subtitle && <p className="mb-4 text-slate-600">{preview.subtitle}</p>}
+                {preview.subtitle && <p className="mb-4 text-[var(--nm-muted)]">{preview.subtitle}</p>}
                 {preview.href && (
-                  <a href={preview.href} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 underline">
+                  <a href={preview.href} target="_blank" rel="noreferrer" className="text-sm text-[var(--nm-accent-strong)] underline">
                     {preview.href}
                   </a>
                 )}
 
                 <div className="mt-6 flex justify-end">
-                  <button onClick={() => setPreview(null)} className="px-4 py-2 bg-slate-900 text-white rounded-md">
+                  <button onClick={() => setPreview(null)} className="nm-btn-primary text-sm">
                     Close
                   </button>
                 </div>

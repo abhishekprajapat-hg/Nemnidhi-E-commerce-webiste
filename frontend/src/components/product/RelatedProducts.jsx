@@ -1,5 +1,4 @@
-// src/components/product/RelatedProducts.jsx
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation } from "swiper/modules";
@@ -8,28 +7,41 @@ import ProductCard from "./ProductCard";
 
 const RelatedProducts = ({ related, loadingRelated, canShowNavigation }) => {
   return (
-    <section className="mt-12">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold dark:text-white">You may also like</h2>
-        <Link to="/products" className="text-sm text-gray-600 dark:text-gray-300 hover:underline">View all</Link>
+    <section className="mt-12 rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 sm:p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold">You may also like</h2>
+        <Link to="/products" className="text-sm font-semibold text-[var(--nm-accent-strong)] transition hover:underline">
+          View all
+        </Link>
       </div>
 
       {loadingRelated ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="aspect-[4/5] bg-gray-200 dark:bg-zinc-700 rounded-lg" />
-              <div className="h-4 bg-gray-200 dark:bg-zinc-700 mt-2 w-2/3 rounded" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="animate-pulse space-y-2">
+              <div className="aspect-[4/5] rounded-2xl bg-[var(--nm-bg-elevated)]" />
+              <div className="h-4 w-3/4 rounded bg-[var(--nm-bg-elevated)]" />
             </div>
           ))}
         </div>
       ) : related.length === 0 ? (
-        <div className="text-gray-500 dark:text-gray-400">No related products.</div>
+        <p className="text-sm text-[var(--nm-muted)]">No related products.</p>
       ) : (
-        <Swiper modules={[Navigation]} spaceBetween={24} slidesPerView={2} navigation={canShowNavigation} breakpoints={{ 320: { slidesPerView: 2 }, 640: { slidesPerView: 3 }, 1024: { slidesPerView: 4 } }} className="related-products-swiper">
-          {related.map((p) => (
-            <SwiperSlide key={p._id}>
-              <ProductCard p={p} />
+        <Swiper
+          modules={[Navigation]}
+          spaceBetween={18}
+          slidesPerView={2}
+          navigation={canShowNavigation}
+          breakpoints={{
+            320: { slidesPerView: 2, spaceBetween: 12 },
+            640: { slidesPerView: 3, spaceBetween: 14 },
+            1024: { slidesPerView: 4, spaceBetween: 18 },
+          }}
+          className="related-products-swiper"
+        >
+          {related.map((product) => (
+            <SwiperSlide key={product._id}>
+              <ProductCard p={product} />
             </SwiperSlide>
           ))}
         </Swiper>

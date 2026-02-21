@@ -1,29 +1,29 @@
-// src/components/ToastContainer.jsx
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from "react";
 
 export default function ToastContainer() {
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
-    const handler = (e) => {
-      const t = e.detail;
-      setToasts((s) => [...s, t]);
+    const handler = (event) => {
+      const nextToast = event.detail;
+      setToasts((prev) => [...prev, nextToast]);
       setTimeout(() => {
-        setToasts((s) => s.filter((x) => x.id !== t.id));
-      }, t.duration);
+        setToasts((prev) => prev.filter((toast) => toast.id !== nextToast.id));
+      }, nextToast.duration);
     };
-    window.addEventListener('app:toast', handler);
-    return () => window.removeEventListener('app:toast', handler);
+
+    window.addEventListener("app:toast", handler);
+    return () => window.removeEventListener("app:toast", handler);
   }, []);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none">
-      {toasts.map((t) => (
+    <div className="pointer-events-none fixed bottom-5 right-4 z-50 flex w-[min(100%,22rem)] flex-col gap-2 sm:bottom-6 sm:right-6">
+      {toasts.map((toast) => (
         <div
-          key={t.id}
-          className="pointer-events-auto max-w-xs w-full bg-white/95 text-black px-4 py-2 rounded shadow-lg border"
+          key={toast.id}
+          className="pointer-events-auto animate-chat-bubble rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-card)] px-4 py-3 text-sm shadow-lg"
         >
-          {t.message}
+          {toast.message}
         </div>
       ))}
     </div>

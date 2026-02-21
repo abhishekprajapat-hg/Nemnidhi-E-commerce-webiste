@@ -1,5 +1,4 @@
-// src/components/admin/products/ProductsTable.jsx
-import RowSkeleton from "./RowSkeleton";
+﻿import RowSkeleton from "./RowSkeleton";
 import ProductRow from "./ProductRow";
 
 export default function ProductsTable({
@@ -15,20 +14,26 @@ export default function ProductsTable({
   onDelete,
 }) {
   return (
-    <div className="rounded-xl border bg-white divide-y">
-      <div className="px-4 py-3 flex gap-3 text-xs uppercase bg-gray-50">
-        <input type="checkbox" checked={allChecked} onChange={toggleAll} />
-        <div className="w-16">Image</div>
-        <div className="flex-1">Product</div>
-        <div className="w-28 text-right">Price</div>
-        <div className="w-24 text-right">Stock</div>
-        <div className="w-44 text-right">Actions</div>
+    <section className="overflow-hidden rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)]">
+      <div className="hidden border-b border-[var(--nm-border)] bg-[var(--nm-bg-elevated)]/70 px-4 py-3 md:flex md:items-center md:gap-3">
+        <input
+          type="checkbox"
+          checked={Boolean(allChecked)}
+          onChange={toggleAll}
+          className="h-4 w-4 accent-[var(--nm-accent)]"
+          aria-label="Select all products"
+        />
+        <div className="w-16 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Image</div>
+        <div className="flex-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Product</div>
+        <div className="w-28 text-right text-xs font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Price</div>
+        <div className="w-20 text-right text-xs font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Stock</div>
+        <div className="w-[220px] text-right text-xs font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Actions</div>
       </div>
 
       {loading ? (
-        Array.from({ length: 6 }).map((_, i) => <RowSkeleton key={i} />)
+        Array.from({ length: 6 }).map((_, index) => <RowSkeleton key={index} />)
       ) : list.length === 0 ? (
-        <div className="p-8 text-center">No products found.</div>
+        <div className="px-6 py-12 text-center text-sm text-[var(--nm-muted)]">No products found.</div>
       ) : (
         productsWithMeta.map(({ p, thumb, price, totalStock }) => (
           <ProductRow
@@ -37,7 +42,7 @@ export default function ProductsTable({
             thumb={thumb}
             price={price}
             totalStock={totalStock}
-            checked={!!selectedMap[p._id]}
+            checked={Boolean(selectedMap[p._id])}
             onToggle={toggleOne}
             onView={onView}
             onEdit={onEdit}
@@ -45,6 +50,6 @@ export default function ProductsTable({
           />
         ))
       )}
-    </div>
+    </section>
   );
 }

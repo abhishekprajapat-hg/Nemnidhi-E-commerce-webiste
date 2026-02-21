@@ -1,125 +1,112 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 
-export function ProductCard({ p, onAddToCart }) {
-  const variantImages = Array.isArray(p?.variants)
-    ? p.variants.flatMap((v) => (Array.isArray(v.images) ? v.images : []))
+function getSlides(product) {
+  const fromVariants = Array.isArray(product?.variants)
+    ? product.variants.flatMap((variant) => (Array.isArray(variant.images) ? variant.images : []))
     : [];
-  const slides = (variantImages && variantImages.length && variantImages) ||
-    (p?.images && p.images.length && p.images) ||
-    (p?.image && [p.image]) || ["/placeholder.png"];
 
-  const pricesFromVariants = Array.isArray(p?.variants)
-    ? p.variants.flatMap((v) =>
-        Array.isArray(v.sizes) ? v.sizes.map((s) => Number(s.price || 0)) : []
+  if (fromVariants.length > 0) return fromVariants;
+  if (Array.isArray(product?.images) && product.images.length > 0) return product.images;
+  if (product?.image) return [product.image];
+  return ["/placeholder.png"];
+}
+
+function getPrice(product) {
+  const variantPrices = Array.isArray(product?.variants)
+    ? product.variants.flatMap((variant) =>
+        Array.isArray(variant?.sizes)
+          ? variant.sizes.map((size) => Number(size?.price || 0))
+          : []
       )
     : [];
-  const displayPrice = pricesFromVariants.length
-    ? Math.min(...pricesFromVariants)
-    : Number(p?.price || 0);
 
-  const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const timerRef = useRef(null);
+  if (variantPrices.length > 0) return Math.min(...variantPrices);
+  return Number(product?.price || 0);
+}
 
-  useEffect(() => {
-    if (paused || slides.length <= 1) return;
-    timerRef.current = setTimeout(() => {
-      setIndex((i) => (i + 1) % slides.length);
-    }, 4000);
-    return () => clearTimeout(timerRef.current);
-  }, [index, paused, slides.length]);
+export function ProductCard({ p, onAddToCart, className = "" }) {
+  const slides = useMemo(() => getSlides(p), [p]);
+  const price = useMemo(() => getPrice(p), [p]);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   return (
-    <div
-      className="w-72 shrink-0"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
+    <article
+      className={`group overflow-hidden rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] shadow-lg shadow-black/5 transition duration-300 hover:-translate-y-1 hover:shadow-xl dark:shadow-black/20 ${className}`}
     >
-      <div className="group relative border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-zinc-800">
-        <Link
-          to={`/product/${p?._id}`}
-          className="block aspect-[4/5] bg-gray-100 dark:bg-zinc-700 relative"
-          aria-label={p?.title || p?.name || "Product"}
-        >
-          <AnimatePresence mode="wait">
-            <motion.img
-              key={index + (slides[index] || "")}
-              src={slides[index]}
-              alt={p?.title || p?.name || `Product image ${index + 1}`}
-              initial={{ opacity: 0, scale: 1.03 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.35, ease: "easeOut" }}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = "/placeholder.png";
-              }}
-            />
-          </AnimatePresence>
+      <Link to={`/product/${p?._id}`} className="block">
+        <div className="relative aspect-[4/5] overflow-hidden bg-[var(--nm-bg-elevated)]">
+          <img
+            src={slides[activeIndex]}
+            alt={p?.title || p?.name || "Product image"}
+            className="h-full w-full object-cover object-[center_22%] sm:object-center transition duration-500 group-hover:scale-105"
+            loading="lazy"
+            onError={(event) => {
+              event.currentTarget.src = "/placeholder.png";
+            }}
+          />
 
           {slides.length > 1 && (
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-2 z-20 flex gap-2">
-              {slides.map((_, i) => (
+            <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/40 px-2 py-1 backdrop-blur">
+              {slides.slice(0, 5).map((_, idx) => (
                 <button
-                  key={i}
-                  onClick={(ev) => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    setIndex(i);
+                  key={idx}
+                  type="button"
+                  aria-label={`Select image ${idx + 1}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setActiveIndex(idx);
                   }}
-                  aria-label={`Go to image ${i + 1}`}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    i === index ? "bg-white w-4" : "bg-white/50"
+                  className={`h-1.5 rounded-full transition ${
+                    idx === activeIndex ? "w-4 bg-white" : "w-1.5 bg-white/55"
                   }`}
                 />
               ))}
             </div>
           )}
+        </div>
+      </Link>
+
+      <div className="p-4">
+        <Link to={`/product/${p?._id}`}>
+          <h3
+            className="line-clamp-1 text-sm font-semibold text-[var(--nm-text)] sm:text-base"
+            title={p?.title || p?.name}
+          >
+            {p?.title || p?.name}
+          </h3>
         </Link>
 
-        <div className="p-4 relative min-h-[90px]">
-          <div className="transition-opacity duration-300 group-hover:opacity-0">
-            <h3
-              className="text-base font-semibold text-gray-800 dark:text-white truncate"
-              title={p?.title || p?.name}
-            >
-              {p?.title || p?.name}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              ₹{Number(displayPrice || 0).toFixed(2)}
-            </p>
-          </div>
-
-          <div className="absolute inset-0 p-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                if (typeof onAddToCart === "function") onAddToCart(p);
-              }}
-              className="w-full px-4 py-2 text-sm bg-black text-white dark:bg-white dark:text-black rounded-md hover:bg-gray-800 dark:hover:bg-gray-200"
-            >
-              Add to Cart
-            </button>
-          </div>
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-[var(--nm-accent-strong)]">Rs {price.toFixed(2)}</p>
+          <span className="text-[11px] uppercase tracking-[0.12em] text-[var(--nm-muted)]">
+            Ready to Ship
+          </span>
         </div>
+
+        <button
+          type="button"
+          onClick={() => onAddToCart?.(p)}
+          className="mt-4 w-full rounded-full border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-[var(--nm-text)] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
+        >
+          Add to Cart
+        </button>
       </div>
-    </div>
+    </article>
   );
 }
 
-export function SkeletonProductCard() {
+export function SkeletonProductCard({ className = "" }) {
   return (
-    <div className="w-72 shrink-0">
-      <div className="border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-800 shadow-sm animate-pulse">
-        <div className="aspect-[4/5] bg-gray-200 dark:bg-zinc-700" />
-        <div className="p-4">
-          <div className="h-4 bg-gray-200 dark:bg-zinc-700 rounded w-3/4" />
-          <div className="h-4 bg-gray-200 dark:bg-zinc-700 rounded w-1/2 mt-2" />
-        </div>
+    <div
+      className={`overflow-hidden rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] animate-pulse ${className}`}
+    >
+      <div className="aspect-[4/5] bg-[var(--nm-bg-elevated)]" />
+      <div className="space-y-3 p-4">
+        <div className="h-4 w-3/4 rounded bg-[var(--nm-bg-elevated)]" />
+        <div className="h-4 w-1/3 rounded bg-[var(--nm-bg-elevated)]" />
+        <div className="h-9 w-full rounded-full bg-[var(--nm-bg-elevated)]" />
       </div>
     </div>
   );

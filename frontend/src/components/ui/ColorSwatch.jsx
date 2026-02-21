@@ -1,24 +1,23 @@
-// src/components/ui/ColorSwatch.jsx
-import React from "react";
+﻿import React from "react";
 
-const ColorSwatch = React.memo(({ color, isSelected, onClick }) => {
-  const style = {};
-  try {
-    style.backgroundColor = color;
-  } catch (e) {
-    // ignore
-  }
+const ColorSwatch = React.memo(function ColorSwatch({ color, isSelected, onClick }) {
+  const safeColor = String(color || "").trim();
+  const backgroundStyle = { backgroundColor: safeColor || "transparent" };
+
   return (
     <button
+      type="button"
       onClick={onClick}
-      title={color}
-      className={`w-8 h-8 rounded-full border border-gray-300 dark:border-zinc-700 flex items-center justify-center text-xs ${
-        isSelected ? "ring-2 ring-black dark:ring-white ring-offset-1" : ""
+      title={safeColor || "color"}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-[10px] font-semibold uppercase transition ${
+        isSelected
+          ? "border-[var(--nm-accent)] ring-2 ring-[var(--nm-accent-soft)]"
+          : "border-[var(--nm-border)] hover:border-[var(--nm-accent)]"
       }`}
-      style={style}
+      style={backgroundStyle}
     >
-      {!style.backgroundColor && <span className="text-xs dark:text-white">{color}</span>}
-      <span className="sr-only">{color}</span>
+      {/^(#|rgb|hsl)/i.test(safeColor) ? null : <span className="text-[var(--nm-text)]">{safeColor.slice(0, 2) || "C"}</span>}
+      <span className="sr-only">{safeColor || "color"}</span>
     </button>
   );
 });

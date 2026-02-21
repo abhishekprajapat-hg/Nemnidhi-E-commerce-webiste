@@ -1,18 +1,24 @@
-// src/components/ui/Accordion.jsx
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 
-const Accordion = React.memo(({ title, children, defaultOpen = false }) => {
+const Accordion = React.memo(function Accordion({ title, children, defaultOpen = false }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
   return (
-    <div className="border-t border-gray-200 dark:border-zinc-700">
+    <div className="overflow-hidden rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)]">
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex justify-between items-center w-full py-4 text-left font-medium dark:text-white"
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold"
       >
         <span>{title}</span>
-        <span className={`transform transition-transform ${isOpen ? "rotate-180" : ""}`}>▼</span>
+        <span className="text-xs text-[var(--nm-muted)]">{isOpen ? "Hide" : "Show"}</span>
       </button>
-      {isOpen && <div className="pb-4 text-gray-700 dark:text-gray-300 leading-relaxed">{children}</div>}
+
+      {isOpen ? (
+        <div className="border-t border-[var(--nm-border)] px-4 py-3 text-sm leading-relaxed text-[var(--nm-muted)]">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 });

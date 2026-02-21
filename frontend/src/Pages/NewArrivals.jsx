@@ -1,18 +1,12 @@
 import React, { useEffect, useState } from "react";
-import api from "../api/axios";
 import { useDispatch } from "react-redux";
+import api from "../api/axios";
 import { addToCart } from "../store/cartSlice";
 import { showToast } from "../utils/toast";
-
-// 🔥 CORRECT PATH (HOME FOLDER)
-import {
-  ProductCard,
-  SkeletonProductCard,
-} from "../components/home/ProductCard.jsx";
+import { ProductCard, SkeletonProductCard } from "../components/home/ProductCard.jsx";
 
 export default function NewArrivals() {
   const dispatch = useDispatch();
-
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,14 +17,10 @@ export default function NewArrivals() {
       setLoading(true);
       try {
         const { data } = await api.get("/api/products?sort=-createdAt");
-
-        const list = Array.isArray(data)
-          ? data
-          : data?.products || [];
-
+        const list = Array.isArray(data) ? data : data?.products || [];
         if (mounted) setProducts(list);
-      } catch (err) {
-        console.error("Failed to load new arrivals", err);
+      } catch (error) {
+        console.error("Failed to load new arrivals", error);
         if (mounted) setProducts([]);
       } finally {
         if (mounted) setLoading(false);
@@ -43,31 +33,27 @@ export default function NewArrivals() {
     };
   }, []);
 
-  const handleAddToCart = (prod) => {
-    if (!prod || !prod._id) return;
+  const handleAddToCart = (product) => {
+    if (!product?._id) return;
 
     const firstVariant =
-      Array.isArray(prod.variants) && prod.variants.length
-        ? prod.variants[0]
+      Array.isArray(product.variants) && product.variants.length > 0
+        ? product.variants[0]
+        : null;
+    const firstSize =
+      Array.isArray(firstVariant?.sizes) && firstVariant.sizes.length > 0
+        ? firstVariant.sizes[0]
         : null;
 
-    const chosenSize =
-      firstVariant?.sizes?.length ? firstVariant.sizes[0] : null;
-
     const payload = {
-      product: prod._id,
-      title: prod.title || prod.name,
-      price: Number(chosenSize?.price || prod.price || 0),
+      product: product._id,
+      title: product.title || product.name,
+      price: Number(firstSize?.price || product.price || 0),
       qty: 1,
-      image:
-        firstVariant?.images?.[0] ||
-        prod.images?.[0] ||
-        prod.image ||
-        "",
-      size: chosenSize?.size || "",
+      image: firstVariant?.images?.[0] || product.images?.[0] || product.image || "",
+      size: firstSize?.size || "",
       color: firstVariant?.color || "",
-      countInStock:
-        Number(chosenSize?.stock || prod.countInStock || 0),
+      countInStock: Number(firstSize?.stock || product.countInStock || 0),
     };
 
     dispatch(addToCart(payload));
@@ -75,29 +61,25 @@ export default function NewArrivals() {
   };
 
   return (
-  <div className="min-h-screen bg-[#fdf7f7] dark:bg-zinc-900 px-6 py-10">
-    <div className="max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center sm:text-left">
-        New Arrivals
-      </h1>
+    <div className="nm-shell py-8 sm:py-10">
+      <div className="mb-7">
+        <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
+          Just In
+        </p>
+        <h1 className="nm-display mt-2 text-5xl font-semibold leading-none">New Arrivals</h1>
+      </div>
 
-      <div className="grid grid-cols-1 place-items-center gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {loading &&
-          Array.from({ length: 8 }).map((_, i) => (
-            <SkeletonProductCard key={i} />
+          Array.from({ length: 8 }).map((_, index) => (
+            <SkeletonProductCard key={index} />
           ))}
 
         {!loading &&
-          products.map((p) => (
-            <ProductCard
-              key={p._id}
-              p={p}
-              onAddToCart={handleAddToCart}
-            />
+          products.map((product) => (
+            <ProductCard key={product._id} p={product} onAddToCart={handleAddToCart} />
           ))}
       </div>
     </div>
-  </div>
-);
-
+  );
 }

@@ -1,47 +1,82 @@
-// /src/components/admin/OrdersFilters.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from "react";
 
-export default function OrdersFilters({ value = {}, onChange = () => {}, facets = {} }) {
-  const [search, setSearch] = useState(value.q || '');
+const STATUS_ORDER = [
+  "created",
+  "paid",
+  "processing",
+  "shipped",
+  "out for delivery",
+  "delivered",
+  "cancelled",
+  "refunded",
+];
 
-  // small debounce (280ms)
+export default function OrdersFilters({
+  value = {},
+  onChange = () => {},
+  facets = {},
+}) {
+  const [search, setSearch] = useState(value.q || "");
+
+  const orderedStatusFacets = useMemo(() => {
+    const list = Array.isArray(facets?.status) ? facets.status : [];
+    return [...list].sort((left, right) => {
+      const leftStatus = String(left?.status || "").toLowerCase();
+      const rightStatus = String(right?.status || "").toLowerCase();
+
+      const leftIndex = STATUS_ORDER.indexOf(leftStatus);
+      const rightIndex = STATUS_ORDER.indexOf(rightStatus);
+
+      if (leftIndex === -1 && rightIndex === -1) {
+        return leftStatus.localeCompare(rightStatus);
+      }
+      if (leftIndex === -1) return 1;
+      if (rightIndex === -1) return -1;
+      return leftIndex - rightIndex;
+    });
+  }, [facets?.status]);
+
   useEffect(() => {
-    const t = setTimeout(() => {
+    setSearch(value.q || "");
+  }, [value.q]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
       onChange({ ...value, q: search.trim(), page: 1 });
     }, 280);
-    return () => clearTimeout(t);
-  }, [search]);
+    return () => clearTimeout(timer);
+  }, [search, onChange, value]);
 
-  function changeStatus(s) {
-    onChange({ ...value, status: s, page: 1 });
-  }
+  const changeStatus = (status) => {
+    onChange({ ...value, status, page: 1 });
+  };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
-      <h3 className="text-lg font-semibold mb-3 dark:text-white">Filter Orders</h3>
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex-1 relative">
+    <section className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5">
+      <h3 className="mb-3 text-lg font-semibold">Filter Orders</h3>
+
+      <div className="flex flex-col gap-3 md:flex-row">
+        <div className="relative flex-1">
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by ID, email, or product title"
-            className="w-full border border-gray-300 dark:border-zinc-700 dark:bg-zinc-700 dark:text-white px-3 py-2 rounded-lg"
+            className="w-full rounded-full border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-2.5 pr-24 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
           />
           <button
             onClick={() => onChange({ ...value, q: search.trim(), page: 1 })}
-            aria-label="Search orders"
-            className="absolute right-0 top-0 h-full px-4 text-sm font-medium rounded-r-lg bg-indigo-600 text-white hover:bg-indigo-700"
+            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-[var(--nm-accent)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-white"
           >
             Search
           </button>
         </div>
 
-        <div className="w-full md:w-48 shrink-0">
+        <div className="w-full md:w-52">
           <select
-            value={value.status || ''}
-            onChange={(e) => changeStatus(e.target.value)}
-            className="w-full border border-gray-300 dark:border-zinc-700 dark:bg-zinc-700 dark:text-white px-3 py-2 rounded-lg"
+            value={value.status || ""}
+            onChange={(event) => changeStatus(event.target.value)}
+            className="w-full rounded-full border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-2.5 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
           >
             <option value="">All Statuses</option>
             <option value="Created">Created</option>
@@ -52,24 +87,31 @@ export default function OrdersFilters({ value = {}, onChange = () => {}, facets 
         </div>
       </div>
 
-      {facets?.status?.length > 0 && (
-        <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-zinc-700/50 flex-wrap">
-          {facets.status.map((f) => (
+      {orderedStatusFacets.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--nm-border)] pt-4">
+          {orderedStatusFacets.map((facet) => (
             <button
-              key={f.status}
-              onClick={() => changeStatus(f.status)}
-              className={`px-3 py-1 text-sm rounded-full transition ${value.status === f.status ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-600'}`}
+              key={facet.status}
+              onClick={() => changeStatus(facet.status)}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] transition ${
+                value.status === facet.status
+                  ? "bg-[var(--nm-accent)] text-white"
+                  : "border border-[var(--nm-border)] bg-[var(--nm-surface)] text-[var(--nm-text)] hover:border-[var(--nm-accent)]"
+              }`}
             >
-              {f.status} ({f.count})
+              {facet.status} ({facet.count})
             </button>
           ))}
           {value.status && (
-            <button onClick={() => changeStatus('')} className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-full hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300">
+            <button
+              onClick={() => changeStatus("")}
+              className="rounded-full border border-red-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-red-600 hover:bg-red-50"
+            >
               Clear Status
             </button>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

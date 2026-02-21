@@ -1,78 +1,104 @@
-// src/components/product/VariantSelector.jsx
-import React from "react";
+﻿import React from "react";
 import ColorSwatch from "../ui/ColorSwatch";
 
 export default function VariantSelector({
   product,
   selectedVariantIndex,
   selectedSize,
+  selectedColor,
   onSelectVariant,
   onSelectSize,
+  onSelectColor,
 }) {
   if (!product) return null;
 
-  if (product?.variants && product.variants.length > 0) {
+  if (Array.isArray(product.variants) && product.variants.length > 0) {
+    const activeVariant = product.variants[selectedVariantIndex] || product.variants[0];
+
     return (
-      <>
+      <div className="space-y-4">
         <div>
-          <div className="text-sm font-medium mb-2 dark:text-white">Color</div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Color</p>
           <div className="flex flex-wrap gap-2">
-            {product.variants.map((v, idx) => (
+            {product.variants.map((variant, index) => (
               <ColorSwatch
-                key={v.color + "-" + idx}
-                color={v.color || `var-${idx}`}
-                isSelected={selectedVariantIndex === idx}
-                onClick={() => onSelectVariant(idx)}
+                key={`${variant.color || "variant"}-${index}`}
+                color={variant.color || `var-${index}`}
+                isSelected={selectedVariantIndex === index}
+                onClick={() => onSelectVariant(index)}
               />
             ))}
           </div>
         </div>
 
-        <div className="mt-4">
-          <div className="text-sm font-medium mb-2 dark:text-white">Size</div>
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Size</p>
           <div className="flex flex-wrap gap-2">
-            {(product.variants[selectedVariantIndex]?.sizes || []).map((s) => {
-              const disabled = Number(s.stock || 0) <= 0;
+            {(activeVariant?.sizes || []).map((entry) => {
+              const disabled = Number(entry.stock || 0) <= 0;
               return (
                 <button
-                  key={s.size}
-                  onClick={() => !disabled && onSelectSize(s.size)}
-                  className={`px-3 py-1.5 rounded border text-sm ${selectedSize === s.size ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800/50 dark:text-gray-300"} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                  key={entry.size}
+                  type="button"
+                  onClick={() => !disabled && onSelectSize(entry.size)}
                   disabled={disabled}
+                  className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                    selectedSize === entry.size
+                      ? "border-[var(--nm-accent)] bg-[var(--nm-accent)] text-white"
+                      : "border-[var(--nm-border)] bg-[var(--nm-surface)] hover:border-[var(--nm-accent)]"
+                  } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
                 >
-                  {s.size}
-                  {disabled && <span className="ml-2 text-xs text-red-500">Out</span>}
+                  {entry.size}
                 </button>
               );
             })}
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
-  // Backwards compatibility
   return (
-    <>
-      {product.sizes?.length > 0 && (
+    <div className="space-y-4">
+      {Array.isArray(product.sizes) && product.sizes.length > 0 ? (
         <div>
-          <div className="text-sm font-medium mb-2 dark:text-white">Size</div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Size</p>
           <div className="flex flex-wrap gap-2">
-            {product.sizes.map((s) => (
-              <button key={s} onClick={() => onSelectSize(s)} className={`px-3 py-1.5 rounded border text-sm ${selectedSize === s ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800/50 dark:text-gray-300"}`}>{s}</button>
+            {product.sizes.map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => onSelectSize(size)}
+                className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                  selectedSize === size
+                    ? "border-[var(--nm-accent)] bg-[var(--nm-accent)] text-white"
+                    : "border-[var(--nm-border)] bg-[var(--nm-surface)] hover:border-[var(--nm-accent)]"
+                }`}
+              >
+                {size}
+              </button>
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
-      {product.colors?.length > 0 && (
-        <div className="mt-3">
-          <div className="text-sm font-medium mb-2 dark:text-white">Color</div>
+      {Array.isArray(product.colors) && product.colors.length > 0 ? (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Color</p>
           <div className="flex flex-wrap gap-2">
-            {product.colors.map((c) => <ColorSwatch key={c} color={c} isSelected={c === product.selectedColor} onClick={() => onSelectVariant(c)} />)}
+            {product.colors.map((color) => (
+              <ColorSwatch
+                key={color}
+                color={color}
+                isSelected={selectedColor === color}
+                onClick={() => {
+                  if (typeof onSelectColor === "function") onSelectColor(color);
+                }}
+              />
+            ))}
           </div>
         </div>
-      )}
-    </>
+      ) : null}
+    </div>
   );
 }

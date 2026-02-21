@@ -1,47 +1,46 @@
-// src/components/product/ReviewList.jsx
-import React from "react";
-
-// sample local image path is included (kept for reference if needed)
-const PLACEHOLDER_IMAGE = "/mnt/data/acb9da27-2225-45bd-8890-d39621053a9e.png";
+﻿import React from "react";
 
 export default function ReviewList({ reviews, loading }) {
-  if (loading) return <div className="text-gray-500 dark:text-gray-300">Loading reviews...</div>;
-  if (!reviews || reviews.length === 0) return <div className="text-gray-500 dark:text-gray-400 mt-1">No reviews yet.</div>;
+  if (loading) return <p className="text-sm text-[var(--nm-muted)]">Loading reviews...</p>;
+  if (!reviews || reviews.length === 0) return <p className="text-sm text-[var(--nm-muted)]">No reviews yet.</p>;
 
   return (
-    <div className="mt-6 space-y-6">
-      {reviews.map((r) => {
-        // filter out falsy / empty image entries
-        const validImages = Array.isArray(r.images) ? r.images.filter((img) => !!img && String(img).trim() !== "") : [];
+    <div className="space-y-5">
+      {reviews.map((review) => {
+        const validImages = Array.isArray(review.images)
+          ? review.images.filter((img) => Boolean(img) && String(img).trim() !== "")
+          : [];
 
         return (
-          <div key={r._id} className="border-b pb-4 dark:border-zinc-700">
-            <div className="flex items-center gap-2">
-              <strong className="dark:text-white">{r.userName || r.name || "User"}</strong>
-              <div className="text-yellow-500">{"★".repeat(r.rating)}</div>
-              <span className="text-xs text-gray-500">{new Date(r.createdAt).toLocaleDateString()}</span>
+          <article key={review._id} className="border-b border-[var(--nm-border)] pb-4 last:border-b-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold">{review.userName || review.name || "User"}</p>
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                {Number(review.rating || 0)}/5
+              </span>
+              <span className="text-xs text-[var(--nm-muted)]">
+                {new Date(review.createdAt || Date.now()).toLocaleDateString()}
+              </span>
             </div>
 
-            <p className="text-gray-700 dark:text-gray-300 mt-2">{r.comment}</p>
+            <p className="mt-2 text-sm text-[var(--nm-muted)]">{review.comment}</p>
 
-            {/* Only show images if user actually uploaded valid ones — no placeholder when none */}
-            {validImages.length > 0 && (
-              <div className="flex gap-3 mt-2">
-                {validImages.map((img, i) => (
+            {validImages.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {validImages.map((image, index) => (
                   <img
-                    key={i}
-                    src={img}
-                    alt={`review-${r._id}-${i}`}
-                    className="w-20 h-20 object-cover rounded border"
-                    onError={(e) => {
-                      // hide broken images so user doesn't see an empty/broken box
-                      e.currentTarget.style.display = "none";
+                    key={`${review._id}-${index}`}
+                    src={image}
+                    alt={`review-${review._id}-${index}`}
+                    className="h-20 w-20 rounded-xl border border-[var(--nm-border)] object-cover"
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
                     }}
                   />
                 ))}
               </div>
-            )}
-          </div>
+            ) : null}
+          </article>
         );
       })}
     </div>

@@ -1,159 +1,156 @@
-// Updated ReviewForm.jsx with photo upload support
-import React, { useState } from 'react';
-import api from '../api/axios';
-import { showToast } from '../utils/toast';
+﻿import React, { useEffect, useState } from "react";
+import api from "../api/axios";
+import { showToast } from "../utils/toast";
 
-// Reusable StarInput component for selecting a rating
-const StarInput = ({ rating, setRating }) => {
+function StarInput({ rating, setRating }) {
   return (
-    <div className="flex items-center space-x-1">
-      {[1, 2, 3, 4, 5].map((star) => (
+    <div className="flex items-center gap-2" role="radiogroup" aria-label="Rating">
+      {[1, 2, 3, 4, 5].map((value) => (
         <button
-          key={star}
+          key={value}
           type="button"
-          onMouseEnter={() => setRating(star)}
-          onClick={() => setRating(star)}
-          className={`text-3xl transition-colors ${
-            star <= rating ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'
+          onClick={() => setRating(value)}
+          className={`h-9 min-w-9 rounded-full border px-3 text-sm font-semibold transition ${
+            value <= rating
+              ? "border-amber-500 bg-amber-500 text-white"
+              : "border-[var(--nm-border)] bg-[var(--nm-surface)] hover:border-amber-500"
           }`}
+          aria-label={`Rate ${value}`}
         >
-          ★
+          {value}
         </button>
       ))}
     </div>
   );
-};
+}
 
 export default function ReviewForm({ productId, onClose }) {
   const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("");
   const [images, setImages] = useState([]);
   const [preview, setPreview] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
-  const handleImageSelect = (e) => {
-    const files = Array.from(e.target.files).slice(0, 3);
+  useEffect(() => {
+    return () => {
+      preview.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [preview]);
+
+  const handleImageSelect = (event) => {
+    const files = Array.from(event.target.files || []).slice(0, 3);
+    preview.forEach((url) => URL.revokeObjectURL(url));
     setImages(files);
     setPreview(files.map((file) => URL.createObjectURL(file)));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
     if (rating === 0) {
-      setError('Please select a star rating.');
+      setError("Please select a rating.");
       return;
     }
+
     if (!comment.trim()) {
-      setError('Please write a comment.');
+      setError("Please write a comment.");
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const formData = new FormData();
-      formData.append('rating', rating);
-      formData.append('comment', comment);
-      images.forEach((img) => formData.append('images', img));
+      formData.append("rating", rating);
+      formData.append("comment", comment);
+      images.forEach((image) => formData.append("images", image));
 
       await api.post(`/api/reviews/${productId}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      showToast('Review submitted successfully!');
+      showToast("Review submitted successfully");
       if (onClose) onClose(true);
     } catch (err) {
-      const msg = err.response?.data?.message ||
-        'Failed to submit review. You may have already reviewed this product.';
-      setError(msg);
-      showToast(msg, 'error');
+      const message =
+        err.response?.data?.message ||
+        "Failed to submit review. You may have already reviewed this product.";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="relative bg-white dark:bg-zinc-800 rounded-xl shadow-2xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 sm:p-6">
         <button
+          type="button"
           onClick={() => onClose()}
-          className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-700"
+          className="absolute right-4 top-4 rounded-full border border-[var(--nm-border)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
           aria-label="Close review form"
         >
-          <span className="font-bold text-lg dark:text-gray-300">X</span>
+          Close
         </button>
 
-        <h2 className="text-xl font-semibold mb-4 dark:text-white">Write a Review</h2>
+        <h2 className="nm-display text-3xl font-semibold sm:text-4xl">Write a Review</h2>
 
-        {error && (
-          <div className="mb-4 text-sm text-red-700 bg-red-50 dark:text-red-300 dark:bg-red-900/20 p-3 rounded-lg">
+        {error ? (
+          <div className="mt-4 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
-        )}
+        ) : null}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Your Rating
-            </label>
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Rating</span>
             <StarInput rating={rating} setRating={setRating} />
-          </div>
+          </label>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Add Photos (max 3)
-            </label>
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Add photos (max 3)</span>
             <input
               type="file"
               accept="image/*"
               multiple
               onChange={handleImageSelect}
-              className="w-full text-sm text-gray-600"
+              className="w-full rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-3 py-3 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
             />
 
-            {preview.length > 0 && (
-              <div className="flex gap-2 mt-2">
-                {preview.map((src, idx) => (
+            {preview.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {preview.map((src, index) => (
                   <img
-                    key={idx}
+                    key={index}
                     src={src}
-                    alt="preview"
-                    className="w-16 h-16 object-cover rounded-lg border"
+                    alt={`preview-${index}`}
+                    className="h-16 w-16 rounded-xl border border-[var(--nm-border)] object-cover"
                   />
                 ))}
               </div>
-            )}
-          </div>
+            ) : null}
+          </label>
 
-          <div>
-            <label
-              htmlFor="comment"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-              Your Review
-            </label>
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Review</span>
             <textarea
-              id="comment"
               value={comment}
-              onChange={(e) => setComment(e.target.value)}
+              onChange={(event) => setComment(event.target.value)}
               placeholder="Tell us what you thought..."
-              rows="4"
-              className="mt-1 w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-yellow-400"
+              rows={4}
+              className="w-full rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-3 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
             />
-          </div>
+          </label>
 
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-2.5 rounded-lg font-semibold transition ${
-              loading
-                ? 'bg-gray-300 cursor-not-allowed'
-                : 'bg-black text-white hover:opacity-90 dark:bg-white dark:text-black dark:hover:bg-gray-200'
-            }`}
+            className="nm-btn-primary w-full text-sm disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? 'Submitting...' : 'Submit Review'}
+            {loading ? "Submitting..." : "Submit Review"}
           </button>
         </form>
       </div>

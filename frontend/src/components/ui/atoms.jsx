@@ -1,44 +1,67 @@
-// /src/components/ui/atoms.js
-import React from 'react';
-import { Link } from 'react-router-dom';
+﻿import React from "react";
 
-export function Badge({ children, tone = 'yellow' }) {
+export function Badge({ children, tone = "amber" }) {
   const toneClasses =
-    tone === 'green'
-      ? 'bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-300'
-      : tone === 'red'
-      ? 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-300'
-      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/10 dark:text-yellow-300';
-  return <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${toneClasses}`}>{children}</span>;
+    tone === "green"
+      ? "bg-emerald-100 text-emerald-800"
+      : tone === "red"
+        ? "bg-red-100 text-red-800"
+        : tone === "blue"
+          ? "bg-sky-100 text-sky-800"
+          : "bg-amber-100 text-amber-800";
+
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] ${toneClasses}`}>
+      {children}
+    </span>
+  );
 }
 
-export function Th({ children, align = 'left' }) {
-  return <th className={`px-3 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider ${align === 'right' ? 'text-right' : 'text-left'}`}>{children}</th>;
+export function Th({ children, align = "left" }) {
+  return (
+    <th
+      className={`px-3 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)] ${
+        align === "right" ? "text-right" : "text-left"
+      }`}
+    >
+      {children}
+    </th>
+  );
 }
-export function Td({ children, align = 'left', className = '' }) {
-  return <td className={`px-3 py-3 text-sm dark:text-gray-200 ${align === 'right' ? 'text-right' : ''} ${className}`.trim()}>{children}</td>;
+
+export function Td({ children, align = "left", className = "" }) {
+  return (
+    <td
+      className={`px-3 py-3 text-sm ${align === "right" ? "text-right" : ""} ${className}`.trim()}
+    >
+      {children}
+    </td>
+  );
 }
-export function Skeleton({ w = 'w-full', h = 'h-4' }) {
-  return <div className={`${w} ${h} rounded bg-gray-200 dark:bg-zinc-700 animate-pulse`} />;
+
+export function Skeleton({ w = "w-full", h = "h-4" }) {
+  return <div className={`${w} ${h} animate-pulse rounded bg-[var(--nm-bg-elevated)]`} />;
 }
 
 export function PaginationControls({ currentPage, totalPages, onPageChange }) {
   return (
-    <div className="flex items-center justify-between mt-6">
+    <div className="mt-6 flex flex-col items-center justify-between gap-3 rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-4 sm:flex-row sm:px-5">
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-4 py-2 text-sm font-medium border rounded-md bg-white disabled:opacity-50 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-300"
+        className="nm-btn-secondary w-full text-sm disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >
         Previous
       </button>
-      <span className="text-sm text-gray-700 dark:text-gray-300">
+
+      <span className="text-sm text-[var(--nm-muted)]">
         Page {currentPage} of {totalPages}
       </span>
+
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-4 py-2 text-sm font-medium border rounded-md bg-white disabled:opacity-50 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-300"
+        className="nm-btn-secondary w-full text-sm disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >
         Next
       </button>

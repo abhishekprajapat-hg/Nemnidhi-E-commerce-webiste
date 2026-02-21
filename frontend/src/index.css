@@ -1,23 +1,168 @@
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/* src/index.css */
 
-/* 1. Global Tailwind Base Classes (Ensures text/bg are dynamic) */
-/* We set the default light theme on body */
+:root {
+  --nm-bg: #f5eee5;
+  --nm-bg-elevated: #f1e7db;
+  --nm-surface: #fffaf4;
+  --nm-card: #fffdf9;
+  --nm-text: #1f1915;
+  --nm-muted: #6d6158;
+  --nm-border: rgba(95, 75, 55, 0.24);
+  --nm-accent: #b85234;
+  --nm-accent-strong: #91361f;
+  --nm-accent-soft: #f2d2c4;
+  --nm-success: #1d7244;
+  --nm-shadow: 0 24px 64px -34px rgba(48, 30, 13, 0.42);
+  --nm-radius: 20px;
+}
+
+.dark {
+  --nm-bg: #15110f;
+  --nm-bg-elevated: #211915;
+  --nm-surface: #1d1714;
+  --nm-card: #261e1a;
+  --nm-text: #f4ede8;
+  --nm-muted: #b8aaa0;
+  --nm-border: rgba(230, 210, 193, 0.2);
+  --nm-accent: #e88c6f;
+  --nm-accent-strong: #f4a58d;
+  --nm-accent-soft: rgba(232, 140, 111, 0.17);
+  --nm-success: #86d2a4;
+  --nm-shadow: 0 28px 80px -44px rgba(0, 0, 0, 0.65);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 body {
-  @apply bg-[#fdf7f7] text-gray-900 min-h-screen;
+  font-family: "Manrope", "Segoe UI", sans-serif;
+  color: var(--nm-text);
+  background:
+    radial-gradient(70rem 30rem at 0% -10%, var(--nm-accent-soft), transparent 65%),
+    radial-gradient(60rem 28rem at 100% 0%, rgba(255, 222, 203, 0.45), transparent 58%),
+    linear-gradient(180deg, var(--nm-bg) 0%, var(--nm-bg-elevated) 100%);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* 2. Dark Mode Inversion (Activates when 'dark' class is present on <html>) */
-/* This is the missing link that inverts the whole page wrapper */
-.dark body, .dark #root, .dark main {
-  /* Using Tailwind's deep black for consistency */
-  @apply bg-zinc-900 text-white; 
+.dark body {
+  background:
+    radial-gradient(70rem 30rem at 0% -10%, rgba(232, 140, 111, 0.2), transparent 65%),
+    radial-gradient(58rem 26rem at 100% 0%, rgba(110, 70, 52, 0.35), transparent 58%),
+    linear-gradient(180deg, var(--nm-bg) 0%, #110d0b 100%);
 }
+
+h1,
+h2,
+h3,
+h4,
+.nm-display {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  letter-spacing: 0.01em;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: var(--nm-accent);
+  color: #fff;
+}
+
+.nm-shell {
+  margin-inline: auto;
+  width: min(1240px, calc(100% - 1.5rem));
+}
+
+@media (min-width: 640px) {
+  .nm-shell {
+    width: min(1240px, calc(100% - 2.5rem));
+  }
+}
+
+.nm-panel {
+  background: color-mix(in srgb, var(--nm-surface) 92%, #fff);
+  border: 1px solid var(--nm-border);
+  border-radius: var(--nm-radius);
+  box-shadow: var(--nm-shadow);
+}
+
+.dark .nm-panel {
+  background: color-mix(in srgb, var(--nm-card) 95%, #000);
+}
+
+.nm-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, var(--nm-accent) 0%, var(--nm-accent-strong) 100%);
+  color: #fff;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 18px 30px -20px rgba(145, 54, 31, 0.65);
+}
+
+.nm-btn-primary:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.nm-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--nm-border);
+  padding: 0.7rem 1.1rem;
+  background: color-mix(in srgb, var(--nm-card) 85%, transparent);
+  color: var(--nm-text);
+  font-weight: 600;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.nm-btn-secondary:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--nm-accent) 50%, var(--nm-border));
+  background: color-mix(in srgb, var(--nm-accent-soft) 30%, var(--nm-card));
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes chat-bubble {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-chat-bubble {

@@ -23,8 +23,7 @@ import {
   deriveStockFromProduct,
 } from "../utils/productHelpers";
 
-// Local placeholder (uploaded file path)
-const PLACEHOLDER = "/mnt/data/acb9da27-2225-45bd-8890-d39621053a9e.png";
+const PLACEHOLDER = "/placeholder.png";
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -88,7 +87,7 @@ export default function ProductDetails() {
   const inStock = useMemo(() => Number(currentStock || 0) > 0, [currentStock]);
 
   // itemInCart memoized
-  const itemInCart = useMemo(() => {
+  const _itemInCart = useMemo(() => {
     if (!cartItems || !product) return undefined;
     return cartItems.find(
       (item) =>
@@ -317,13 +316,13 @@ export default function ProductDetails() {
   ------------------------- */
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="nm-shell py-8 sm:py-10">
         <div className="animate-pulse grid md:grid-cols-2 gap-10">
-          <div className="aspect-square md:aspect-[4/5] bg-gray-200 dark:bg-zinc-700 rounded-xl" />
+          <div className="aspect-square md:aspect-[4/5] rounded-3xl bg-[var(--nm-bg-elevated)]" />
           <div className="space-y-4">
-            <div className="h-8 bg-gray-200 dark:bg-zinc-700 w-2/3 rounded" />
-            <div className="h-4 bg-gray-200 dark:bg-zinc-700 w-1/3 rounded" />
-            <div className="h-24 bg-gray-100 dark:bg-zinc-800 rounded" />
+            <div className="h-8 w-2/3 rounded bg-[var(--nm-bg-elevated)]" />
+            <div className="h-4 w-1/3 rounded bg-[var(--nm-bg-elevated)]" />
+            <div className="h-24 rounded bg-[var(--nm-bg-elevated)]" />
           </div>
         </div>
       </div>
@@ -332,7 +331,7 @@ export default function ProductDetails() {
 
   if (!product) {
     return (
-      <div className="p-10 text-center dark:text-gray-300">Product not found</div>
+      <div className="nm-shell py-12 text-center text-[var(--nm-muted)]">Product not found</div>
     );
   }
 
@@ -340,7 +339,7 @@ export default function ProductDetails() {
      Render
   ------------------------- */
   return (
-    <div className="product-details-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 bg-[#fdf7f7] dark:bg-zinc-900">
+    <div className="product-details-page nm-shell py-8 sm:py-10">
       <style>{`
         .swiper-button-next,
         .swiper-button-prev { display: none; }
@@ -394,8 +393,10 @@ export default function ProductDetails() {
           inStock={inStock}
           selectedVariantIndex={selectedVariantIndex}
           selectedSize={selectedSize}
+          selectedColor={selectedColor}
           onSelectVariant={onSelectVariant}
           onSelectSize={onSelectSize}
+          onSelectColor={setSelectedColor}
           qty={qty}
           setQty={setQty}
           onAdd={onAdd}
@@ -424,7 +425,7 @@ export default function ProductDetails() {
               try {
                 const { data } = await api.get(`/api/reviews/${id}`);
                 if (mountedRef.current) setReviews(data.reviews || []);
-              } catch (err) {
+              } catch {
                 if (mountedRef.current) setReviews([]);
               }
             }

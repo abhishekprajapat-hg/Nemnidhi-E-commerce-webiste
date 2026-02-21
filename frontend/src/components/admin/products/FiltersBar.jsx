@@ -1,6 +1,4 @@
-// src/components/admin/products/FiltersBar.jsx
-
-export default function FiltersBar({
+﻿export default function FiltersBar({
   searchInput,
   setSearchInput,
   category,
@@ -15,93 +13,85 @@ export default function FiltersBar({
   setPage,
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm mb-6 dark:bg-zinc-800 dark:border-zinc-700">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-        {/* Search */}
-        <div className="md:col-span-2">
-          <label className="text-xs text-gray-500 dark:text-gray-400">
-            Search
-          </label>
+    <section className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-4 sm:p-5">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--nm-muted)]">Product Filters</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <label className="xl:col-span-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Search</span>
           <input
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Title, slug..."
-            className="w-full mt-1 bg-white border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
+            className="mt-1 w-full rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-3 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
             aria-label="Search products"
           />
-        </div>
+        </label>
 
-        {/* Category */}
-        <div>
-          <label className="text-xs text-gray-500 dark:text-gray-400">
-            Category
-          </label>
+        <label>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Category</span>
           <select
             value={category}
-            onChange={(e) => {
+            onChange={(event) => {
               setPage(1);
-              setCategory(e.target.value);
+              setCategory(event.target.value);
             }}
-            className="w-full mt-1 bg-white border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
+            className="mt-1 w-full rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-3 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
           >
             <option value="">All</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            {categories.map((entry) => (
+              <option key={entry} value={entry}>
+                {entry}
               </option>
             ))}
           </select>
-        </div>
+        </label>
 
-        {/* Min / Max */}
         <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-gray-500 dark:text-gray-400">
-              Min ₹
-            </label>
+          <label>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Min price</span>
             <input
+              type="number"
               value={min}
-              type="number"
-              onChange={(e) => {
+              onChange={(event) => {
                 setPage(1);
-                setMin(e.target.value);
+                setMin(event.target.value);
               }}
-              className="w-full mt-1 bg-white border border-gray-300 rounded-lg px-3 py-2 outline-none dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
+              className="mt-1 w-full rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-3 py-3 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
             />
-          </div>
+          </label>
 
-          <div>
-            <label className="text-xs text-gray-500 dark:text-gray-400">
-              Max ₹
-            </label>
+          <label>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Max price</span>
             <input
-              value={max}
               type="number"
-              onChange={(e) => {
+              value={max}
+              onChange={(event) => {
                 setPage(1);
-                setMax(e.target.value);
+                setMax(event.target.value);
               }}
-              className="w-full mt-1 bg-white border border-gray-300 rounded-lg px-3 py-2 outline-none dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
+              className="mt-1 w-full rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-3 py-3 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
             />
-          </div>
+          </label>
         </div>
 
-        {/* In Stock */}
-        <div className="flex items-end gap-3">
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+        <label className="flex items-end">
+          <span className="inline-flex items-center gap-2 rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-3 text-sm">
             <input
               type="checkbox"
               checked={inStockOnly}
-              onChange={(e) => {
+              onChange={(event) => {
                 setPage(1);
-                setInStockOnly(e.target.checked);
+                setInStockOnly(event.target.checked);
               }}
-              className="accent-indigo-600"
+              className="h-4 w-4 accent-[var(--nm-accent)]"
             />
             In stock only
-          </label>
-        </div>
+          </span>
+        </label>
       </div>
-    </div>
+    </section>
   );
 }

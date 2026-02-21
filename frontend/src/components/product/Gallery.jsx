@@ -1,5 +1,4 @@
-// src/components/product/Gallery.jsx
-import React from "react";
+﻿import React from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Autoplay, Pagination, Thumbs } from "swiper/modules";
 import "swiper/css";
@@ -21,78 +20,93 @@ const Gallery = ({
   setIsWished,
   canShowNavigation,
 }) => {
+  const safeImages = Array.isArray(images) && images.length > 0 ? images : ["/placeholder.png"];
+
   return (
     <div>
-      <div className="relative rounded-2xl overflow-hidden bg-gray-100 dark:bg-zinc-800 border dark:border-zinc-700">
+      <div className="relative overflow-hidden rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-bg-elevated)]">
         <Swiper
           modules={[Navigation, Autoplay, Pagination, Thumbs]}
           thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
           onSlideChange={(swiper) => setActive(swiper.activeIndex)}
           onSwiper={setMainSwiper}
-          spaceBetween={0}
           slidesPerView={1}
           navigation={canShowNavigation}
           pagination={{ clickable: true }}
-          autoplay={{ delay: 5000, disableOnInteraction: true }}
-          className="h-full w-full aspect-[4/5] sm:aspect-[3/4] main-gallery-swiper"
+          autoplay={{ delay: 4500, disableOnInteraction: true }}
+          className="aspect-[4/5] w-full"
         >
-          {images.map((img, i) => (
-            <SwiperSlide key={i}>
+          {safeImages.map((image, index) => (
+            <SwiperSlide key={index}>
               <img
-                src={img}
+                src={image}
                 alt={productTitle}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = "/placeholder.png";
+                className="h-full w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = "/placeholder.png";
                 }}
               />
             </SwiperSlide>
           ))}
         </Swiper>
 
-        {!inStock && (
-          <span className="absolute top-4 left-4 bg-red-600 text-white text-xs px-2 py-1 rounded z-10">Out of stock</span>
-        )}
+        {!inStock ? (
+          <span className="absolute left-4 top-4 z-10 rounded-full bg-red-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-red-700">
+            Out of stock
+          </span>
+        ) : null}
 
         <button
+          type="button"
           onClick={() => setIsWished(!isWished)}
-          className="absolute top-4 right-4 bg-white/70 p-2 rounded-full backdrop-blur-sm dark:bg-zinc-700/70 z-10"
+          className="absolute right-4 top-4 z-10 rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
         >
-          <span className="dark:text-white">{isWished ? "♥" : "♡"}</span>
+          {isWished ? "Saved" : "Save"}
           <span className="sr-only">Add to wishlist</span>
         </button>
       </div>
 
-      {images.length > 1 && (
+      {safeImages.length > 1 ? (
         <Swiper
           onSwiper={setThumbsSwiper}
-          spaceBetween={10}
-          slidesPerView={4}
-          watchSlidesProgress={true}
           modules={[Thumbs]}
-          className="mt-4 thumbnail-swiper"
+          watchSlidesProgress
+          className="thumbnail-swiper mt-4"
           breakpoints={{
             320: { slidesPerView: 4, spaceBetween: 8 },
             640: { slidesPerView: 5, spaceBetween: 10 },
             1024: { slidesPerView: 7, spaceBetween: 12 },
           }}
         >
-          {images.map((src, i) => (
-            <SwiperSlide key={i}>
+          {safeImages.map((src, index) => (
+            <SwiperSlide key={index}>
               <button
+                type="button"
                 onClick={() => {
-                  setActive(i);
-                  if (mainSwiper && mainSwiper.slideTo) mainSwiper.slideTo(i);
+                  setActive(index);
+                  if (mainSwiper?.slideTo) mainSwiper.slideTo(index);
                 }}
-                className={`aspect-square rounded-lg overflow-hidden border transition-all ${i === active ? "ring-2 ring-black dark:ring-white" : "border-gray-200 dark:border-zinc-700 opacity-70 hover:opacity-100"}`}
+                className={`overflow-hidden rounded-2xl border transition ${
+                  index === active
+                    ? "border-[var(--nm-accent)] ring-2 ring-[var(--nm-accent-soft)]"
+                    : "border-[var(--nm-border)] opacity-80 hover:opacity-100"
+                }`}
               >
-                <img src={src} alt={`thumb-${i}`} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.png"; }} />
+                <img
+                  src={src}
+                  alt={`thumb-${index}`}
+                  className="aspect-square w-full object-cover"
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = "/placeholder.png";
+                  }}
+                />
               </button>
             </SwiperSlide>
           ))}
         </Swiper>
-      )}
+      ) : null}
     </div>
   );
 };

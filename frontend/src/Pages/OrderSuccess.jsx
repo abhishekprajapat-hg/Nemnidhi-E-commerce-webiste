@@ -1,4 +1,3 @@
-// src/Pages/OrderSuccess.jsx
 import React from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -6,25 +5,32 @@ export default function OrderSuccess() {
   const { id } = useParams();
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="max-w-xl w-full bg-white rounded-2xl shadow-lg p-8 text-center">
-        <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-          <svg viewBox="0 0 24 24" className="w-9 h-9 text-green-600">
-            <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/>
+    <div className="nm-shell py-14 sm:py-20">
+      <div className="mx-auto max-w-xl rounded-[2rem] border border-[var(--nm-border)] bg-[var(--nm-card)] p-7 text-center shadow-2xl shadow-black/10 sm:p-10">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300">
+          <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor">
+            <path strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 className="mt-5 text-2xl font-bold">Your order was placed successfully</h1>
-        <p className="mt-2 text-gray-600">
-          Thank you for shopping with us. We’re processing your order now.
+
+        <h1 className="nm-display mt-5 text-5xl font-semibold leading-none">Order Confirmed</h1>
+        <p className="mt-3 text-sm leading-7 text-[var(--nm-muted)] sm:text-base">
+          Thank you for shopping with Nemnidhi. Your order is being processed.
         </p>
 
-        <div className="mt-4 text-sm text-gray-500">
-          Order ID: <span className="font-mono text-gray-800">{id}</span>
-        </div>
+        <p className="mt-4 text-xs uppercase tracking-[0.14em] text-[var(--nm-muted)]">
+          Order ID
+        </p>
+        <p className="mt-1 rounded-xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-2 font-mono text-sm">
+          {id}
+        </p>
 
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <Link to="/products" className="px-4 py-2 bg-black text-white rounded-lg hover:opacity-90">
-            Continue shopping
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
+          <Link to="/products" className="nm-btn-primary text-sm">
+            Continue Shopping
+          </Link>
+          <Link to="/profile?tab=orders" className="nm-btn-secondary text-sm">
+            View My Orders
           </Link>
         </div>
       </div>

@@ -1,586 +1,476 @@
-// src/components/Header.jsx
-import React, { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useDispatch, useSelector } from "react-redux";
 import { useTheme } from "../context/ThemeContext";
 import { showToast } from "../utils/toast";
 
+const SHOP_LINKS = [
+  { label: "Sarees", category: "Sarees" },
+  { label: "Lehengas", category: "Lehenga" },
+  { label: "Kurta Sets", category: "Kurta" },
+  { label: "Western", category: "Western" },
+  { label: "Jeans", category: "Jeans" },
+  { label: "Tops", category: "Tops" },
+];
+
+const COLLECTION_LINKS = [
+  { label: "New Arrivals", href: "/new-arrivals" },
+  { label: "Most Loved", href: "/products?sort=-rating" },
+  { label: "Festive Edit", href: "/products?category=Banarasi" },
+];
+
+const NAV_LINKS = [
+  { label: "Home", href: "/" },
+  { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
+];
+
 export default function Header() {
+  const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { theme, setTheme } = useTheme();
   const cartItems = useSelector((state) => state.cart.items || []);
   const reduxUser = useSelector((state) => state.auth?.user || null);
+
   const [user, setUser] = useState(reduxUser);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
-  const { theme, setTheme } = useTheme();
-  const [isClient, setIsClient] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [isShopOpen, setIsShopOpen] = useState(false); // Mega Menu
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const drawerRef = useRef(null);
+  const accountRef = useRef(null);
 
-  const shopLinkRef = useRef(null); // Shop link
-  const dropdownRef = useRef(null); // dropdown DOM
-  const [dropdownPos, setDropdownPos] = useState({
-    top: 0,
-    left: 0,
-    width: 980,
-  });
+  const cartCount = useMemo(
+    () => cartItems.reduce((sum, item) => sum + Number(item.qty || 0), 0),
+    [cartItems]
+  );
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const searchInputRef = useRef(null);
-
-  const count = cartItems?.reduce((a, c) => a + Number(c.qty || 0), 0) || 0;
-  const firstName = user?.name ? user.name.split(" ")[0] : "Account";
+  const firstName = useMemo(() => {
+    if (user?.name) return user.name.split(" ")[0];
+    return "Account";
+  }, [user]);
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (reduxUser) setUser(reduxUser);
-    else {
-      try {
-        const stored = JSON.parse(localStorage.getItem("user"));
-        setUser(stored || null);
-      } catch {
-        setUser(null);
-      }
+    if (reduxUser) {
+      setUser(reduxUser);
+      return;
+    }
+    try {
+      const storedUser = JSON.parse(localStorage.getItem("user"));
+      setUser(storedUser || null);
+    } catch {
+      setUser(null);
     }
   }, [reduxUser]);
 
   useEffect(() => {
-    function onDocClick(e) {
-      if (drawerRef.current && !drawerRef.current.contains(e.target)) {
-        setDrawerOpen(false);
+    function onKeyDown(event) {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        setShopOpen(false);
+        setAccountOpen(false);
       }
     }
-    function onKey(e) {
-      if (e.key === "Escape") {
-        setDrawerOpen(false);
+    function onClickOutside(event) {
+      if (!accountRef.current?.contains(event.target)) {
+        setAccountOpen(false);
       }
     }
-    if (drawerOpen) {
-      document.addEventListener("mousedown", onDocClick);
-      document.addEventListener("keydown", onKey);
-    }
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onClickOutside);
     return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("touchstart", onDocClick);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onClickOutside);
     };
-  }, [drawerOpen]);
+  }, []);
 
-  // compute fixed dropdown position when opened, and on resize/scroll
   useEffect(() => {
-    if (!isShopOpen) return;
+    setMobileOpen(false);
+    setShopOpen(false);
+    setAccountOpen(false);
+  }, [location.pathname]);
 
-    function compute() {
-      const link = shopLinkRef.current;
-      const dd = dropdownRef.current;
-      if (!link || !dd) return;
-
-      const linkRect = link.getBoundingClientRect();
-      const ddWidth = Math.min(980, window.innerWidth - 24); // prefer 980px but clamp to viewport
-      const desiredCenter = linkRect.left + linkRect.width / 2;
-      let leftPx = Math.round(desiredCenter - ddWidth / 2);
-
-      const pad = 12;
-      leftPx = Math.max(
-        pad,
-        Math.min(leftPx, window.innerWidth - ddWidth - pad)
-      );
-
-      const topPx = Math.round(linkRect.bottom + 2); // small gap below header row
-
-      setDropdownPos({ top: topPx, left: leftPx, width: ddWidth });
-    }
-
-    // compute immediately (dropdownRef exists because we render it in the DOM when isShopOpen)
-    compute();
-
-    // recompute on resize/scroll (passive for scroll)
-    const onResize = () => compute();
-    const onScroll = () => compute();
-    window.addEventListener("resize", onResize);
-    window.addEventListener("scroll", onScroll, { passive: true });
-
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onScroll);
+      document.body.style.overflow = previousOverflow;
     };
-  }, [isShopOpen]);
+  }, [mobileOpen]);
 
-  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
   const handleLogout = () => {
     try {
       localStorage.removeItem("user");
-    } catch {}
+    } catch {
+      // ignore storage failures
+    }
     try {
       dispatch({ type: "auth/setUser", payload: null });
-    } catch {}
+    } catch {
+      // ignore redux failures
+    }
     showToast("Logged out successfully");
+    setAccountOpen(false);
+    setMobileOpen(false);
     navigate("/");
   };
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    const query = searchQuery.trim();
-    if (query) {
-      navigate(`/products?q=${encodeURIComponent(query)}`);
-      if (searchInputRef.current) searchInputRef.current.blur();
-    }
-  };
+  const navItemClass = ({ isActive }) =>
+    `rounded-full px-3 py-2 text-[0.74rem] font-semibold uppercase tracking-[0.2em] transition ${
+      isActive
+        ? "text-[var(--nm-accent-strong)] dark:text-[var(--nm-accent)]"
+        : "text-[var(--nm-muted)] hover:text-[var(--nm-text)]"
+    }`;
 
-  const mainNavLinks = (
-    <>
-      <Link
-        to="/"
-        className="text-xs font-normal uppercase tracking-wider text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white transition hover:underline"
-      >
-        Home
-      </Link>
-
-      <div
-        className="relative"
-        onMouseEnter={() => setIsShopOpen(true)}
-        onMouseLeave={() => setIsShopOpen(false)}
-      >
-        <Link
-          ref={shopLinkRef}
-          to="/products"
-          className="flex items-center gap-1 text-xs font-normal uppercase tracking-wider text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white transition hover:underline"
-        >
-          Shop
-        </Link>
-
-        <AnimatePresence>
-          {isShopOpen && (
-            // NOTE: position fixed so we can line up with viewport coordinates
-            <motion.div
-              ref={dropdownRef}
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-              className="fixed left-0 top-0 z-50"
-              style={{
-                left: dropdownPos.left,
-                top: dropdownPos.top,
-                width: dropdownPos.width,
-              }}
-            >
-              {/* dropdown container */}
-              <div className="bg-white border-b border-gray-200 shadow-xl dark:bg-zinc-900 dark:border-zinc-800 rounded-b-md">
-                <div className="px-6 md:px-10 py-8">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                    {/* Column 1 — FEATURED */}
-                    <div>
-                      <h3 className="text-sm font-semibold uppercase tracking-wider mb-4">
-                        FEATURED
-                      </h3>
-                      <ul className="space-y-2 text-sm dark:text-gray-300">
-                        <li>
-                          <Link
-                            to="/products?category=Sarees"
-                            className="hover:underline"
-                          >
-                            Sarees
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/products?category=Tops"
-                            className="hover:underline"
-                          >
-                            Tops
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/products?category=Kurtas"
-                            className="hover:underline"
-                          >
-                            Kurtas
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/products?category=Western"
-                            className="hover:underline"
-                          >
-                            Western
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/products?category=Jeans"
-                            className="hover:underline"
-                          >
-                            Jeans
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/products?category=Sweaters"
-                            className="hover:underline"
-                          >
-                            Sweaters
-                          </Link>
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* Column 2 — TRENDING */}
-                    <div className="dark:text-gray-300">
-                      <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 dark:text-white">
-                        Collections
-                      </h3>
-                      <ul className="space-y-2 text-sm ">
-                        <li>
-                          <Link
-                            to="/products?category=Lehenga"
-                            className="hover:underline"
-                          >
-                            Lehengas
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/products?category=Banarasi"
-                            className="hover:underline"
-                          >
-                            Banarasi Sarees
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/products?category=Kurta"
-                            className="hover:underline"
-                          >
-                            Kurta Sets
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/products?filter=new-arrivals"
-                            className="hover:underline"
-                          >
-                            New Arrivals
-                          </Link>
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* Column 3 — IMAGE + CTA */}
-                    <div className="flex flex-col items-start">
-                      <img
-                        src="/images/download.jpg"
-                        alt="Featured Look"
-                        className="w-full h-auto object-cover rounded-md shadow-sm"
-                        onError={(e) => {
-                          e.currentTarget.src =
-                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='550' viewBox='0 0 400 550'%3E%3Crect fill='%23f3f4f6' width='100%25' height='100%25'/%3E%3C/text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='18' fill='%23999'%3EImage%20Not%20Found%3C/text%3E%3C/svg%3E";
-                        }}
-                      />
-                      <Link
-                        to="/products?filter=new-arrivals"
-                        className="mt-3 text-sm uppercase tracking-wider flex items-center gap-1 hover:underline"
-                      >
-                        ➜ Explore Fall Edit 003
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <Link
-        to="/about"
-        className="text-xs font-normal uppercase tracking-wider text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white transition hover:underline"
-      >
-        About
-      </Link>
-      <Link
-        to="/contact"
-        className="text-xs font-normal uppercase tracking-wider text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white transition hover:underline"
-      >
-        Contact
-      </Link>
-    </>
-  );
-
-  // mobile drawer links (same as before)
-  const mobileDrawerLinks = (
-    <>
-      <Link
-        to="/"
-        onClick={() => setDrawerOpen(false)}
-        className="block px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200"
-      >
-        Home
-      </Link>
-      <Link
-        to="/products"
-        onClick={() => setDrawerOpen(false)}
-        className="block px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200"
-      >
-        Shop All
-      </Link>
-      <Link
-        to="/about"
-        onClick={() => setDrawerOpen(false)}
-        className="block px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200"
-      >
-        About
-      </Link>
-      <Link
-        to="/contact"
-        onClick={() => setDrawerOpen(false)}
-        className="block px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200"
-      >
-        Contact
-      </Link>
-
-      <div className="pt-3 mt-3 border-t border-gray-200 dark:border-zinc-800 space-y-2">
-        <button
-          onClick={toggleTheme}
-          className="flex items-center w-full px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200"
-          aria-label="Toggle theme"
-        >
-          <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
-        </button>
-        {user && (
-          <>
-            <Link
-              to="/profile"
-              onClick={() => setDrawerOpen(false)}
-              className="flex items-center w-full px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200"
-            >
-              My Account
-            </Link>
-            
-          </>
-        )}
-      </div>
-
-      <div className="border-t border-gray-200 dark:border-zinc-800 mt-3 pt-3">
-        {user ? (
-          <button
-            onClick={() => {
-              handleLogout();
-              setDrawerOpen(false);
-            }}
-            className="flex items-center justify-center w-full px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-red-600 dark:text-red-400"
-          >
-            Logout
-          </button>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            <Link
-              to="/login"
-              onClick={() => setDrawerOpen(false)}
-              className="block px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200 text-center"
-            >
-              Login
-            </Link>
-            <Link
-              to="/register"
-              onClick={() => setDrawerOpen(false)}
-              className="block px-3 py-2 rounded-md bg-black text-white dark:bg-white dark:text-black text-center"
-            >
-              Register
-            </Link>
-          </div>
-        )}
-      </div>
-    </>
-  );
+  const MotionDiv = motion.div;
+  const MotionAside = motion.aside;
 
   return (
-    <header className="bg-[#fdf7f7] border-b border-gray-200 text-gray-900 sticky top-0 z-50 dark:bg-zinc-900 dark:border-zinc-800 dark:text-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="h-16 flex items-center justify-between">
-          {/* Left: Mobile Menu Toggle & Logo */}
-          <div className="flex items-center gap-4 md:w-1/3">
+    <>
+      <header className="sticky top-0 z-50 border-b border-[var(--nm-border)] bg-[color:color-mix(in_srgb,var(--nm-surface)_82%,transparent)] backdrop-blur-xl">
+      <div className="nm-shell py-3">
+        <div className="nm-panel relative flex items-center justify-between px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-2 lg:hidden">
             <button
-              onClick={() => setDrawerOpen(true)}
-              className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800"
+              type="button"
+              onClick={() => {
+                setShopOpen(false);
+                setAccountOpen(false);
+                setMobileOpen(true);
+              }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--nm-border)] text-[var(--nm-text)] transition hover:bg-[var(--nm-accent-soft)]"
               aria-label="Open menu"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </button>
-            <Link to="/" className="flex items-center gap-3">
-              <div className="text-xl font-semibold tracking-widest uppercase font-sans dark:text-white">
-                NEMNIDHI
-              </div>
-            </Link>
           </div>
 
-          {/* Center: Nav Links (Desktop) */}
-          <nav className="hidden md:flex items-center justify-center gap-8 w-1/3">
-            {mainNavLinks}
-          </nav>
+          <Link to="/" className="group flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--nm-accent-soft)] text-[var(--nm-accent-strong)]">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" d="M12 3l6 4.5v9L12 21l-6-4.5v-9L12 3z" />
+                <path strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" d="M9 11.5h6M9 14.5h6" />
+              </svg>
+            </div>
+            <div>
+              <div className="nm-display text-2xl font-semibold leading-none tracking-[0.07em]">
+                NEMNIDHI
+              </div>
+              <p className="hidden text-[0.63rem] uppercase tracking-[0.18em] text-[var(--nm-muted)] sm:block">
+                Modern Ethnic Atelier
+              </p>
+            </div>
+          </Link>
 
-          {/* Right side: Utility Icons */}
-          <div className="flex items-center justify-end gap-4 w-1/3">
-            {/* Search bar removed */}
+          <nav className="hidden items-center gap-2 lg:flex">
+            {NAV_LINKS.map((item) => (
+              <NavLink key={item.href} to={item.href} className={navItemClass}>
+                {item.label}
+              </NavLink>
+            ))}
 
-            <button
-              onClick={toggleTheme}
-              className="hidden sm:inline-flex items-center justify-center w-12 h-9 rounded-full text-xs font-normal uppercase tracking-wider text-gray-700 hover:text-black hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-zinc-800"
-              aria-label="Toggle theme"
-            >
-              {isClient && (theme === "dark" ? "Light" : "Dark")}
-            </button>
-
-            {/* Login Dropdown */}
             <div
-              className="relative hidden sm:inline-flex"
-              onMouseEnter={() => setIsLoginOpen(true)}
-              onMouseLeave={() => setIsLoginOpen(false)}
+              className="relative"
+              onMouseEnter={() => setShopOpen(true)}
+              onMouseLeave={() => setShopOpen(false)}
             >
-              <Link
-                to={user ? "/profile" : "/login"}
-                className="flex items-center text-xs font-normal uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+              <NavLink
+                to="/products"
+                className={({ isActive }) =>
+                  `rounded-full px-3 py-2 text-[0.74rem] font-semibold uppercase tracking-[0.2em] transition ${
+                    isActive || shopOpen
+                      ? "text-[var(--nm-accent-strong)] dark:text-[var(--nm-accent)]"
+                      : "text-[var(--nm-muted)] hover:text-[var(--nm-text)]"
+                  }`
+                }
               >
-                <span className="hidden lg:inline">{firstName}</span>{" "}
-                <span
-                  className={`transition-transform ml-1 ${
-                    isLoginOpen ? "rotate-180" : ""
-                  }`}
-                >
-                  v
-                </span>
-              </Link>
+                Shop
+              </NavLink>
 
-              <motion.div
-                initial={false}
-                animate={{
-                  opacity: isLoginOpen ? 1 : 0,
-                  y: isLoginOpen ? 0 : 10,
-                }}
-                transition={{ duration: 0.18 }}
-                className={`absolute top-full right-0 mt-0 bg-white shadow-xl rounded-lg border border-gray-200 w-60 dark:bg-zinc-800 dark:border-zinc-700 ${
-                  isLoginOpen ? "pointer-events-auto" : "pointer-events-none"
-                }`}
-              >
-                {/* login content same as before */}
-                {user ? (
-                  <div className="p-3 text-sm">
-                    <div className="flex items-center justify-between px-2 py-1.5 mb-2">
-                      <span className="font-semibold dark:text-white">
-                        Hello, {firstName}
-                      </span>
-                    </div>
-                    <Link
-                      to="/profile"
-                      onClick={() => setIsLoginOpen(false)}
-                      className="flex items-center py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 rounded px-2"
-                    >
-                      My Account
-                    </Link>
-                    <div className="border-t border-gray-100 dark:border-zinc-700 my-2" />
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center w-full py-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-zinc-700 rounded px-2"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                ) : (
-                  <div className="p-3 text-sm">
-                    <div className="flex items-center justify-between px-2 py-1.5 mb-2">
-                      <span className="font-semibold dark:text-white">
-                        New customer?
-                      </span>
+              <AnimatePresence>
+                {shopOpen && (
+                  <MotionDiv
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute left-1/2 top-full mt-3 w-[38rem] -translate-x-1/2 rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-6 shadow-2xl"
+                  >
+                    <div className="grid grid-cols-3 gap-6 text-sm">
+                      <div>
+                        <p className="mb-3 text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
+                          Categories
+                        </p>
+                        <ul className="space-y-2">
+                          {SHOP_LINKS.map((item) => (
+                            <li key={item.category}>
+                              <Link
+                                to={`/products?category=${encodeURIComponent(item.category)}`}
+                                className="text-[var(--nm-text)] transition hover:text-[var(--nm-accent)]"
+                              >
+                                {item.label}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div>
+                        <p className="mb-3 text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
+                          Curated For You
+                        </p>
+                        <ul className="space-y-2">
+                          {COLLECTION_LINKS.map((item) => (
+                            <li key={item.href}>
+                              <Link
+                                to={item.href}
+                                className="text-[var(--nm-text)] transition hover:text-[var(--nm-accent)]"
+                              >
+                                {item.label}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
                       <Link
-                        to="/register"
-                        onClick={() => setIsLoginOpen(false)}
-                        className="font-medium text-blue-600 dark:text-yellow-400 hover:underline"
+                        to="/new-arrivals"
+                        className="group relative overflow-hidden rounded-2xl border border-[var(--nm-border)] p-4"
                       >
-                        Sign Up
+                        <img
+                          src="/images/download.jpg"
+                          alt="New Arrivals"
+                          className="h-32 w-full rounded-xl object-cover transition duration-300 group-hover:scale-105"
+                          onError={(event) => {
+                            event.currentTarget.src = "/placeholder.png";
+                          }}
+                        />
+                        <p className="mt-3 text-[0.68rem] uppercase tracking-[0.2em] text-[var(--nm-muted)]">
+                          Spotlight
+                        </p>
+                        <p className="nm-display mt-1 text-2xl font-semibold leading-tight">
+                          New Arrival Edit
+                        </p>
                       </Link>
                     </div>
-                    <Link
-                      to="/login"
-                      onClick={() => setIsLoginOpen(false)}
-                      className="flex items-center py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 rounded px-2"
-                    >
-                      Login
-                    </Link>
-                   
-                  </div>
+                  </MotionDiv>
                 )}
-              </motion.div>
+              </AnimatePresence>
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="hidden h-10 items-center rounded-full border border-[var(--nm-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)] sm:inline-flex"
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? "Light" : "Dark"}
+            </button>
+
+            <div ref={accountRef} className="relative hidden sm:block">
+              <button
+                type="button"
+                onClick={() => setAccountOpen((prev) => !prev)}
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--nm-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
+              >
+                {firstName}
+                <svg
+                  className={`h-3 w-3 transition ${accountOpen ? "rotate-180" : ""}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+
+              <AnimatePresence>
+                {accountOpen && (
+                  <MotionDiv
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute right-0 mt-2 w-56 rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-2 shadow-xl"
+                  >
+                    {user ? (
+                      <>
+                        <Link
+                          to="/profile"
+                          className="block rounded-xl px-3 py-2 text-sm transition hover:bg-[var(--nm-accent-soft)]"
+                          onClick={() => setAccountOpen(false)}
+                        >
+                          My Account
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          className="mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:hover:bg-red-500/10"
+                        >
+                          Logout
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          to="/login"
+                          className="block rounded-xl px-3 py-2 text-sm transition hover:bg-[var(--nm-accent-soft)]"
+                          onClick={() => setAccountOpen(false)}
+                        >
+                          Login
+                        </Link>
+                        <Link
+                          to="/register"
+                          className="mt-1 block rounded-xl px-3 py-2 text-sm transition hover:bg-[var(--nm-accent-soft)]"
+                          onClick={() => setAccountOpen(false)}
+                        >
+                          Register
+                        </Link>
+                      </>
+                    )}
+                  </MotionDiv>
+                )}
+              </AnimatePresence>
             </div>
 
             <Link
               to="/cart"
-              className="inline-flex items-center text-xs font-normal uppercase tracking-wider text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--nm-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
+              aria-label="Open cart"
             >
-              Bag{count > 0 && <span className="ml-1">({count})</span>}
+              Bag
+              {cartCount > 0 && (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--nm-accent)] px-1 text-[10px] text-white">
+                  {cartCount}
+                </span>
+              )}
             </Link>
           </div>
         </div>
       </div>
+      </header>
 
-      {/* Mobile Drawer (unchanged) */}
-      <div
-        className={`fixed inset-0 z-50 transition-all ${
-          drawerOpen ? "pointer-events-auto" : "pointer-events-none"
-        }`}
-        aria-hidden={!drawerOpen}
-      >
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: drawerOpen ? 1 : 0 }}
-          onClick={() => setDrawerOpen(false)}
-          className="absolute inset-0 bg-black/60"
-        />
-        <motion.aside
-          ref={drawerRef}
-          initial={{ x: "-100%" }}
-          animate={{ x: drawerOpen ? "0%" : "-100%" }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="absolute left-0 top-0 h-full w-72 bg-white text-black dark:bg-zinc-900 dark:text-white"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-zinc-800">
-            <div className="text-lg font-semibold tracking-widest uppercase font-sans">
-              NEMNIDHI
-            </div>
-            <button
-              onClick={() => setDrawerOpen(false)}
-              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800"
+      <AnimatePresence>
+        {mobileOpen && (
+          <MotionDiv
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-black/45"
+            onClick={() => setMobileOpen(false)}
+          >
+            <MotionAside
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 280, damping: 30 }}
+              className="h-[100dvh] w-[88vw] max-w-sm overflow-y-auto border-r border-[var(--nm-border)] bg-[var(--nm-surface)] p-5 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
             >
-              <span className="font-bold text-lg">X</span>
-            </button>
-          </div>
+              <div className="mb-6 flex items-center justify-between">
+                <p className="nm-display text-3xl font-semibold">Menu</p>
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(false)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--nm-border)]"
+                  aria-label="Close menu"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              </div>
 
-          <nav className="p-4 space-y-2 flex flex-col h-[calc(100%-65px)]">
-            <div className="flex-1 space-y-2">{mobileDrawerLinks}</div>
-          </nav>
-        </motion.aside>
-      </div>
-    </header>
+              <nav className="space-y-1">
+                {[{ label: "Shop", href: "/products" }, ...NAV_LINKS].map((item) => (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className="block rounded-xl px-3 py-2 text-base text-[var(--nm-text)] transition hover:bg-[var(--nm-accent-soft)]"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </nav>
+
+              <div className="mt-6 rounded-2xl border border-[var(--nm-border)] p-4">
+                <p className="mb-3 text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
+                  Shop Categories
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {SHOP_LINKS.map((item) => (
+                    <Link
+                      key={item.category}
+                      to={`/products?category=${encodeURIComponent(item.category)}`}
+                      className="rounded-full border border-[var(--nm-border)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em]"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-2 pb-6">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-[var(--nm-border)] px-4 py-2 text-sm font-semibold"
+                >
+                  {theme === "dark" ? "Use Light Theme" : "Use Dark Theme"}
+                </button>
+
+                {user ? (
+                  <>
+                    <Link
+                      to="/profile"
+                      className="block w-full rounded-full border border-[var(--nm-border)] px-4 py-2 text-center text-sm font-semibold"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      My Account
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="block w-full rounded-full border border-red-300 px-4 py-2 text-sm font-semibold text-red-600"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      to="/login"
+                      className="rounded-full border border-[var(--nm-border)] px-4 py-2 text-center text-sm font-semibold"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Login
+                    </Link>
+                    <Link
+                      to="/register"
+                      className="rounded-full bg-[var(--nm-accent)] px-4 py-2 text-center text-sm font-semibold text-white"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Register
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </MotionAside>
+          </MotionDiv>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

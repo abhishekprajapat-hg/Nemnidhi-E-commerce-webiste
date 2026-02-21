@@ -1,5 +1,4 @@
-// src/components/admin/dashboard/RevenueChartEnhanced.jsx
-import React, { useId, useMemo, useState } from "react";
+﻿import React, { useId, useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -11,240 +10,264 @@ import {
   Area,
   Line,
   ReferenceLine,
-  Legend,
+  Cell,
 } from "recharts";
 import { useTheme } from "../../../context/ThemeContext";
 
-/**
- * Enhanced Revenue Chart
- * - Composed chart: Bar + Area + Line overlay
- * - Animated bars and area
- * - Gradient fills tuned for dark/light
- * - Custom tooltip with delta and percent change
- * - Hover highlight + clickable bars (onBarClick)
- * - Small summary header (total, avg, growth)
- *
- * Props:
- *  - data: [{ name: '01 Nov', Revenue: 12345 }, ...]
- *  - height: number (optional, default 320)
- *  - showSummary: boolean (default true)
- *  - onBarClick: function(record, index) optional
- */
+const safeNumber = (value) => {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const formatCurrency = (value) => {
+  const n = safeNumber(value);
+  if (n >= 10000000) return `Rs ${(n / 10000000).toFixed(1)}Cr`;
+  if (n >= 100000) return `Rs ${(n / 100000).toFixed(1)}L`;
+  if (n >= 1000) return `Rs ${(n / 1000).toFixed(1)}k`;
+  return `Rs ${n.toFixed(2)}`;
+};
+
+const getPalette = (isDark) =>
+  isDark
+    ? {
+        cardBg: "#261e1a",
+        cardBorder: "rgba(230, 210, 193, 0.2)",
+        axis: "#b8aaa0",
+        grid: "rgba(230, 210, 193, 0.16)",
+        bar: "#e88c6f",
+        barHover: "#f4a58d",
+        line: "#f6c3b2",
+        areaStart: "rgba(232, 140, 111, 0.38)",
+        areaEnd: "rgba(232, 140, 111, 0.03)",
+        tooltipBg: "#1d1714",
+        tooltipText: "#f4ede8",
+        tooltipBorder: "rgba(230, 210, 193, 0.24)",
+      }
+    : {
+        cardBg: "#fffdf9",
+        cardBorder: "rgba(95, 75, 55, 0.24)",
+        axis: "#6d6158",
+        grid: "rgba(95, 75, 55, 0.14)",
+        bar: "#b85234",
+        barHover: "#d27758",
+        line: "#91361f",
+        areaStart: "rgba(184, 82, 52, 0.26)",
+        areaEnd: "rgba(184, 82, 52, 0.02)",
+        tooltipBg: "#fffaf4",
+        tooltipText: "#1f1915",
+        tooltipBorder: "rgba(95, 75, 55, 0.26)",
+      };
+
 export default function RevenueChart({
   data = [],
   height = 320,
   showSummary = true,
   onBarClick = null,
 }) {
+  const uid = useId();
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const uid = useId(); // unique ids for gradients
+  const palette = useMemo(() => getPalette(isDark), [isDark]);
+  const [activeIndex, setActiveIndex] = useState(null);
 
-  // normalize safe numbers
-  const safeNum = (v) => {
-    const n = Number(v || 0);
-    return Number.isFinite(n) ? n : 0;
-  };
-
-  // derived summary metrics
-  const summary = useMemo(() => {
-    const total = data.reduce((s, d) => s + safeNum(d.Revenue), 0);
-    const avg = data.length ? total / data.length : 0;
-    const last = safeNum(data[data.length - 1]?.Revenue);
-    const prev = safeNum(data[data.length - 2]?.Revenue);
-    const delta = last - prev;
-    const pct = prev ? (delta / prev) * 100 : null;
-    return { total, avg, last, delta, pct };
-  }, [data]);
-
-  // enrich data with diff + percent for tooltip
-  const enriched = useMemo(() => {
-    return data.map((d, i) => {
-      const prev = safeNum(data[i - 1]?.Revenue);
-      const rev = safeNum(d.Revenue);
-      const diff = rev - prev;
-      const percent = prev ? (diff / prev) * 100 : null;
-      return { ...d, Revenue: rev, diff, percent };
+  const enrichedData = useMemo(() => {
+    return data.map((point, index) => {
+      const revenue = safeNumber(point.Revenue);
+      const previous = safeNumber(data[index - 1]?.Revenue);
+      const delta = revenue - previous;
+      const pct = previous ? (delta / previous) * 100 : null;
+      return {
+        ...point,
+        Revenue: revenue,
+        delta,
+        pct,
+      };
     });
   }, [data]);
 
-  // small formatter for ₹ with compact units
-  const formatCurrency = (num) => {
-    const n = safeNum(num);
-    if (n >= 10000000) return `₹${(n / 10000000).toFixed(1)}Cr`;
-    if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
-    if (n >= 1000) return `₹${(n / 1000).toFixed(1)}k`;
-    return `₹${n.toLocaleString("en-IN")}`;
-  };
+  const summary = useMemo(() => {
+    const total = enrichedData.reduce((sum, point) => sum + safeNumber(point.Revenue), 0);
+    const avg = enrichedData.length ? total / enrichedData.length : 0;
+    const latest = safeNumber(enrichedData[enrichedData.length - 1]?.Revenue);
+    const prev = safeNumber(enrichedData[enrichedData.length - 2]?.Revenue);
+    const change = latest - prev;
+    const pct = prev ? (change / prev) * 100 : null;
 
-  // hover state (highlight)
-  const [activeIndex, setActiveIndex] = useState(null);
+    return {
+      total,
+      avg,
+      latest,
+      change,
+      pct,
+    };
+  }, [enrichedData]);
 
-  // colors
-  const barBase = isDark ? "#f4f4f5" : "#0f172a"; // light bar on dark / dark bar on light
-  const barHover = isDark ? "#fde68a" : "#fb923c";
-  const areaStart = isDark ? "rgba(245,245,245,0.12)" : "rgba(17,24,39,0.08)";
-  const areaEnd = isDark ? "rgba(245,245,245,0.02)" : "rgba(17,24,39,0.01)";
-  const lineColor = isDark ? "#a3e635" : "#10b981";
+  const maxRevenue = useMemo(() => {
+    if (!enrichedData.length) return 0;
+    return Math.max(...enrichedData.map((point) => safeNumber(point.Revenue)));
+  }, [enrichedData]);
 
-  // custom tooltip
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload || !payload.length) return null;
+  const TooltipContent = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+
     const item = payload[0].payload;
+
     return (
       <div
-        className={`rounded-lg p-3 shadow-md text-sm border ${
-          isDark ? "bg-zinc-800 border-zinc-700 text-zinc-100" : "bg-white border-gray-200 text-gray-800"
-        }`}
+        className="rounded-xl border px-3 py-2 text-xs"
+        style={{
+          backgroundColor: palette.tooltipBg,
+          color: palette.tooltipText,
+          borderColor: palette.tooltipBorder,
+        }}
       >
-        <div className="font-semibold mb-1">{label}</div>
-        <div>Revenue: <span className="font-medium">{formatCurrency(item.Revenue)}</span></div>
-        {item.percent !== null && (
-          <div className={`mt-1 font-medium ${item.percent >= 0 ? "text-green-500" : "text-red-500"}`}>
-            {item.percent >= 0 ? "▲" : "▼"} {Math.abs(item.percent).toFixed(1)}%
-          </div>
+        <p className="font-semibold">{label}</p>
+        <p className="mt-1">Revenue: {formatCurrency(item.Revenue)}</p>
+        {item.pct == null ? null : (
+          <p className="mt-1">
+            Change: {item.pct >= 0 ? "+" : ""}
+            {item.pct.toFixed(1)}%
+          </p>
         )}
-        {/* small hint */}
-        <div className="mt-2 text-xs text-gray-400">
-          Click bar to open details
-        </div>
       </div>
     );
   };
 
-  // empty state
   if (!Array.isArray(data) || data.length === 0) {
     return (
-      <div className="rounded-xl border bg-white dark:bg-zinc-800 dark:border-zinc-700 p-6 shadow-sm text-center">
-        <div className="text-sm text-gray-500 dark:text-gray-400">No revenue data to display yet.</div>
+      <div className="rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-8 text-center text-sm text-[var(--nm-muted)]">
+        No revenue data to display yet.
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border bg-white dark:bg-zinc-800 dark:border-zinc-700 p-4 shadow-sm">
-      {showSummary && (
-        <div className="flex items-center justify-between gap-4 mb-4">
+    <div className="rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-4 sm:p-5">
+      {showSummary ? (
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Total Revenue</div>
-            <div className="text-2xl font-semibold dark:text-white">{formatCurrency(summary.total)}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Average: {formatCurrency(summary.avg)}</div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Total</p>
+            <p className="mt-1 text-lg font-semibold">{formatCurrency(summary.total)}</p>
           </div>
-
-          <div className="text-right">
-            <div className="text-xs text-gray-500 dark:text-gray-400">Latest</div>
-            <div className="flex items-center gap-2">
-              <div className="text-lg font-semibold dark:text-white">{formatCurrency(summary.last)}</div>
-              <div
-                className={`text-sm px-2 py-0.5 rounded ${summary.pct == null ? "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300" : summary.pct >= 0 ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"}`}
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Average</p>
+            <p className="mt-1 text-lg font-semibold">{formatCurrency(summary.avg)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Latest</p>
+            <div className="mt-1 flex items-center gap-2">
+              <p className="text-lg font-semibold">{formatCurrency(summary.latest)}</p>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  summary.pct == null
+                    ? "bg-[var(--nm-bg-elevated)] text-[var(--nm-muted)]"
+                    : summary.pct >= 0
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-red-100 text-red-700"
+                }`}
               >
-                {summary.pct == null ? "—" : `${summary.pct >= 0 ? "+" : ""}${summary.pct.toFixed(1)}%`}
-              </div>
-            </div>
-
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Last {data.length} points
+                {summary.pct == null ? "-" : `${summary.pct >= 0 ? "+" : ""}${summary.pct.toFixed(1)}%`}
+              </span>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       <div style={{ height }} className="w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
-            data={enriched}
-            margin={{ top: 8, right: 24, left: 0, bottom: 8 }}
+            data={enrichedData}
+            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
             onMouseLeave={() => setActiveIndex(null)}
           >
             <defs>
-              <linearGradient id={`areaGrad-${uid}`} x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor={areaStart} stopOpacity={1} />
-                <stop offset="100%" stopColor={areaEnd} stopOpacity={1} />
-              </linearGradient>
-
-              <linearGradient id={`barGrad-${uid}`} x1="0" x2="0">
-                <stop offset="0%" stopColor={barBase} stopOpacity={1} />
-                <stop offset="100%" stopColor={barHover} stopOpacity={1} />
+              <linearGradient id={`area-${uid}`} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor={palette.areaStart} />
+                <stop offset="100%" stopColor={palette.areaEnd} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid strokeDasharray="3 6" vertical={false} stroke={isDark ? "#2c2c2c" : "#f3f4f6"} />
+            <CartesianGrid strokeDasharray="4 6" vertical={false} stroke={palette.grid} />
 
             <XAxis
               dataKey="name"
               axisLine={false}
               tickLine={false}
-              stroke={isDark ? "#c4c4c4" : "#6b7280"}
-              minTickGap={8}
+              stroke={palette.axis}
               tick={{ fontSize: 12 }}
+              minTickGap={10}
             />
 
             <YAxis
               axisLine={false}
               tickLine={false}
-              stroke={isDark ? "#c4c4c4" : "#6b7280"}
-              tickFormatter={(v) => {
-                // compact format for ticks
-                const n = safeNum(v);
+              stroke={palette.axis}
+              width={72}
+              tick={{ fontSize: 12 }}
+              tickFormatter={(value) => {
+                const n = safeNumber(value);
                 if (n >= 100000) return `${(n / 100000).toFixed(1)}L`;
                 if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-                return `₹${n}`;
+                return `${n}`;
               }}
-              width={84}
             />
 
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)" }} />
+            <Tooltip content={<TooltipContent />} cursor={{ fill: "rgba(0,0,0,0.03)" }} />
 
             <Area
               type="monotone"
               dataKey="Revenue"
-              fill={`url(#areaGrad-${uid})`}
               stroke="none"
-              isAnimationActive={true}
-              animationDuration={900}
-              animationEasing="ease-out"
+              fill={`url(#area-${uid})`}
+              isAnimationActive
+              animationDuration={700}
             />
 
             <Bar
               dataKey="Revenue"
-              barSize={34}
-              radius={[8, 8, 4, 4]}
+              radius={[10, 10, 4, 4]}
+              barSize={26}
               onMouseOver={(_, index) => setActiveIndex(index)}
               onMouseOut={() => setActiveIndex(null)}
-              onClick={(d, idx) => {
-                if (typeof onBarClick === "function") onBarClick(d, idx);
+              onClick={(point, index) => {
+                if (typeof onBarClick === "function") onBarClick(point, index);
               }}
             >
-              {enriched.map((entry, idx) => {
-                const isActive = idx === activeIndex;
-                const fill = isActive ? barHover : `url(#barGrad-${uid})`;
-                const opacity = isActive ? 1 : 0.95;
-                return <cell key={`c-${idx}`} fill={fill} opacity={opacity} />;
-              })}
+              {enrichedData.map((point, index) => (
+                <Cell
+                  key={`${point.name}-${index}`}
+                  fill={index === activeIndex ? palette.barHover : palette.bar}
+                  opacity={index === activeIndex ? 1 : 0.88}
+                />
+              ))}
             </Bar>
 
             <Line
               type="monotone"
               dataKey="Revenue"
-              stroke={lineColor}
+              stroke={palette.line}
               strokeWidth={2}
-              dot={{ r: 2 }}
-              activeDot={{ r: 6 }}
-              animationDuration={900}
-              animationEasing="ease-out"
+              dot={false}
+              activeDot={{ r: 4 }}
+              isAnimationActive
+              animationDuration={800}
             />
 
-            {/* Reference line for maximum day */}
-            {(() => {
-              const max = Math.max(...enriched.map((i) => safeNum(i.Revenue)));
-              if (!Number.isFinite(max) || max === 0) return null;
-              return <ReferenceLine y={max} stroke={isDark ? "#52525b" : "#eab308"} strokeDasharray="4 6" label={{ position: "right", value: `Peak ${formatCurrency(max)}`, fill: isDark ? "#d4d4d8" : "#92400e", fontSize: 11 }} />;
-            })()}
-
-            <Legend verticalAlign="top" wrapperStyle={{ paddingLeft: 8, paddingTop: 4, color: isDark ? "#d4d4d8" : "#374151" }} />
+            {maxRevenue > 0 ? (
+              <ReferenceLine
+                y={maxRevenue}
+                stroke={palette.line}
+                strokeDasharray="5 6"
+                label={{
+                  position: "right",
+                  value: `Peak ${formatCurrency(maxRevenue)}`,
+                  fill: palette.axis,
+                  fontSize: 11,
+                }}
+              />
+            ) : null}
           </ComposedChart>
         </ResponsiveContainer>
-
       </div>
     </div>
   );

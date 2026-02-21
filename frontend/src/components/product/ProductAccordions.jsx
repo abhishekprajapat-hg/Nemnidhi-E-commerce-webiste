@@ -1,11 +1,14 @@
-// src/components/product/ProductAccordions.jsx
-import React from "react";
+﻿import React from "react";
 import Accordion from "../ui/Accordion";
 
 export default function ProductAccordions({ description }) {
+  if (!description) return null;
+
   return (
-    <div className="pt-4 space-y-2">
-      {description && <Accordion title="Description" defaultOpen={true}>{description}</Accordion>}
+    <div className="pt-1">
+      <Accordion title="Description" defaultOpen>
+        {description}
+      </Accordion>
     </div>
   );
 }

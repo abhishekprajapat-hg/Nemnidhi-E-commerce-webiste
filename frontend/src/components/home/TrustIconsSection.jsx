@@ -1,62 +1,66 @@
 import React from "react";
 import Section from "./Section";
 
-
-const IconHandloom = () => (
-<svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13.5M9.75 6.253v13.5M14.25 6.253v13.5M4.5 10.5h15M4.5 13.5h15M7.5 18.253v-2.5M16.5 18.253v-2.5M2.25 12l19.5 0" />
-</svg>
-);
-const IconSecure = () => (
-<svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12 12 0 0012 21.697z" />
-</svg>
-);
-const IconShipping = () => (
-<svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125V14.25m-17.25 0h17.25M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25v2.25a2.25 2.25 0 002.25 2.25z" />
-</svg>
-);
-
+const TRUST_ITEMS = [
+  {
+    title: "Authentic Handloom",
+    description: "Direct artisan sourcing with quality checks on every piece.",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.6"
+        d="M4 8h16M5 8v11m14-11v11M8 8V5.5A1.5 1.5 0 019.5 4h5A1.5 1.5 0 0116 5.5V8m-6 5h4M10 16h4"
+      />
+    ),
+  },
+  {
+    title: "Fast Delivery",
+    description: "Quick dispatch with careful packaging across India.",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.6"
+        d="M3 7h11v9H3V7zm11 2h4l3 3v4h-7V9zM8 18.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm10 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"
+      />
+    ),
+  },
+  {
+    title: "Secure Payments",
+    description: "Trusted payment gateway and checkout protection.",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.6"
+        d="M12 3l7 3v6c0 5-3.5 7.7-7 9-3.5-1.3-7-4-7-9V6l7-3zm-3 9l2 2 4-4"
+      />
+    ),
+  },
+];
 
 export default function TrustIconsSection() {
-return (
-<Section className="bg-[#fdf7f7] dark:bg-zinc-900">
-<div className="max-w-7xl mx-auto px-6 lg:px-8">
-<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-<div className="flex items-start gap-4">
-<div className="shrink-0 bg-gray-100 dark:bg-zinc-800 p-3 rounded-full text-indigo-600 dark:text-yellow-400">
-<IconHandloom />
-</div>
-<div>
-<h3 className="text-lg font-semibold dark:text-white">Authentic Handloom</h3>
-<p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Guaranteed genuine artisanal crafts sourced directly from weavers.</p>
-</div>
-</div>
-
-
-<div className="flex items-start gap-4">
-<div className="shrink-0 bg-gray-100 dark:bg-zinc-800 p-3 rounded-full text-indigo-600 dark:text-yellow-400">
-<IconShipping />
-</div>
-<div>
-<h3 className="text-lg font-semibold dark:text-white">Free Shipping</h3>
-<p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Enjoy free shipping on all orders over ₹2000 across India.</p>
-</div>
-</div>
-
-
-<div className="flex items-start gap-4">
-<div className="shrink-0 bg-gray-100 dark:bg-zinc-800 p-3 rounded-full text-indigo-600 dark:text-yellow-400">
-<IconSecure />
-</div>
-<div>
-<h3 className="text-lg font-semibold dark:text-white">Secure Payments</h3>
-<p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Shop with confidence using our secure Razorpay gateway.</p>
-</div>
-</div>
-</div>
-</div>
-</Section>
-);
+  return (
+    <Section className="pt-4 sm:pt-6">
+      <div className="nm-shell">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {TRUST_ITEMS.map((item) => (
+            <article
+              key={item.title}
+              className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 shadow-lg shadow-black/5"
+            >
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-accent-soft)] text-[var(--nm-accent-strong)]">
+                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  {item.icon}
+                </svg>
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-[var(--nm-text)]">{item.title}</h3>
+              <p className="mt-1 text-sm leading-6 text-[var(--nm-muted)]">{item.description}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </Section>
+  );
 }

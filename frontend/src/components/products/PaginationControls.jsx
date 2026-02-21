@@ -5,25 +5,27 @@ export default function PaginationControls({ currentPage, totalPages, onPageChan
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-center gap-4 mt-10">
+    <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
       <button
+        type="button"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-4 py-2 border rounded-lg bg-white disabled:opacity-50 dark:bg-zinc-800 dark:text-white"
+        className="rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] disabled:cursor-not-allowed disabled:opacity-45"
       >
-        ← Previous
+        Previous
       </button>
 
-      <span className="text-gray-700 dark:text-gray-400">
-        Page {currentPage} of {totalPages}
+      <span className="rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">
+        Page {currentPage} / {totalPages}
       </span>
 
       <button
+        type="button"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-4 py-2 border rounded-lg bg-white disabled:opacity-50 dark:bg-zinc-800 dark:text-white"
+        className="rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] disabled:cursor-not-allowed disabled:opacity-45"
       >
-        Next →
+        Next
       </button>
     </div>
   );

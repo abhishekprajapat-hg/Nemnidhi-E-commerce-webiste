@@ -1,265 +1,204 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import api from "/src/api/axios";
+import { AnimatePresence, motion } from "framer-motion";
 
-/* ================= ASSETS ================= */
-const HERO_IMAGE =
-  "/mnt/data/becaf068-e501-4690-ad1c-3603d8635e6a.png";
-const DEFAULT_CAT_IMAGE =
-  "/mnt/data/d5ff4896-1e72-4950-a3f0-2be7cede2a70.png";
+const SLIDE_INTERVAL_MS = 5500;
 
-/* ================= CONFIG ================= */
-const SLIDE_MS = 5200;
-const SWIPE_OFFSET = 70;
-const SWIPE_VELOCITY = 600;
+const DEFAULT_SLIDE = {
+  title: "Modern Indian silhouettes for every celebration",
+  subtitle: "Curated textiles, artisan finishes, and statement drapes built for timeless wardrobes.",
+  img: "/images/img-1.jpg",
+  href: "/products",
+  cta: "Explore Collection",
+};
 
-/* ================= COMPONENT ================= */
+function normalizeCategory(category) {
+  if (!category) return null;
+  if (typeof category === "string") {
+    const text = category.trim();
+    if (!text) return null;
+    return { title: text, slug: text };
+  }
+  const title = String(category.title || category.name || "").trim();
+  const slug = String(category.slug || title).trim();
+  if (!title || !slug) return null;
+  return { title, slug };
+}
+
 export function HeroSlider({
-  slides = [
-    {
-      title: "Elegant Wine Purple Silk Saree",
-      subtitle: "Lightweight Party Wear Saree for Modern Women",
-      img: HERO_IMAGE,
-      href: "/shop",
-      cta: "View All",
-    },
-  ],
+  slides = [DEFAULT_SLIDE],
   initialIndex = 0,
   categories = [],
   onCategoryClick = null,
 }) {
+  const MotionDiv = motion.div;
   const navigate = useNavigate();
-
-  /* ---------------- state ---------------- */
   const [index, setIndex] = useState(initialIndex);
   const [paused, setPaused] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [visible, setVisible] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(false);
-  const [cats, setCats] = useState([]);
 
-  const containerRef = useRef(null);
-  const timerRef = useRef(null);
+  const normalizedSlides = useMemo(() => {
+    if (!Array.isArray(slides) || slides.length === 0) return [DEFAULT_SLIDE];
+    return slides.map((slide) => ({
+      title: slide?.title || DEFAULT_SLIDE.title,
+      subtitle: slide?.subtitle || DEFAULT_SLIDE.subtitle,
+      img: slide?.img || DEFAULT_SLIDE.img,
+      href: slide?.href || DEFAULT_SLIDE.href,
+      cta: slide?.cta || DEFAULT_SLIDE.cta,
+    }));
+  }, [slides]);
 
-  const totalSlides = slides.length || 1;
+  const currentSlide = normalizedSlides[index] || DEFAULT_SLIDE;
+  const totalSlides = normalizedSlides.length;
 
-  /* ---------------- derived ---------------- */
-  const currentSlide = useMemo(
-    () =>
-      slides[index] || {
-        title: "",
-        subtitle: "",
-        img: HERO_IMAGE,
-        href: "/",
-      },
-    [slides, index]
+  const heroCategories = useMemo(
+    () => categories.map(normalizeCategory).filter(Boolean).slice(0, 7),
+    [categories]
   );
 
-  /* ---------------- reduced motion ---------------- */
   useEffect(() => {
-    if (!window.matchMedia) return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setReducedMotion(mq.matches);
-    sync();
-    mq.addEventListener?.("change", sync);
-    return () => mq.removeEventListener?.("change", sync);
-  }, []);
+    if (paused || totalSlides <= 1) return undefined;
+    const timer = setTimeout(() => {
+      setIndex((prev) => (prev + 1) % totalSlides);
+    }, SLIDE_INTERVAL_MS);
+    return () => clearTimeout(timer);
+  }, [paused, index, totalSlides]);
 
-  /* ---------------- visibility ---------------- */
-  useEffect(() => {
-    const onVis = () => setVisible(!document.hidden);
-    document.addEventListener("visibilitychange", onVis);
-    return () =>
-      document.removeEventListener("visibilitychange", onVis);
-  }, []);
-
-  /* ---------------- autoplay ---------------- */
-  const canAutoplay =
-    !paused &&
-    !dragging &&
-    visible &&
-    !reducedMotion &&
-    totalSlides > 1;
-
-  useEffect(() => {
-    if (!canAutoplay) return;
-    timerRef.current = setTimeout(
-      () => setIndex((i) => (i + 1) % totalSlides),
-      SLIDE_MS
-    );
-    return () => clearTimeout(timerRef.current);
-  }, [index, canAutoplay, totalSlides]);
-
-  /* ---------------- navigation ---------------- */
-  const pauseTemporarily = () => {
-    setPaused(true);
-    setTimeout(() => setPaused(false), 600);
-  };
-
-  const next = useCallback(() => {
-    setIndex((i) => (i + 1) % totalSlides);
-    pauseTemporarily();
-  }, [totalSlides]);
-
-  const prev = useCallback(() => {
-    setIndex((i) => (i - 1 + totalSlides) % totalSlides);
-    pauseTemporarily();
-  }, [totalSlides]);
-
-  /* ================= CATEGORIES (UNCHANGED LOGIC) ================= */
-  useEffect(() => {
-    let mounted = true;
-
-    async function load() {
-      try {
-        const res = await api.get("/api/content/homepage");
-        if (!mounted) return;
-
-        if (Array.isArray(res.data?.categories)) {
-          setCats(
-            res.data.categories.map((c) =>
-              typeof c === "string"
-                ? { title: c, slug: c, img: DEFAULT_CAT_IMAGE }
-                : {
-                    title: c.name || c.title || "",
-                    slug: c.slug || "",
-                    img: c.img || c.image || DEFAULT_CAT_IMAGE,
-                    href: c.href || null,
-                  }
-            )
-          );
-          return;
-        }
-      } catch {}
-
-      if (categories.length) {
-        setCats(
-          categories.map((c) =>
-            typeof c === "string"
-              ? { title: c, slug: c, img: DEFAULT_CAT_IMAGE }
-              : {
-                  title: c.title || c.name || "",
-                  slug: c.slug || "",
-                  img: c.img || DEFAULT_CAT_IMAGE,
-                  href: c.href || null,
-                }
-          )
-        );
-      }
-    }
-
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [categories]);
-
-  /* ================= CATEGORY CLICK ================= */
-  const handleCategoryClick = (cat) => {
-    if (!cat) return;
-
+  const handleCategorySelect = (category) => {
+    if (!category?.slug) return;
     if (typeof onCategoryClick === "function") {
-      onCategoryClick(cat);
+      onCategoryClick(category);
       return;
     }
-
-    if (cat.href) {
-      window.location.href = cat.href;
-      return;
-    }
-
-    if (!cat.slug) return;
-
-    navigate(
-      `/products?sort=-createdAt&category=${encodeURIComponent(
-        cat.slug
-      )}`
-    );
+    navigate(`/products?category=${encodeURIComponent(category.slug)}`);
   };
 
-  /* ================= RENDER ================= */
   return (
-    <section
-      ref={containerRef}
-      className="w-full border-b bg-[#fafafa] dark:bg-zinc-900 border-gray-200 dark:border-zinc-700"
-    >
-      <div className="max-w-7xl mx-auto px-6 py-10 lg:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-14 items-center">
-          {/* LEFT CONTENT */}
-          <div>
+    <section className="nm-shell pt-5 sm:pt-7 lg:pt-8">
+      <div
+        className="nm-panel relative overflow-hidden px-5 pb-6 pt-6 sm:px-8 sm:pb-10 sm:pt-8 lg:px-10 lg:pb-12 lg:pt-10"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <div className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-[var(--nm-accent-soft)] blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-[var(--nm-accent-soft)] blur-3xl" />
+
+        <div className="relative grid items-center gap-8 lg:grid-cols-[1.05fr_1fr]">
+          <div className="order-2 space-y-6 lg:order-1">
+            <p className="inline-flex items-center gap-2 rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-4 py-1.5 text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
+              <span className="inline-flex h-2 w-2 rounded-full bg-[var(--nm-accent)]" />
+              New Season Edit
+            </p>
+
             <AnimatePresence mode="wait">
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
+              <MotionDiv
+                key={`${index}-text`}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.35 }}
+                className="space-y-4 min-w-0"
               >
-                <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white">
+                <h1 className="nm-display max-w-full text-[clamp(2rem,8.5vw,3.7rem)] font-semibold leading-[1.02] [overflow-wrap:anywhere] break-words sm:text-5xl lg:text-6xl">
                   {currentSlide.title}
                 </h1>
-
-                <p className="mt-4 text-gray-600 dark:text-gray-300">
+                <p className="max-w-xl text-sm leading-6 text-[var(--nm-muted)] [overflow-wrap:anywhere] sm:text-base">
                   {currentSlide.subtitle}
                 </p>
-
-                <div className="mt-6 flex gap-4">
-                  <Link
-                    to={currentSlide.href}
-                    className="px-6 py-3 rounded-lg bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
-                  >
-                    {currentSlide.cta || "Shop Now"}
+                <div className="flex flex-wrap gap-3">
+                  <Link to={currentSlide.href} className="nm-btn-primary text-sm">
+                    {currentSlide.cta}
+                    <span aria-hidden>-&gt;</span>
+                  </Link>
+                  <Link to="/products" className="nm-btn-secondary text-sm">
+                    Shop All
                   </Link>
                 </div>
-              </motion.div>
+              </MotionDiv>
             </AnimatePresence>
 
-            {/* CATEGORY PILLS */}
-            <div className="mt-10 flex flex-wrap gap-3">
-              {cats.map((c) => (
-                <button
-                  key={c.slug || c.title}
-                  onClick={() => handleCategoryClick(c)}
-                  className="px-4 py-2 rounded-full border bg-white dark:bg-zinc-800 text-sm text-gray-700 dark:text-white border-gray-300 dark:border-zinc-700 hover:border-black dark:hover:border-white transition"
-                >
-                  {c.title}
-                </button>
-              ))}
-            </div>
+            {heroCategories.length > 0 && (
+              <div>
+                <p className="mb-3 text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
+                  Browse by Category
+                </p>
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                  {heroCategories.map((category) => (
+                    <button
+                      key={category.slug}
+                      type="button"
+                      onClick={() => handleCategorySelect(category)}
+                      className="shrink-0 rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
+                    >
+                      {category.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {totalSlides > 1 && (
+              <div className="flex items-center gap-2">
+                {normalizedSlides.map((slide, slideIndex) => {
+                  const isActive = slideIndex === index;
+                  return (
+                    <button
+                      key={`${slide.href}-${slideIndex}`}
+                      type="button"
+                      aria-label={`Go to slide ${slideIndex + 1}`}
+                      onClick={() => setIndex(slideIndex)}
+                      className={`h-2.5 rounded-full transition ${
+                        isActive ? "w-9 bg-[var(--nm-accent)]" : "w-2.5 bg-[var(--nm-border)]"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* RIGHT IMAGE */}
-          <div className="relative rounded-3xl overflow-hidden">
-            <motion.img
-              key={index}
-              src={currentSlide.img}
-              alt={currentSlide.title}
-              className="w-full h-[520px] lg:h-[680px] object-cover"
-              initial={{ scale: 1.04, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.6 }}
-            />
+          <div className="order-1 relative lg:order-2">
 
-            <button
-              onClick={prev}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full shadow bg-white text-gray-800 dark:bg-zinc-700 dark:text-white"
-            >
-              ‹
-            </button>
-            <button
-              onClick={next}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full shadow bg-white text-gray-800 dark:bg-zinc-700 dark:text-white"
-            >
-              ›
-            </button>
+            <AnimatePresence mode="wait">
+              <MotionDiv
+                key={`${index}-image`}
+                initial={{ opacity: 0, scale: 1.04 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.45 }}
+                className="relative mx-auto w-full max-w-[22rem] overflow-hidden rounded-[1.9rem] border border-[var(--nm-border)] bg-[var(--nm-bg-elevated)] sm:max-w-none"
+              >
+                <img
+                  src={currentSlide.img}
+                  alt={currentSlide.title}
+                  className="block h-[24rem] w-full object-cover object-[center_12%] sm:h-[30rem] sm:object-center lg:h-[36rem]"
+                  onError={(event) => {
+                    event.currentTarget.src = "/placeholder.png";
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+              </MotionDiv>
+            </AnimatePresence>
+
+            {totalSlides > 1 && (
+              <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2 sm:bottom-5 sm:right-5">
+                <button
+                  type="button"
+                  onClick={() => setIndex((prev) => (prev - 1 + totalSlides) % totalSlides)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-black/45 text-white backdrop-blur transition hover:bg-black/60 sm:h-10 sm:w-10"
+                  aria-label="Previous slide"
+                >
+                  <span aria-hidden>&lt;</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIndex((prev) => (prev + 1) % totalSlides)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-black/45 text-white backdrop-blur transition hover:bg-black/60 sm:h-10 sm:w-10"
+                  aria-label="Next slide"
+                >
+                  <span aria-hidden>&gt;</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

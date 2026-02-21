@@ -1,18 +1,35 @@
 import React from "react";
 import Section from "./Section";
 
-
 export default function NewsletterSection() {
-return (
-<Section className="bg-[#fdf7f7] dark:bg-black">
-<div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
-<h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Stay in the Loop</h2>
-<p className="mt-4 text-lg text-gray-600 dark:text-gray-300">Join our newsletter to receive updates on new arrivals, exclusive offers, and the stories behind our crafts.</p>
-<form className="mt-8 flex flex-col sm:flex-row gap-2 max-w-lg mx-auto">
-<input type="email" placeholder="Enter your email" className="flex-1 px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-<button type="submit" className="px-8 py-3 rounded-md bg-black text-white font-medium hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors shadow-lg">Subscribe</button>
-</form>
-</div>
-</Section>
-);
+  return (
+    <Section>
+      <div className="nm-shell">
+        <div className="overflow-hidden rounded-[2rem] border border-[var(--nm-border)] bg-[var(--nm-card)] px-5 py-9 sm:px-10 sm:py-12">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[var(--nm-muted)]">
+              Join The Circle
+            </p>
+            <h2 className="nm-display mt-3 text-4xl font-semibold sm:text-5xl">
+              Early access to new drops and private offers
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-[var(--nm-muted)] sm:text-base">
+              Sign up for launch alerts, styling inspiration, and limited seasonal edits before they sell out.
+            </p>
+          </div>
+
+          <form className="mx-auto mt-7 flex max-w-xl flex-col gap-2 sm:flex-row">
+            <input
+              type="email"
+              placeholder="Enter your email"
+              className="w-full rounded-full border border-[var(--nm-border)] bg-[var(--nm-surface)] px-5 py-3 text-sm text-[var(--nm-text)] placeholder:text-[var(--nm-muted)] focus:border-[var(--nm-accent)] focus:outline-none"
+            />
+            <button type="submit" className="nm-btn-primary whitespace-nowrap text-sm">
+              Subscribe
+            </button>
+          </form>
+        </div>
+      </div>
+    </Section>
+  );
 }

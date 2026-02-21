@@ -7,12 +7,10 @@ import React, {
   useEffect,
 } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import api from "../api/axios";
 import { useDispatch } from "react-redux";
-import { showToast } from "../utils/toast";
 import { GoogleLogin } from "@react-oauth/google";
-
-/* ================= REDUCER ================= */
+import api from "../api/axios";
+import { showToast } from "../utils/toast";
 
 const initialForm = {
   email: "",
@@ -33,18 +31,12 @@ function formReducer(state, action) {
   }
 }
 
-/* ================= COMPONENT ================= */
-
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
 
-  const redirectTo = useMemo(
-    () => location.state?.from || "/",
-    [location.state]
-  );
-
+  const redirectTo = useMemo(() => location.state?.from || "/", [location.state]);
   const [form, send] = useReducer(formReducer, initialForm);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -57,22 +49,22 @@ export default function LoginPage() {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      if (abortRef.current) abortRef.current.abort();
+      abortRef.current?.abort();
     };
   }, []);
 
   const isValid = useMemo(
-    () => form.email.trim() && form.password.length >= 1,
+    () => Boolean(form.email.trim()) && form.password.length > 0,
     [form.email, form.password]
   );
 
   const onEmail = useCallback(
-    (e) => send({ type: "setEmail", payload: e.target.value }),
+    (event) => send({ type: "setEmail", payload: event.target.value }),
     []
   );
 
   const onPassword = useCallback(
-    (e) => send({ type: "setPassword", payload: e.target.value }),
+    (event) => send({ type: "setPassword", payload: event.target.value }),
     []
   );
 
@@ -80,16 +72,16 @@ export default function LoginPage() {
     (payload) => {
       try {
         dispatch({ type: "auth/setUser", payload });
-      } catch {}
+      } catch {
+        // ignore
+      }
     },
     [dispatch]
   );
 
-  /* ================= EMAIL LOGIN ================= */
-
   const submit = useCallback(
-    async (e) => {
-      e.preventDefault();
+    async (event) => {
+      event.preventDefault();
       setError("");
 
       if (!isValid) {
@@ -97,7 +89,7 @@ export default function LoginPage() {
         return;
       }
 
-      if (abortRef.current) abortRef.current.abort();
+      abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
@@ -112,107 +104,111 @@ export default function LoginPage() {
         localStorage.setItem("user", JSON.stringify(data));
         safeDispatchUser(data);
         showToast("Welcome back");
-
-        mountedRef.current && navigate(redirectTo);
+        if (mountedRef.current) navigate(redirectTo);
       } catch (err) {
-        const msg =
-          err.response?.data?.message || err.message || "Login failed";
-        setError(msg);
-        showToast(msg, "error");
+        const message = err.response?.data?.message || err.message || "Login failed";
+        setError(message);
+        showToast(message, "error");
       } finally {
-        mountedRef.current && setLoading(false);
+        if (mountedRef.current) setLoading(false);
       }
     },
     [form.email, form.password, isValid, navigate, redirectTo, safeDispatchUser]
   );
 
-  /* ================= RENDER ================= */
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-md bg-white dark:bg-zinc-800 border dark:border-zinc-700 rounded-2xl p-8 shadow-xl">
-        <h1 className="text-xl font-semibold mb-1 dark:text-white">
-          Welcome back
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          Sign in to continue
+    <div className="nm-shell py-10 sm:py-14">
+      <div className="mx-auto w-full max-w-md rounded-[2rem] border border-[var(--nm-border)] bg-[var(--nm-card)] p-6 shadow-2xl shadow-black/10 sm:p-8">
+        <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
+          Account
         </p>
+        <h1 className="nm-display mt-2 text-5xl font-semibold leading-none">Welcome Back</h1>
+        <p className="mt-2 text-sm text-[var(--nm-muted)]">Sign in to continue shopping.</p>
 
         {error && (
-          <div className="mb-4 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 p-3 rounded">
+          <div className="mt-4 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
             {error}
           </div>
         )}
 
-        {/* ✅ GOOGLE LOGIN (ID TOKEN) */}
-        <div className="mb-4 flex justify-center">
-          <GoogleLogin
-            onSuccess={async (credentialResponse) => {
-              setGoogleLoading(true);
-              try {
-                const { data } = await api.post("/api/auth/google", {
-                  token: credentialResponse.credential, // ✅ ID TOKEN
-                });
-
-                localStorage.setItem("user", JSON.stringify(data));
-                safeDispatchUser(data);
-                showToast("Logged in with Google");
-                navigate(redirectTo);
-              } catch (err) {
-                const msg =
-                  err.response?.data?.message ||
-                  "Google login failed";
-                setError(msg);
-                showToast(msg, "error");
-              } finally {
-                setGoogleLoading(false);
-              }
-            }}
-            onError={() => {
-              showToast("Google login failed", "error");
-            }}
-          />
+        <div className="mt-5">
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={async (credentialResponse) => {
+                setGoogleLoading(true);
+                try {
+                  const { data } = await api.post("/api/auth/google", {
+                    token: credentialResponse.credential,
+                  });
+                  localStorage.setItem("user", JSON.stringify(data));
+                  safeDispatchUser(data);
+                  showToast("Logged in with Google");
+                  navigate(redirectTo);
+                } catch (err) {
+                  const message = err.response?.data?.message || "Google login failed";
+                  setError(message);
+                  showToast(message, "error");
+                } finally {
+                  setGoogleLoading(false);
+                }
+              }}
+              onError={() => {
+                showToast("Google login failed", "error");
+              }}
+            />
+          </div>
+          {googleLoading && (
+            <p className="mt-2 text-center text-xs text-[var(--nm-muted)]">Completing Google sign-in...</p>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 my-4">
-          <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
-          <span className="text-xs text-gray-400">OR</span>
-          <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
+        <div className="my-5 flex items-center gap-2">
+          <div className="h-px flex-1 bg-[var(--nm-border)]" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">OR</span>
+          <div className="h-px flex-1 bg-[var(--nm-border)]" />
         </div>
 
-        {/* EMAIL LOGIN */}
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="space-y-3">
           <input
             type="email"
             value={form.email}
             onChange={onEmail}
             placeholder="Email"
-            className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-zinc-700 border dark:border-zinc-600"
+            className="w-full rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-3 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
           />
 
-          <input
-            type="password"
-            value={form.password}
-            onChange={onPassword}
-            placeholder="Password"
-            className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-zinc-700 border dark:border-zinc-600"
-          />
+          <div className="relative">
+            <input
+              type={form.showPwd ? "text" : "password"}
+              value={form.password}
+              onChange={onPassword}
+              placeholder="Password"
+              className="w-full rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-3 pr-20 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => send({ type: "toggleShow" })}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]"
+            >
+              {form.showPwd ? "Hide" : "Show"}
+            </button>
+          </div>
 
           <button
             type="submit"
             disabled={loading || !isValid}
-            className="w-full py-3 rounded-lg bg-black text-white dark:bg-yellow-400 dark:text-black"
+            className="nm-btn-primary mt-2 w-full text-sm disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Signing In..." : "Sign In"}
           </button>
         </form>
 
-        <div className="mt-4 text-center text-sm text-gray-500">
+        <p className="mt-5 text-center text-sm text-[var(--nm-muted)]">
           New here?{" "}
-          <Link to="/register" className="underline">
+          <Link to="/register" className="font-semibold text-[var(--nm-accent-strong)] underline">
             Create account
           </Link>
-        </div>
+        </p>
       </div>
     </div>
   );

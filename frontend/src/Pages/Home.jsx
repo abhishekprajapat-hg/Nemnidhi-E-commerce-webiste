@@ -37,10 +37,10 @@ const DEFAULT_CATEGORIES = [
 
 const FALLBACK_PROMO = {
   title: "Mid-Season Sale",
-  subtitle: "Up to 30% off",
+  subtitle: "Fresh festive silhouettes with limited-time pricing.",
   buttonText: "Shop Now",
-  href: "/sale",
-  img: "/images/default-banner.jpg",
+  href: "/products",
+  img: "/images/img-4.jpg",
 };
 
 /* ================= CACHE ================= */
@@ -195,7 +195,7 @@ export default function Home() {
 
   /* ================= RENDER ================= */
   return (
-    <div className="min-h-screen w-full bg-[#fdf7f7] dark:bg-zinc-900">
+    <div className="min-h-screen pb-8">
       {/* HERO */}
       <HeroSlider
         slides={homepageContent.heroSlides}

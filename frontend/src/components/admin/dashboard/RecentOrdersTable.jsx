@@ -1,52 +1,63 @@
-import React from "react";
+﻿import React from "react";
 import Badge from "../../ui/Badge";
 import { Skeleton, Th, Td } from "../../ui/TableHelpers";
 
+const getStatusTone = (order) => {
+  const status = String(order?.status || "").toLowerCase();
+  if (status === "cancelled") return "red";
+  if (order?.isDelivered || status === "delivered") return "green";
+  return "amber";
+};
+
+const formatDateTime = (value) => {
+  const date = new Date(value || Date.now());
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString();
+};
+
 export default function RecentOrdersTable({ loading = false, recentOrders = [], onView = () => {} }) {
+  const rows = loading ? Array.from({ length: 6 }) : recentOrders;
+
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-zinc-700">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-gray-500 dark:bg-zinc-700 dark:text-gray-400">
+    <div className="overflow-x-auto rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)]">
+      <table className="w-full min-w-[760px] text-sm">
+        <thead className="border-b border-[var(--nm-border)] bg-[var(--nm-bg-elevated)]/70">
           <tr>
             <Th>ID</Th>
             <Th>Date</Th>
             <Th align="right">Total</Th>
             <Th>Status</Th>
             <Th>Customer</Th>
-            <Th></Th>
+            <Th align="right">Action</Th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
-          {(loading ? Array.from({ length: 6 }) : recentOrders).map((o, idx) => (
-            <tr key={o?._id || idx} className="hover:bg-gray-50 dark:hover:bg-zinc-700/50">
-              <Td>{loading ? <Skeleton w="w-24" /> : `#${String(o._id).slice(-6)}`}</Td>
-              <Td>{loading ? <Skeleton w="w-28" /> : new Date(o.createdAt).toLocaleString()}</Td>
-              <Td align="right">{loading ? <Skeleton w="w-16" /> : `₹${Number(o.totalPrice || 0).toFixed(2)}`}</Td>
+
+        <tbody>
+          {rows.map((order, idx) => (
+            <tr
+              key={order?._id || idx}
+              className="border-b border-[var(--nm-border)]/70 last:border-b-0 transition hover:bg-[var(--nm-accent-soft)]/25"
+            >
+              <Td>{loading ? <Skeleton w="w-24" /> : `#${String(order._id).slice(-6)}`}</Td>
+              <Td>{loading ? <Skeleton w="w-28" /> : formatDateTime(order.createdAt)}</Td>
+              <Td align="right">{loading ? <Skeleton w="w-20" /> : `Rs ${Number(order.totalPrice || 0).toFixed(2)}`}</Td>
               <Td>
                 {loading ? (
-                  <Skeleton w="w-16" />
+                  <Skeleton w="w-20" h="h-6" rounded />
                 ) : (
-                  <Badge
-                    tone={
-                      (o.status || "").toLowerCase() === "cancelled"
-                        ? "red"
-                        : o.isDelivered || (o.status || "").toLowerCase() === "delivered"
-                        ? "green"
-                        : "yellow"
-                    }
-                  >
-                    {o.status || (o.isDelivered ? "Delivered" : "Created")}
+                  <Badge tone={getStatusTone(order)}>
+                    {order.status || (order.isDelivered ? "Delivered" : "Created")}
                   </Badge>
                 )}
               </Td>
-              <Td>{loading ? <Skeleton w="w-24" /> : (o.shippingAddress?.fullName || o.user?.name || "—")}</Td>
+              <Td>{loading ? <Skeleton w="w-24" /> : (order.shippingAddress?.fullName || order.user?.name || "-")}</Td>
               <Td align="right">
                 {loading ? (
                   <Skeleton w="w-14" />
                 ) : (
                   <button
-                    onClick={() => onView(o._id)}
-                    className="text-xs px-3 py-1 rounded border border-gray-300 dark:border-zinc-600 dark:text-gray-300 dark:hover:bg-zinc-700 hover:bg-gray-100"
+                    onClick={() => onView(order._id)}
+                    className="rounded-full border border-[var(--nm-border)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
                   >
                     View
                   </button>

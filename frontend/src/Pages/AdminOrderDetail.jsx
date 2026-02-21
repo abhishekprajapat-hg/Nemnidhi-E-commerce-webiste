@@ -1,16 +1,33 @@
-// /src/Pages/AdminOrderDetail.jsx
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../api/axios";
 import { showToast } from "../utils/toast";
+import AdminLayout from "../components/admin/AdminLayout";
 
-const CACHE_TTL = 10 * 1000; // 10s
+const CACHE_TTL = 10 * 1000;
+
+function readCache(orderId) {
+  try {
+    const raw = sessionStorage.getItem(`order:${orderId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || Date.now() - (parsed._cachedAt || 0) > CACHE_TTL) {
+      sessionStorage.removeItem(`order:${orderId}`);
+      return null;
+    }
+    return parsed.data || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(orderId, data) {
+  try {
+    sessionStorage.setItem(`order:${orderId}`, JSON.stringify({ _cachedAt: Date.now(), data }));
+  } catch {
+    // ignore cache failures
+  }
+}
 
 export default function AdminOrderDetail() {
   const { id } = useParams();
@@ -22,41 +39,16 @@ export default function AdminOrderDetail() {
   const [error, setError] = useState("");
 
   const mountedRef = useRef(true);
-  const fetchController = useRef(null);
+  const controllerRef = useRef(null);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      if (fetchController.current) fetchController.current.abort();
+      controllerRef.current?.abort();
     };
   }, []);
 
-  const readCache = useCallback((orderId) => {
-    try {
-      const raw = sessionStorage.getItem(`order:${orderId}`);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed || Date.now() - (parsed._cachedAt || 0) > CACHE_TTL) {
-        sessionStorage.removeItem(`order:${orderId}`);
-        return null;
-      }
-      return parsed.data || null;
-    } catch (e) {
-      return null;
-    }
-  }, []);
-
-  const writeCache = useCallback((orderId, data) => {
-    try {
-      sessionStorage.setItem(
-        `order:${orderId}`,
-        JSON.stringify({ _cachedAt: Date.now(), data }),
-      );
-    } catch (e) {}
-  }, []);
-
-  // NOTE: fetchOrder intentionally does NOT depend on `order` to avoid render loops.
   const fetchOrder = useCallback(
     async (useCache = true) => {
       setError("");
@@ -64,210 +56,153 @@ export default function AdminOrderDetail() {
       if (useCache) {
         const cached = readCache(id);
         if (cached) {
-          // use cached value, don't force loading spinner
           setOrder(cached);
           setLoading(false);
         } else {
-          // no cache -> show loader
           setLoading(true);
         }
       } else {
-        // forced refresh -> show loader while fetching
         setLoading(true);
       }
 
-      if (fetchController.current) {
-        try {
-          fetchController.current.abort();
-        } catch (e) {}
-      }
-      fetchController.current = new AbortController();
+      controllerRef.current?.abort();
+      controllerRef.current = new AbortController();
 
       try {
         const { data } = await api.get(`/api/orders/${id}`, {
-          signal: fetchController.current.signal,
+          signal: controllerRef.current.signal,
         });
         if (!mountedRef.current) return;
         setOrder(data || null);
         writeCache(id, data || null);
-        setLoading(false);
       } catch (err) {
         if (err?.name === "CanceledError" || err?.name === "AbortError") return;
         if (!mountedRef.current) return;
-        setError(
-          err.response?.data?.message || err.message || "Failed to load order.",
-        );
-        setLoading(false);
+        setError(err.response?.data?.message || err.message || "Failed to load order.");
       } finally {
-        fetchController.current = null;
+        if (mountedRef.current) setLoading(false);
+        controllerRef.current = null;
       }
     },
-    // removed `order` from deps to avoid infinite loop
-    [id, readCache, writeCache],
+    [id]
   );
 
   useEffect(() => {
     if (!id) return;
     fetchOrder(true);
-    // also refresh in background shortly after mount
-    const t = setTimeout(() => fetchOrder(false), 600);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => fetchOrder(false), 600);
+    return () => clearTimeout(timer);
   }, [id, fetchOrder]);
+
+  const isDelivered = useMemo(
+    () => Boolean(order?.isDelivered || (order?.status || "").toLowerCase() === "delivered"),
+    [order]
+  );
+  const isCancelled = useMemo(
+    () => (order?.status || "").toLowerCase() === "cancelled",
+    [order]
+  );
 
   const itemsTotal = useMemo(
     () =>
       (order?.orderItems || []).reduce(
-        (s, it) => s + Number(it.price || 0) * Number(it.qty || 0),
-        0,
+        (sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0),
+        0
       ),
-    [order],
+    [order]
   );
 
-  const optimisticUpdate = useCallback((patch) => {
-    setOrder((prev) => {
-      if (!prev) return prev;
-      return { ...prev, ...patch };
-    });
-  }, []);
+  const optimisticUpdate = (patch) => {
+    setOrder((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
 
   const markDelivered = useCallback(async () => {
     if (!order || acting) return;
-    const prev = order;
+
+    const previous = order;
     optimisticUpdate({
       isDelivered: true,
       status: "Delivered",
       deliveredAt: new Date().toISOString(),
     });
     setActing(true);
+
     try {
       await api.put(`/api/orders/${order._id}/deliver`);
       showToast("Order marked as delivered");
-      // refresh authoritative data
       fetchOrder(false);
     } catch (err) {
-      setOrder(prev);
-      showToast(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to mark delivered",
-        "error",
-      );
+      setOrder(previous);
+      showToast(err.response?.data?.message || err.message || "Failed to mark delivered", "error");
     } finally {
       setActing(false);
     }
-  }, [order, acting, optimisticUpdate, fetchOrder]);
+  }, [order, acting, fetchOrder]);
 
   const cancelOrder = useCallback(async () => {
     if (!order || acting) return;
-    if (!window.confirm("Cancel this order? This action cannot be undone."))
-      return;
-    const prev = order;
+    if (!window.confirm("Cancel this order? This action cannot be undone.")) return;
+
+    const previous = order;
     optimisticUpdate({
       status: "Cancelled",
       cancelledAt: new Date().toISOString(),
     });
     setActing(true);
+
     try {
-      await api.put(`/api/orders/${order._id}/cancel`, {
-        reason: "Cancelled by admin",
-      });
-      showToast("Order has been cancelled", "info");
+      await api.put(`/api/orders/${order._id}/cancel`, { reason: "Cancelled by admin" });
+      showToast("Order cancelled", "info");
       fetchOrder(false);
     } catch (err) {
-      setOrder(prev);
-      showToast(
-        err.response?.data?.message || err.message || "Failed to cancel order",
-        "error",
-      );
+      setOrder(previous);
+      showToast(err.response?.data?.message || err.message || "Failed to cancel order", "error");
     } finally {
       setActing(false);
     }
-  }, [order, acting, optimisticUpdate, fetchOrder]);
+  }, [order, acting, fetchOrder]);
 
-  const isDelivered = useMemo(
-    () =>
-      !!(
-        order?.isDelivered ||
-        (order?.status || "").toLowerCase() === "delivered"
-      ),
-    [order],
-  );
-  const isCancelled = useMemo(
-    () => (order?.status || "").toLowerCase() === "cancelled",
-    [order],
-  );
-
-  const formattedPlacedAt = useMemo(() => {
-    if (!order?.createdAt) return "";
-    try {
-      return new Date(order.createdAt).toLocaleString();
-    } catch (e) {
-      return order.createdAt;
-    }
-  }, [order?.createdAt]);
+  const statusTone = isCancelled ? "red" : isDelivered ? "green" : "amber";
+  const statusClass =
+    statusTone === "green"
+      ? "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-300"
+      : statusTone === "red"
+        ? "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300"
+        : "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300";
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-black dark:text-gray-100">
-      <div className="sticky top-0 z-30 border-b border-gray-200 bg-white/80 backdrop-blur dark:bg-zinc-800/90 dark:border-zinc-700">
-        <div className="max-w-[1200px] mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/admin" className="font-bold text-lg dark:text-white">
-            Admin Order Details
-          </Link>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Signed in as{" "}
-            <span className="text-black font-medium dark:text-white">
-              Admin
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-[1200px] mx-auto px-4 py-8">
-        <div className="mb-6 flex items-center justify-between">
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold dark:text-white">
-              {loading ? (
-                <Skeleton w="w-64" h="h-8" />
-              ) : (
-                `Order #${String(order?._id || "").slice(-8)}`
-              )}
+            <h1 className="nm-display text-4xl font-semibold leading-none sm:text-5xl">
+              {loading ? "Loading..." : `Order #${String(order?._id || "").slice(-8)}`}
             </h1>
-            {!loading && (
-              <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Placed {formattedPlacedAt}
-              </div>
+            {!loading && order?.createdAt && (
+              <p className="mt-2 text-sm text-[var(--nm-muted)]">
+                Placed {new Date(order.createdAt).toLocaleString()}
+              </p>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link
-              to={`/admin/order/${order?._id}/tracking`}
-              className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-700"
-            >
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to={`/admin/order/${order?._id}/tracking`} className="nm-btn-secondary text-sm">
               Update Tracking
             </Link>
-
-            <button
-              onClick={() => navigate("/admin/orders")}
-              className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-700"
-            >
-              Back to orders
+            <button onClick={() => navigate("/admin/orders")} className="nm-btn-secondary text-sm">
+              Back to Orders
             </button>
             <button
               disabled={acting || isDelivered || isCancelled}
               onClick={markDelivered}
-              className={`px-4 py-2 rounded-lg font-medium ${isDelivered ? "bg-green-600/50 cursor-not-allowed" : "bg-green-600 hover:opacity-90"} text-white`}
+              className="rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55"
             >
-              {isDelivered
-                ? "Delivered"
-                : acting
-                  ? "Working..."
-                  : "Mark delivered"}
+              {isDelivered ? "Delivered" : acting ? "Working..." : "Mark Delivered"}
             </button>
             <button
               disabled={acting || isDelivered || isCancelled}
               onClick={cancelOrder}
-              className={`px-4 py-2 rounded-lg border border-red-500 text-red-600 hover:bg-red-50 ${isDelivered || isCancelled ? "opacity-50 cursor-not-allowed dark:border-red-600/30 dark:text-red-600/50" : "dark:border-red-500/40 dark:text-red-400 dark:hover:bg-red-500/10"}`}
+              className="rounded-full border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-55"
             >
               Cancel
             </button>
@@ -275,222 +210,123 @@ export default function AdminOrderDetail() {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-lg border border-red-300 bg-red-50 p-3 text-red-700 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-300">
+          <div className="rounded-2xl border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 space-y-6">
-            <Card>
-              <CardTitle>Shipping</CardTitle>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <section className="space-y-5 lg:col-span-8">
+            <article className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5">
+              <h2 className="text-lg font-semibold">Shipping</h2>
               {loading ? (
-                <div className="space-y-2 mt-2">
-                  <Skeleton w="w-48" />
-                  <Skeleton w="w-64" />
-                  <Skeleton w="w-40" />
-                </div>
+                <p className="mt-3 text-sm text-[var(--nm-muted)]">Loading shipping details...</p>
               ) : (
                 <>
-                  <div className="mt-2 text-sm">
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      {order.shippingAddress?.fullName || "—"}
-                    </div>
-                    <div className="text-gray-600 dark:text-gray-300">
-                      {order.shippingAddress?.address || "—"}
-                    </div>
-                    <div className="text-gray-600 dark:text-gray-300">
-                      {order.shippingAddress?.city || "—"},{" "}
-                      {order.shippingAddress?.postalCode || "—"}
-                    </div>
-                    <div className="text-gray-600 dark:text-gray-300">
-                      {order.shippingAddress?.country || "—"}
-                    </div>
+                  <div className="mt-3 text-sm text-[var(--nm-muted)]">
+                    <p className="font-semibold text-[var(--nm-text)]">
+                      {order?.shippingAddress?.fullName || "--"}
+                    </p>
+                    <p>{order?.shippingAddress?.address || "--"}</p>
+                    <p>
+                      {order?.shippingAddress?.city || "--"},{" "}
+                      {order?.shippingAddress?.postalCode || "--"}
+                    </p>
+                    <p>{order?.shippingAddress?.country || "--"}</p>
                   </div>
-
-                  <div className="mt-3">
-                    <Badge
-                      tone={
-                        isCancelled ? "red" : isDelivered ? "green" : "yellow"
-                      }
-                    >
-                      {order.status || (isDelivered ? "Delivered" : "Created")}
-                    </Badge>
-                  </div>
+                  <span className={`mt-3 inline-block rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.1em] ${statusClass}`}>
+                    {order?.status || (isDelivered ? "Delivered" : "Created")}
+                  </span>
                 </>
               )}
-            </Card>
+            </article>
 
-            <Card>
-              <CardTitle>Items</CardTitle>
-              <div className="mt-3 divide-y divide-gray-200 dark:divide-zinc-700">
-                {(loading
-                  ? Array.from({ length: 2 })
-                  : order.orderItems || []
-                ).map((it, idx) => {
-                  const key = it?._id || `${idx}-${it?.product || "p"}`;
-                  return (
-                    <div key={key} className="py-3 flex items-center gap-3">
-                      {loading ? (
-                        <>
-                          <Skeleton w="w-14" h="h-14" rounded />
-                          <div className="flex-1">
-                            <Skeleton w="w-48" />
-                            <Skeleton w="w-24" />
-                          </div>
-                          <Skeleton w="w-20" />
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-14 h-14 rounded bg-gray-100 dark:bg-zinc-700 overflow-hidden shrink-0">
-                            {it.image ? (
-                              <img
-                                alt={it.title}
-                                src={it.image}
-                                loading="lazy"
-                                className="object-cover w-full h-full"
-                                onError={(e) => {
-                                  e.currentTarget.onerror = null;
-                                  e.currentTarget.src = "/placeholder.png";
-                                }}
-                              />
-                            ) : null}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <Link
-                              to={`/product/${it.product}`}
-                              className="text-sm font-medium hover:underline dark:text-white"
-                            >
-                              {it.title || "Product"}
-                            </Link>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                              Qty: {it.qty} • ₹
-                              {Number(it.price || 0).toFixed(2)}
-                              {it.size ? ` • Size ${it.size}` : ""}
-                              {it.color ? ` • ${it.color}` : ""}
-                            </div>
-                          </div>
-                          <div className="text-sm font-medium dark:text-white">
-                            ₹
-                            {(
-                              Number(it.price || 0) * Number(it.qty || 0)
-                            ).toFixed(2)}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          </div>
-
-          <div className="lg:col-span-4 space-y-6">
-            <Card>
-              <CardTitle>Summary</CardTitle>
-              <div className="mt-3 space-y-2 text-sm">
-                <Row label="Items">
-                  {loading ? (
-                    <Skeleton w="w-16" />
-                  ) : (
-                    `₹${itemsTotal.toFixed(2)}`
-                  )}
-                </Row>
-                <Row label="Shipping">
-                  {loading ? (
-                    <Skeleton w="w-12" />
-                  ) : (
-                    `₹${Number(order?.shippingPrice || 0).toFixed(2)}`
-                  )}
-                </Row>
-                <Row label="Tax">
-                  {loading ? (
-                    <Skeleton w="w-12" />
-                  ) : (
-                    `₹${Number(order?.taxPrice || 0).toFixed(2)}`
-                  )}
-                </Row>
-                <div className="border-t border-gray-200 dark:border-zinc-700 pt-3 mt-2 flex items-center justify-between">
-                  <div className="text-gray-600 dark:text-gray-300 font-medium">
-                    Total
-                  </div>
-                  <div className="text-xl font-extrabold dark:text-white">
+            <article className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5">
+              <h2 className="text-lg font-semibold">Items</h2>
+              <div className="mt-3 divide-y divide-[var(--nm-border)]">
+                {(loading ? Array.from({ length: 2 }) : order?.orderItems || []).map((item, index) => (
+                  <div key={item?._id || `${index}-${item?.product || "item"}`} className="flex items-center gap-3 py-3">
                     {loading ? (
-                      <Skeleton w="w-20" h="h-6" />
+                      <>
+                        <div className="h-14 w-14 rounded-xl bg-[var(--nm-bg-elevated)] animate-pulse" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 w-48 rounded bg-[var(--nm-bg-elevated)] animate-pulse" />
+                          <div className="h-3 w-28 rounded bg-[var(--nm-bg-elevated)] animate-pulse" />
+                        </div>
+                      </>
                     ) : (
-                      `₹${Number(order?.totalPrice || 0).toFixed(2)}`
+                      <>
+                        <div className="h-14 w-14 overflow-hidden rounded-xl border border-[var(--nm-border)] bg-[var(--nm-bg-elevated)]">
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.title}
+                              className="h-full w-full object-cover"
+                              onError={(event) => {
+                                event.currentTarget.src = "/placeholder.png";
+                              }}
+                            />
+                          ) : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <Link to={`/product/${item.product}`} className="text-sm font-semibold hover:underline">
+                            {item.title || "Product"}
+                          </Link>
+                          <p className="text-xs text-[var(--nm-muted)]">
+                            Qty {item.qty} | Rs {Number(item.price || 0).toFixed(2)}
+                            {item.size ? ` | Size ${item.size}` : ""}
+                            {item.color ? ` | ${item.color}` : ""}
+                          </p>
+                        </div>
+                        <div className="text-sm font-semibold">
+                          Rs {(Number(item.price || 0) * Number(item.qty || 0)).toFixed(2)}
+                        </div>
+                      </>
                     )}
                   </div>
+                ))}
+              </div>
+            </article>
+          </section>
+
+          <aside className="space-y-5 lg:col-span-4">
+            <article className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5">
+              <h2 className="text-lg font-semibold">Summary</h2>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--nm-muted)]">Items</span>
+                  <span className="font-semibold">Rs {itemsTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--nm-muted)]">Shipping</span>
+                  <span className="font-semibold">Rs {Number(order?.shippingPrice || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--nm-muted)]">Tax</span>
+                  <span className="font-semibold">Rs {Number(order?.taxPrice || 0).toFixed(2)}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between border-t border-[var(--nm-border)] pt-3 text-base font-semibold">
+                  <span>Total</span>
+                  <span>Rs {Number(order?.totalPrice || 0).toFixed(2)}</span>
                 </div>
               </div>
-            </Card>
+            </article>
 
-            <Card>
-              <CardTitle>Payment</CardTitle>
-              {loading ? (
-                <div className="mt-3 space-y-2">
-                  <Skeleton w="w-24" />
-                  <Skeleton w="w-20" />
-                </div>
-              ) : (
-                <div className="mt-3 text-sm">
-                  <div className="font-medium dark:text-white">
-                    {order.paymentMethod || "—"}
-                  </div>
-                  <div className="text-gray-500 dark:text-gray-400">
-                    Paid:{" "}
-                    {order.isPaid
-                      ? `Yes (${new Date(order.paidAt).toLocaleString()})`
-                      : "No"}
-                  </div>
-                </div>
-              )}
-            </Card>
-          </div>
+            <article className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5">
+              <h2 className="text-lg font-semibold">Payment</h2>
+              <div className="mt-3 text-sm text-[var(--nm-muted)]">
+                <p className="font-semibold text-[var(--nm-text)]">{order?.paymentMethod || "--"}</p>
+                <p>
+                  Paid:{" "}
+                  {order?.isPaid
+                    ? `Yes (${order?.paidAt ? new Date(order.paidAt).toLocaleString() : "-"})`
+                    : "No"}
+                </p>
+              </div>
+            </article>
+          </aside>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* UI helpers */
-function Card({ children }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:bg-zinc-800 dark:border-zinc-700">
-      {children}
-    </div>
-  );
-}
-function CardTitle({ children }) {
-  return <h2 className="font-semibold text-lg dark:text-white">{children}</h2>;
-}
-function Row({ label, children }) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="text-gray-600 dark:text-gray-300">{label}</div>
-      <div className="font-medium dark:text-white">{children}</div>
-    </div>
-  );
-}
-function Badge({ children, tone = "yellow" }) {
-  const toneClasses =
-    tone === "green"
-      ? "bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-300"
-      : tone === "red"
-        ? "bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-300"
-        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/10 dark:text-yellow-300";
-  return (
-    <span
-      className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${toneClasses}`}
-    >
-      {children}
-    </span>
-  );
-}
-function Skeleton({ w = "w-full", h = "h-4", rounded = false }) {
-  return (
-    <div
-      className={`${w} ${h} ${rounded ? "rounded-md" : "rounded"} bg-gray-200 dark:bg-zinc-700 animate-pulse`}
-    />
+    </AdminLayout>
   );
 }

@@ -1,16 +1,17 @@
-// src/components/admin/products/RowSkeleton.jsx
-
-export default function RowSkeleton() {
+﻿export default function RowSkeleton() {
   return (
-    <div className="px-4 py-3 flex items-center gap-3 animate-pulse">
-      <div className="w-4 h-4 rounded bg-gray-200 dark:bg-zinc-700" />
-      <div className="w-16 h-16 bg-gray-200 dark:bg-zinc-700 rounded-md" />
-      <div className="flex-1">
-        <div className="w-48 h-4 bg-gray-200 dark:bg-zinc-700 rounded" />
+    <div className="animate-pulse border-b border-[var(--nm-border)] px-4 py-4 last:border-b-0">
+      <div className="flex items-start gap-3 md:items-center">
+        <div className="mt-1 h-4 w-4 rounded bg-[var(--nm-bg-elevated)] md:mt-0" />
+        <div className="h-16 w-16 rounded-xl bg-[var(--nm-bg-elevated)]" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-52 rounded bg-[var(--nm-bg-elevated)]" />
+          <div className="h-3 w-36 rounded bg-[var(--nm-bg-elevated)]" />
+        </div>
+        <div className="hidden h-4 w-20 rounded bg-[var(--nm-bg-elevated)] md:block" />
+        <div className="hidden h-4 w-16 rounded bg-[var(--nm-bg-elevated)] md:block" />
+        <div className="hidden h-8 w-44 rounded-full bg-[var(--nm-bg-elevated)] md:block" />
       </div>
-      <div className="w-20 h-4 bg-gray-200 dark:bg-zinc-700 rounded" />
-      <div className="w-16 h-4 bg-gray-200 dark:bg-zinc-700 rounded" />
-      <div className="w-32 h-8 bg-gray-200 dark:bg-zinc-700 rounded" />
     </div>
   );
 }

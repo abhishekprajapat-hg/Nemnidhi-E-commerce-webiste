@@ -1,165 +1,139 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { motion } from 'framer-motion';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 
-// Icons
-const IconOverview = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>;
-const IconOrders = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>;
-const IconProducts = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>;
-const IconCreate = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
-// ⭐️ Naya Icon
-const IconContent = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>; 
+const NAV_ITEMS = [
+  { to: "/admin", label: "Overview" },
+  { to: "/admin/orders", label: "Orders" },
+  { to: "/admin/products", label: "Products" },
+  { to: "/admin/create-product", label: "Create Product" },
+  { to: "/admin/homepage", label: "Homepage Editor" },
+];
 
-function NavLink({ to, children, icon }) {
+function NavLink({ to, label, onClick }) {
   const { pathname } = useLocation();
-  const isActive = pathname === to;
+  const active = pathname === to;
 
   return (
     <Link
       to={to}
-      className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-        isActive
-          ? 'bg-gray-100 text-gray-900 font-medium dark:bg-zinc-700 dark:text-white'
-          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-zinc-700'
+      onClick={onClick}
+      className={`block rounded-2xl px-3 py-2 text-sm font-semibold transition ${
+        active
+          ? "bg-[var(--nm-accent)] text-white"
+          : "text-[var(--nm-text)] hover:bg-[var(--nm-accent-soft)] hover:text-[var(--nm-accent-strong)]"
       }`}
     >
-      {icon}
-      <span>{children}</span>
+      {label}
     </Link>
   );
 }
 
 export default function AdminLayout({ children }) {
-  const user = useSelector((s) => s.auth?.user || JSON.parse(localStorage.getItem('user') || 'null'));
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const user = useSelector((state) => state.auth?.user || JSON.parse(localStorage.getItem("user") || "null"));
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef(null);
 
   const pageTitle = useMemo(() => {
-    if (pathname === '/admin') return 'Overview';
-    if (pathname.startsWith('/admin/orders')) return 'Orders';
-    if (pathname.startsWith('/admin/order/')) return 'Order Details';
-    if (pathname.startsWith('/admin/products')) return 'Products';
-    if (pathname.startsWith('/admin/product/')) return 'Product Details';
-    if (pathname === '/admin/create-product') return 'Create Product';
-    // ⭐️ Naya Title
-    if (pathname === '/admin/homepage') return 'Homepage Editor';
-    return 'Admin';
-  }, [pathname]);
+    if (location.pathname === "/admin") return "Overview";
+    if (location.pathname.startsWith("/admin/orders")) return "Orders";
+    if (location.pathname.startsWith("/admin/order/")) return "Order Details";
+    if (location.pathname.startsWith("/admin/products")) return "Products";
+    if (location.pathname.startsWith("/admin/product/")) return "Product Details";
+    if (location.pathname === "/admin/create-product") return "Create Product";
+    if (location.pathname === "/admin/homepage") return "Homepage Editor";
+    return "Admin";
+  }, [location.pathname]);
 
   useEffect(() => {
-    function onDocClick(e) {
-      if (drawerRef.current && !drawerRef.current.contains(e.target)) {
+    function onDocClick(event) {
+      if (drawerRef.current && !drawerRef.current.contains(event.target)) {
         setDrawerOpen(false);
       }
     }
-    function onKey(e) {
-      if (e.key === 'Escape') setDrawerOpen(false);
+    function onKeyDown(event) {
+      if (event.key === "Escape") setDrawerOpen(false);
     }
     if (drawerOpen) {
-      document.addEventListener('mousedown', onDocClick);
-      document.addEventListener('touchstart', onDocClick);
-      document.addEventListener('keydown', onKey);
+      document.addEventListener("mousedown", onDocClick);
+      document.addEventListener("keydown", onKeyDown);
     }
     return () => {
-      document.removeEventListener('mousedown', onDocClick);
-      document.removeEventListener('touchstart', onDocClick);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, [drawerOpen]);
 
-  if (!user) {
-    // navigate('/login'); // Recommended
-    return null;
-  }
-
-  const sidebarLinks = (
-    <>
-      <NavLink to="/admin" icon={<IconOverview />}>Overview</NavLink>
-      <NavLink to="/admin/orders" icon={<IconOrders />}>Orders</NavLink>
-      <NavLink to="/admin/products" icon={<IconProducts />}>Products</NavLink>
-      <NavLink to="/admin/create-product" icon={<IconCreate />}>Create Product</NavLink>
-      {/* ⭐️ Naya Link */}
-      <NavLink to="/admin/homepage" icon={<IconContent />}>Homepage Editor</NavLink>
-    </>
-  );
+  if (!user) return null;
 
   return (
-    <div className="min-h-screen flex bg-gray-50 dark:bg-black">
-      {/* Mobile Drawer */}
-      <div
-        className={`fixed inset-0 z-50 transition-all ${drawerOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-        aria-hidden={!drawerOpen}
-      >
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: drawerOpen ? 1 : 0 }}
+    <div className="min-h-screen bg-[var(--nm-bg)]">
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/45 lg:hidden"
           onClick={() => setDrawerOpen(false)}
-          className="absolute inset-0 bg-black/60"
-        />
-        <motion.aside
-          ref={drawerRef}
-          initial={{ x: "-100%" }}
-          animate={{ x: drawerOpen ? "0%" : "-100%" }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="absolute left-0 top-0 h-full w-72 bg-white text-black dark:bg-zinc-800 dark:text-white"
-          role="dialog"
-          aria-modal="true"
         >
-          <div className="px-6 py-5 border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between">
-            <div className="text-lg font-bold font-serif dark:text-white">NEMNIDHI</div>
-            <button
-              onClick={() => setDrawerOpen(false)}
-              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-700"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
+          <aside
+            ref={drawerRef}
+            className="h-full w-[86vw] max-w-xs border-r border-[var(--nm-border)] bg-[var(--nm-card)] p-5"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-5">
+              <p className="nm-display text-3xl font-semibold">NEMNIDHI</p>
+              <p className="text-xs uppercase tracking-[0.15em] text-[var(--nm-muted)]">Admin Panel</p>
+            </div>
+            <nav className="space-y-1">
+              {NAV_ITEMS.map((item) => (
+                <NavLink key={item.to} to={item.to} label={item.label} onClick={() => setDrawerOpen(false)} />
+              ))}
+            </nav>
+            <div className="mt-6 rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-3">
+              <p className="text-xs uppercase tracking-[0.1em] text-[var(--nm-muted)]">Signed in as</p>
+              <p className="mt-1 text-sm font-semibold">{user?.name || user?.email}</p>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      <div className="mx-auto grid min-h-screen w-full max-w-[1400px] grid-cols-1 lg:grid-cols-[16.5rem_1fr]">
+        <aside className="hidden border-r border-[var(--nm-border)] bg-[var(--nm-card)] p-5 lg:block">
+          <div className="mb-5">
+            <Link to="/" className="nm-display text-3xl font-semibold">NEMNIDHI</Link>
+            <p className="text-xs uppercase tracking-[0.15em] text-[var(--nm-muted)]">Admin Panel</p>
           </div>
-          <nav className="p-4 space-y-1 flex-1">
-            {sidebarLinks}
+          <nav className="space-y-1">
+            {NAV_ITEMS.map((item) => (
+              <NavLink key={item.to} to={item.to} label={item.label} />
+            ))}
           </nav>
-          <div className="p-4 border-t border-gray-200 dark:border-zinc-700">
-            <div className="text-xs text-gray-500 dark:text-gray-400">Signed in as</div>
-            <div className="text-sm font-medium dark:text-white">{user?.name || user?.email}</div>
+          <div className="mt-6 rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-3">
+            <p className="text-xs uppercase tracking-[0.1em] text-[var(--nm-muted)]">Signed in as</p>
+            <p className="mt-1 text-sm font-semibold">{user?.name || user?.email}</p>
           </div>
-        </motion.aside>
+        </aside>
+
+        <main>
+          <header className="sticky top-0 z-40 border-b border-[var(--nm-border)] bg-[color:color-mix(in_srgb,var(--nm-surface)_88%,transparent)] px-4 py-3 backdrop-blur sm:px-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setDrawerOpen(true)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--nm-border)] lg:hidden"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
+                  </svg>
+                </button>
+                <h2 className="text-lg font-semibold">{pageTitle}</h2>
+              </div>
+            </div>
+          </header>
+
+          <div className="px-4 py-6 sm:px-6">{children || <Outlet />}</div>
+        </main>
       </div>
-
-      {/* Desktop Sidebar */}
-      <aside className="w-72 bg-white border-r border-gray-200 hidden lg:flex flex-col flex-shrink-0 dark:bg-zinc-800 dark:border-zinc-700">
-        <div className="px-6 py-5 border-b border-gray-200 dark:border-zinc-700">
-          <Link to="/" className="text-lg font-bold font-serif dark:text-white">
-            NEMNIDHI
-          </Link>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Admin Dashboard</div>
-        </div>
-        <nav className="p-4 space-y-1 flex-1">
-          {sidebarLinks}
-        </nav>
-        <div className="p-4 border-t border-gray-200 dark:border-zinc-700">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Signed in as</div>
-          <div className="text-sm font-medium dark:text-white">{user?.name || user?.email}</div>
-        </div>
-      </aside>
-
-      <main className="flex-1">
-        <header className="bg-white border-b border-gray-200 p-4 flex items-center justify-between sticky top-0 z-40 dark:bg-zinc-800 dark:border-zinc-700">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setDrawerOpen(true)}
-              className="text-sm lg:hidden px-2 py-1 bg-gray-100 rounded-md dark:bg-zinc-700 dark:text-gray-300"
-            >
-              Menu
-            </button>
-            <h2 className="text-lg font-semibold dark:text-white">{pageTitle}</h2>
-          </div>
-        </header>
-
-        <div className="p-6">
-          {children || <Outlet />}
-        </div>
-      </main>
     </div>
   );
 }

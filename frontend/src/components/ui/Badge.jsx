@@ -1,14 +1,16 @@
-import React from "react";
+﻿import React from "react";
 
-export default function Badge({ children, tone = "yellow" }) {
-  const toneClasses =
-    tone === "green"
-      ? "bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-300"
-      : tone === "red"
-      ? "bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-300"
-      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/10 dark:text-yellow-300";
+const TONE_CLASS = {
+  green: "bg-emerald-100 text-emerald-800",
+  red: "bg-red-100 text-red-800",
+  amber: "bg-amber-100 text-amber-800",
+  yellow: "bg-amber-100 text-amber-800",
+  blue: "bg-sky-100 text-sky-800",
+};
+
+export default function Badge({ children, tone = "amber" }) {
   return (
-    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${toneClasses}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] ${TONE_CLASS[tone] || TONE_CLASS.amber}`}>
       {children}
     </span>
   );

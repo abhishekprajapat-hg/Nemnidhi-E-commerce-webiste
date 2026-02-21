@@ -1,28 +1,15 @@
-import React, { useState } from "react";
+import React from "react";
 import Card from "../ui/Card";
 import CardTitle from "../ui/CardTitle";
 import Input from "../ui/Input";
 import ImageUploader from "./ImageUploader";
 
-/**
- * CategoriesEditor (SAFE SLUG – FINAL)
- *
- * RULES:
- * - slug is generated ONCE on name blur
- * - slug never changes after generation
- * - name is fully editable
- * - href is derived from slug
- */
-
 export default function CategoriesEditor({
-  categories,
+  categories = [],
   setCategories,
   emptyCategory,
 }) {
   const safeCategories = Array.isArray(categories) ? categories : [];
-
-  const [draggingIndex, setDraggingIndex] = useState(null);
-  const [dragOverIndex, setDragOverIndex] = useState(null);
 
   const generateSlug = (name = "") =>
     name
@@ -31,21 +18,17 @@ export default function CategoriesEditor({
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/g, "");
 
-  const buildHref = (slug) =>
-    slug ? `/products?category=${slug}` : "";
+  const buildHref = (slug = "") => (slug ? `/products?category=${slug}` : "");
 
-  // ✅ ONLY update name here
   const handleNameChange = (index, value) => {
     const copy = [...safeCategories];
     copy[index] = { ...copy[index], name: value };
     setCategories(copy);
   };
 
-  // ✅ SLUG GENERATED HERE (ON BLUR, FULL VALUE)
   const handleNameBlur = (index) => {
     const copy = [...safeCategories];
     const current = copy[index];
-
     if (!current.slug && current.name) {
       const slug = generateSlug(current.name);
       copy[index] = {
@@ -63,41 +46,32 @@ export default function CategoriesEditor({
     setCategories(copy);
   };
 
-  const addCategory = () => {
-    setCategories([...safeCategories, emptyCategory()]);
-  };
-
-  const deleteCategory = (index) => {
-    if (
-      !window.confirm(
-        "Deleting a category may affect products using it.\nAre you sure?"
-      )
-    )
-      return;
-    setCategories(safeCategories.filter((_, i) => i !== index));
-  };
-
   const moveItem = (from, to) => {
-    if (from === to) return;
+    if (to < 0 || to >= safeCategories.length || from === to) return;
     const copy = [...safeCategories];
     const [item] = copy.splice(from, 1);
     copy.splice(to, 0, item);
     setCategories(copy);
   };
 
+  const deleteCategory = (index) => {
+    if (!window.confirm("Delete this category?")) return;
+    setCategories(safeCategories.filter((_, i) => i !== index));
+  };
+
   return (
     <Card>
-      <CardTitle>Category Grid (Drag to reorder)</CardTitle>
+      <CardTitle>Category Grid</CardTitle>
 
       <div className="space-y-4">
-        {safeCategories.map((cat, index) => (
+        {safeCategories.map((category, index) => (
           <div
-            key={cat.slug || index}
-            className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 border rounded-lg bg-white dark:bg-zinc-900 dark:border-zinc-700"
+            key={category.id || category.slug || index}
+            className="grid grid-cols-1 gap-3 rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-4 md:grid-cols-4"
           >
             <div className="md:col-span-2">
               <ImageUploader
-                value={cat.img}
+                value={category.img}
                 onChange={(url) => handleImageChange(index, url)}
                 label="Category Image"
               />
@@ -106,49 +80,39 @@ export default function CategoriesEditor({
             <div className="md:col-span-2 grid gap-2">
               <Input
                 label="Name"
-                value={cat.name || ""}
-                onChange={(e) =>
-                  handleNameChange(index, e.target.value)
-                }
+                value={category.name || ""}
+                onChange={(event) => handleNameChange(index, event.target.value)}
                 onBlur={() => handleNameBlur(index)}
                 placeholder="Women Winter"
               />
 
-              <Input
-                label="Slug (locked)"
-                value={cat.slug || ""}
-                disabled
-                className="bg-gray-100 cursor-not-allowed"
-              />
+              <Input label="Slug (locked)" value={category.slug || ""} disabled />
+              <Input label="Link (auto)" value={category.href || ""} disabled />
 
-              <Input
-                label="Link (auto)"
-                value={cat.href || ""}
-                disabled
-                className="bg-gray-100 cursor-not-allowed"
-              />
-
-              <div className="flex justify-between">
+              <div className="mt-1 flex items-center justify-between">
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={() => moveItem(index, index - 1)}
                     disabled={index === 0}
-                    className="px-3 py-2 bg-gray-100 rounded"
+                    className="rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] disabled:opacity-40"
                   >
-                    ↑
+                    Up
                   </button>
                   <button
+                    type="button"
                     onClick={() => moveItem(index, index + 1)}
                     disabled={index === safeCategories.length - 1}
-                    className="px-3 py-2 bg-gray-100 rounded"
+                    className="rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] disabled:opacity-40"
                   >
-                    ↓
+                    Down
                   </button>
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => deleteCategory(index)}
-                  className="px-3 py-2 bg-red-50 text-red-600 rounded"
+                  className="rounded-full border border-red-300 px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] text-red-600 hover:bg-red-50"
                 >
                   Delete
                 </button>
@@ -158,8 +122,9 @@ export default function CategoriesEditor({
         ))}
 
         <button
-          onClick={addCategory}
-          className="px-4 py-2 border rounded text-sm"
+          type="button"
+          onClick={() => setCategories([...safeCategories, emptyCategory()])}
+          className="rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-4 py-2 text-sm font-semibold hover:border-[var(--nm-accent)]"
         >
           + Add New Category
         </button>
