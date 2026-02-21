@@ -7,13 +7,13 @@ import { addToCart } from "../store/cartSlice";
 import { showToast } from "../utils/toast";
 
 import ReviewForm from "../components/ReviewForm";
-import { useTheme } from "../context/ThemeContext";
 
 // Components (split)
 import Gallery from "../components/product/Gallery";
 import RelatedProducts from "../components/product/RelatedProducts";
 import Breadcrumb from "../components/product/Breadcrumb";
 import ProductInfoPanel from "../components/product/ProductInfoPanel";
+import ProductDescriptionSection from "../components/product/ProductDescriptionSection";
 import ReviewSection from "../components/product/ReviewSection";
 
 // Helpers
@@ -24,12 +24,14 @@ import {
 } from "../utils/productHelpers";
 
 const PLACEHOLDER = "/placeholder.png";
+const isProductSaved = (savedProducts, productId) =>
+  Array.isArray(savedProducts) &&
+  savedProducts.some((entry) => String(entry?._id || entry) === String(productId));
 
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { theme } = useTheme();
 
   const mountedRef = useRef(true);
 
@@ -50,6 +52,7 @@ export default function ProductDetails() {
   const [qty, setQty] = useState(1);
   const [active, setActive] = useState(0);
   const [isWished, setIsWished] = useState(false);
+  const [wishLoading, setWishLoading] = useState(false);
 
   // Related & reviews
   const [related, setRelated] = useState([]);
@@ -62,6 +65,20 @@ export default function ProductDetails() {
 
   // Cart items (for itemInCart calculation)
   const cartItems = useSelector((s) => s.cart.items);
+  const reduxUser = useSelector((s) => s.auth?.user || null);
+
+  const authUser = useMemo(() => {
+    if (reduxUser?.token) return reduxUser;
+    try {
+      const raw = localStorage.getItem("user");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed?.token ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, [reduxUser]);
+  const isAuthenticated = Boolean(authUser?.token);
 
   // Memoized flag for navigation controls (avoid recalculating on each render)
   const canShowNavigation = useMemo(
@@ -69,7 +86,7 @@ export default function ProductDetails() {
     []
   );
 
-  // Derived images (no separate images state — compute from product + variant)
+  // Derived images (no separate images state - compute from product + variant)
   const derivedImages = useMemo(() => {
     if (!product) return [PLACEHOLDER];
     return deriveImagesFromProduct(product, selectedVariantIndex);
@@ -311,6 +328,58 @@ export default function ProductDetails() {
     navigate("/cart");
   }, [validateAndGetPayload, dispatch, navigate]);
 
+  const handleToggleWish = useCallback(async () => {
+    if (!product?._id) return;
+
+    if (!isAuthenticated) {
+      showToast("Please register to save products", "info");
+      navigate("/register", { state: { from: `/product/${id}` } });
+      return;
+    }
+
+    if (wishLoading) return;
+
+    setWishLoading(true);
+    try {
+      const endpoint = `/api/auth/wishlist/${product._id}`;
+      const { data } = isWished ? await api.delete(endpoint) : await api.post(endpoint);
+      const nextSaved = isProductSaved(data?.savedProducts, product._id);
+      if (mountedRef.current) setIsWished(nextSaved);
+      showToast(nextSaved ? "Product saved to your profile" : "Product removed from saved");
+    } catch (err) {
+      showToast(err.response?.data?.message || "Unable to update saved products", "error");
+    } finally {
+      if (mountedRef.current) setWishLoading(false);
+    }
+  }, [id, isAuthenticated, isWished, navigate, product?._id, wishLoading]);
+
+  useEffect(() => {
+    if (!product?._id || !isAuthenticated) {
+      setIsWished(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    const syncSavedState = async () => {
+      try {
+        const { data } = await api.get("/api/auth/wishlist", { signal: controller.signal });
+        if (cancelled || !mountedRef.current) return;
+        setIsWished(isProductSaved(data?.savedProducts, product._id));
+      } catch (err) {
+        if (err?.name === "CanceledError" || err?.name === "AbortError") return;
+        if (!cancelled && mountedRef.current) setIsWished(false);
+      }
+    };
+
+    syncSavedState();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [product?._id, isAuthenticated]);
+
   /* -------------------------
      Lightweight UI fallbacks while loading / not found
   ------------------------- */
@@ -339,36 +408,10 @@ export default function ProductDetails() {
      Render
   ------------------------- */
   return (
-    <div className="product-details-page nm-shell py-8 sm:py-10">
-      <style>{`
-        .swiper-button-next,
-        .swiper-button-prev { display: none; }
-        @media (min-width: 768px) {
-          .swiper-button-next,
-          .swiper-button-prev {
-            display: flex;
-            color: ${theme === "dark" ? "#FFF" : "#000"};
-            background-color: ${
-              theme === "dark"
-                ? "rgba(0,0,0,0.3)"
-                : "rgba(255,255,255,0.5)"
-            };
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-          }
-        }
-        .product-details-page .swiper-pagination-bullet {
-          background: ${theme === "dark" ? "#FFF" : "#000"} !important;
-        }
-        .product-details-page .swiper-slide-thumb-active {
-          border: 2px solid ${theme === "dark" ? "#FFF" : "#000"};
-        }
-      `}</style>
-
+    <div className="product-details-page pd-page nm-shell py-8 sm:py-10 lg:py-12">
       <Breadcrumb title={product.title} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 md:gap-12">
+      <div className="pd-main-grid grid grid-cols-1 gap-7 md:grid-cols-2 md:gap-10 lg:grid-cols-12 lg:gap-12">
         <section className="md:col-span-1 lg:col-span-7 order-1">
           <Gallery
             images={derivedImages}
@@ -381,7 +424,8 @@ export default function ProductDetails() {
             active={active}
             inStock={inStock}
             isWished={isWished}
-            setIsWished={setIsWished}
+            onToggleWish={handleToggleWish}
+            wishLoading={wishLoading}
             canShowNavigation={canShowNavigation}
           />
         </section>
@@ -403,6 +447,8 @@ export default function ProductDetails() {
           onBuyNow={handleBuyNow}
         />
       </div>
+
+      <ProductDescriptionSection description={product.description} />
 
       <ReviewSection
         reviews={reviews}
@@ -435,3 +481,4 @@ export default function ProductDetails() {
     </div>
   );
 }
+

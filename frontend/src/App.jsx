@@ -1,10 +1,12 @@
-import React, { Suspense, lazy, useMemo } from "react";
+import React, { Suspense, lazy, useEffect, useMemo } from "react";
 import { Routes, Route, Outlet, useLocation } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import ToastContainer from "./components/ToastContainer";
 import ScrollToTop from "./components/ScrollToTop";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { syncCartOwner } from "./store/cartSlice";
 
 const Home = lazy(() => import("./Pages/Home"));
 const NewArrivals = lazy(() => import("./Pages/NewArrivals"));
@@ -51,14 +53,31 @@ function AdminOutlet() {
 }
 
 export default function App() {
+  const dispatch = useDispatch();
   const location = useLocation();
+  const authUserId = useSelector(
+    (state) => state.auth?.user?._id || state.auth?.user?.id || state.auth?.user?.email || null
+  );
   const isAdminRoute = useMemo(() => location.pathname.startsWith("/admin"), [location.pathname]);
+
+  useEffect(() => {
+    dispatch(syncCartOwner(authUserId));
+  }, [dispatch, authUserId]);
 
   return (
     <div className="min-h-screen flex flex-col">
+      {!isAdminRoute && (
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[200] focus:rounded-full focus:bg-[var(--nm-accent)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        >
+          Skip to content
+        </a>
+      )}
+
       {!isAdminRoute && <Header />}
 
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <ScrollToTop />
 
         <Routes>

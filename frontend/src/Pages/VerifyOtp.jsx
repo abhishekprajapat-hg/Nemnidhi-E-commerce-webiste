@@ -146,7 +146,7 @@ export default function VerifyOtp() {
         <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
           Verification
         </p>
-        <h1 className="nm-display mt-2 text-5xl font-semibold leading-none">Verify Email</h1>
+        <h1 className="nm-display nm-auth-title mt-2 font-semibold">Verify Email</h1>
         <p className="mt-2 text-sm text-[var(--nm-muted)]">
           OTP sent to <span className="font-semibold text-[var(--nm-text)]">{email}</span>
         </p>

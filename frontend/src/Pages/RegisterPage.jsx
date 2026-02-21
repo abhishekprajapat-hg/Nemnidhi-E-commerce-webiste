@@ -108,7 +108,7 @@ export default function RegisterPage() {
         <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
           Account
         </p>
-        <h1 className="nm-display mt-2 text-5xl font-semibold leading-none">Create Account</h1>
+        <h1 className="nm-display nm-auth-title mt-2 font-semibold">Create Account</h1>
         <p className="mt-2 text-sm text-[var(--nm-muted)]">Join Nemnidhi and start exploring.</p>
 
         {error && (

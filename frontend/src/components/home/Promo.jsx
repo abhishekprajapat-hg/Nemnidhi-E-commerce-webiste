@@ -15,31 +15,31 @@ export default function Promo({ promo = {} }) {
   } = promo || {};
 
   return (
-    <Section>
+    <Section className="pt-8 sm:pt-10">
       <div className="nm-shell">
-        <motion.div
+        <motion.article
           initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.5 }}
-          className="relative overflow-hidden rounded-[2rem] border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 sm:p-8 lg:p-10"
+          className="relative overflow-hidden rounded-[2rem] border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 sm:p-7 lg:p-9"
         >
-          <div className="pointer-events-none absolute -top-28 left-1/3 h-72 w-72 rounded-full bg-[var(--nm-accent-soft)] blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 right-8 h-64 w-64 rounded-full bg-[var(--nm-accent-soft)] blur-3xl" />
+          <div className="pointer-events-none absolute -left-12 top-8 h-48 w-48 rounded-full bg-[var(--nm-accent-soft)] blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 right-0 h-52 w-52 rounded-full bg-[var(--nm-accent-soft)] blur-3xl" />
 
-          <div className="relative grid items-center gap-8 lg:grid-cols-[1fr_1.05fr]">
+          <div className="relative grid items-center gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8">
             <div>
-              <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[var(--nm-muted)]">
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
                 {eyebrow}
               </p>
-              <h3 className="nm-display mt-3 text-4xl font-semibold leading-[1.02] sm:text-5xl">
+
+              <h3 className="nm-display mt-3 text-[clamp(2rem,8vw,3.4rem)] font-semibold leading-[0.98]">
                 {title}
               </h3>
-              <p className="mt-4 max-w-xl text-sm leading-6 text-[var(--nm-muted)] sm:text-base">
-                {subtitle}
-              </p>
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              <p className="mt-4 max-w-xl text-sm leading-6 text-[var(--nm-muted)] sm:text-base">{subtitle}</p>
+
+              <div className="mt-6 grid grid-cols-1 gap-2.5 sm:flex sm:flex-wrap">
                 <Link to={href || "/products"} className="nm-btn-primary text-sm">
                   {buttonText || "Shop Now"}
                   <span aria-hidden>-&gt;</span>
@@ -51,14 +51,10 @@ export default function Promo({ promo = {} }) {
             </div>
 
             <div className="relative">
-              <div className="absolute -left-4 -top-4 hidden rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-2 text-xs font-semibold text-[var(--nm-text)] shadow-lg sm:block">
-                Limited Stock
-              </div>
-
               <img
                 src={img || "/images/img-3.jpg"}
                 alt={imgAlt}
-                className="h-[18rem] w-full rounded-[1.6rem] border border-[var(--nm-border)] object-cover sm:h-[23rem]"
+                className="h-[18rem] w-full rounded-[1.5rem] border border-[var(--nm-border)] object-cover sm:h-[21rem] lg:h-[24rem]"
                 onError={(event) => {
                   event.currentTarget.src = "/placeholder.png";
                 }}
@@ -66,7 +62,7 @@ export default function Promo({ promo = {} }) {
               />
             </div>
           </div>
-        </motion.div>
+        </motion.article>
       </div>
     </Section>
   );

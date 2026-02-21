@@ -12,6 +12,7 @@ import NewsletterSection from "../components/home/NewsletterSection";
 import TestimonialSection from "../components/home/TestimonialSection";
 import Promo from "../components/home/Promo";
 import { Link } from "react-router-dom";
+import CategoryShowcase from "../components/home/CategoryShowcase";
 
 /* ================= DEFAULTS ================= */
 
@@ -28,17 +29,18 @@ const DEFAULT_HERO_SLIDES = [
 ];
 
 const DEFAULT_CATEGORIES = [
-  { title: "Sarees", slug: "sarees" },
-  { title: "Western", slug: "western" },
-  { title: "Tops", slug: "tops" },
-  { title: "Sweaters", slug: "sweaters" },
-  { title: "Jeans", slug: "jeans" },
+  { title: "Sarees", slug: "sarees", img: "/images/img-1.jpg", description: "Traditional to contemporary drapes." },
+  { title: "Western", slug: "western", img: "/images/img-4.jpg", description: "Modern silhouettes for every outing." },
+  { title: "Tops", slug: "tops", img: "/images/img-3.jpg", description: "Smart layers and everyday staples." },
+  { title: "Lehengas", slug: "lehengas", img: "/images/img-2.jpg", description: "Festive looks with statement craft." },
+  { title: "Kurtas", slug: "kurtas", img: "/images/img-1.jpg", description: "Elevated comfort for all-day wear." },
+  { title: "Accessories", slug: "accessories", img: "/images/img-4.jpg", description: "Finishing touches to complete styling." },
 ];
 
 const FALLBACK_PROMO = {
-  title: "Mid-Season Sale",
-  subtitle: "Fresh festive silhouettes with limited-time pricing.",
-  buttonText: "Shop Now",
+  title: "Festive spotlight now live",
+  subtitle: "New handcrafted edits with limited quantities, ready to ship this week.",
+  buttonText: "Shop The Edit",
   href: "/products",
   img: "/images/img-4.jpg",
 };
@@ -62,6 +64,13 @@ export default function Home() {
   const [loadingArrivals, setLoadingArrivals] = useState(true);
 
   /* ================= NORMALIZER ================= */
+  const toSlug = (value = "") =>
+    String(value)
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
+
   const normalizeHomepage = (raw = {}) => {
     const heroSlides =
       Array.isArray(raw.heroSlides) && raw.heroSlides.length
@@ -70,14 +79,36 @@ export default function Home() {
 
     const categories =
       Array.isArray(raw.categories) && raw.categories.length
-        ? raw.categories.map((c) =>
-            typeof c === "string"
-              ? { title: c, slug: c.toLowerCase() }
-              : {
-                  title: c.name || c.title || "",
-                  slug: c.slug || c.name?.toLowerCase() || "",
-                }
-          )
+        ? raw.categories
+            .map((category, index) => {
+              if (typeof category === "string") {
+                const title = category.trim();
+                const slug = toSlug(title);
+                if (!title || !slug) return null;
+                return {
+                  title,
+                  slug,
+                  img: DEFAULT_CATEGORIES[index % DEFAULT_CATEGORIES.length].img,
+                  description: "Curated picks selected for your wardrobe.",
+                  href: `/products?category=${encodeURIComponent(slug)}`,
+                };
+              }
+
+              const title = String(category?.name || category?.title || "").trim();
+              const slug = String(category?.slug || toSlug(title)).trim();
+              if (!title || !slug) return null;
+              return {
+                title,
+                slug,
+                img:
+                  category?.img ||
+                  category?.image ||
+                  DEFAULT_CATEGORIES[index % DEFAULT_CATEGORIES.length].img,
+                description: String(category?.description || category?.subtitle || "").trim(),
+                href: String(category?.href || `/products?category=${encodeURIComponent(slug)}`),
+              };
+            })
+            .filter(Boolean)
         : DEFAULT_CATEGORIES;
 
     return {
@@ -195,36 +226,33 @@ export default function Home() {
 
   /* ================= RENDER ================= */
   return (
-    <div className="min-h-screen pb-8">
-      {/* HERO */}
+    <div className="min-h-screen pb-10 sm:pb-14">
       <HeroSlider
         slides={homepageContent.heroSlides}
         categories={homepageContent.categories}
         loading={loadingHomepage}
       />
 
-      {/* MARQUEE */}
       <ScrollingMarquee />
+      <CategoryShowcase categories={homepageContent.categories} />
 
-      {/* NEW ARRIVALS */}
       <ProductCarousel
         title={
           <Link to="/new-arrivals" className="hover:underline">
             New Arrivals
           </Link>
         }
+        subtitle="Freshly added products picked for this week."
+        viewAllTo="/new-arrivals"
         products={newArrivals}
         loading={loadingArrivals}
         onAddToCart={handleAddToCart}
       />
 
-      {/* PROMO */}
       <Promo promo={homepageContent.promo} />
-
-      {/* TRUST + NEWSLETTER + TESTIMONIAL */}
       <TrustIconsSection />
-      <NewsletterSection />
       <TestimonialSection />
+      <NewsletterSection />
     </div>
   );
 }

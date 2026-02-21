@@ -324,7 +324,7 @@ exports.getProductByIdOrSlug = asyncHandler(async (req, res) => {
    create product
    --------------------------- */
 exports.createProduct = asyncHandler(async (req, res) => {
-  const { title, slug, description, category, brand, variants } = req.body;
+  const { title, slug, description, category, brand, variants, sizeChart } = req.body;
 
   if (!title || !String(title).trim()) {
     res.status(400);
@@ -338,6 +338,7 @@ exports.createProduct = asyncHandler(async (req, res) => {
     category: category || '',
     brand: brand || '',
     variants: Array.isArray(variants) ? variants : [],
+    sizeChart: sizeChart && typeof sizeChart === 'object' ? sizeChart : undefined,
   });
 
   const created = await product.save();

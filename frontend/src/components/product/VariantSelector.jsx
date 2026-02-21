@@ -17,9 +17,12 @@ export default function VariantSelector({
 
     return (
       <div className="space-y-4">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Color</p>
-          <div className="flex flex-wrap gap-2">
+        <div className="rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Color</p>
+            <span className="text-xs font-semibold text-[var(--nm-text)]">{activeVariant?.color || selectedColor || "-"}</span>
+          </div>
+          <div className="flex flex-wrap gap-2.5">
             {product.variants.map((variant, index) => (
               <ColorSwatch
                 key={`${variant.color || "variant"}-${index}`}
@@ -31,8 +34,11 @@ export default function VariantSelector({
           </div>
         </div>
 
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Size</p>
+        <div className="rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Size</p>
+            <span className="text-xs font-semibold text-[var(--nm-text)]">{selectedSize || "Select"}</span>
+          </div>
           <div className="flex flex-wrap gap-2">
             {(activeVariant?.sizes || []).map((entry) => {
               const disabled = Number(entry.stock || 0) <= 0;
@@ -42,10 +48,10 @@ export default function VariantSelector({
                   type="button"
                   onClick={() => !disabled && onSelectSize(entry.size)}
                   disabled={disabled}
-                  className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                     selectedSize === entry.size
-                      ? "border-[var(--nm-accent)] bg-[var(--nm-accent)] text-white"
-                      : "border-[var(--nm-border)] bg-[var(--nm-surface)] hover:border-[var(--nm-accent)]"
+                      ? "border-[var(--nm-accent)] bg-[var(--nm-accent)] text-white shadow-[0_12px_24px_-18px_var(--nm-accent)]"
+                      : "border-[var(--nm-border)] bg-[var(--nm-card)] hover:border-[var(--nm-accent)]"
                   } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
                 >
                   {entry.size}
@@ -61,18 +67,21 @@ export default function VariantSelector({
   return (
     <div className="space-y-4">
       {Array.isArray(product.sizes) && product.sizes.length > 0 ? (
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Size</p>
+        <div className="rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Size</p>
+            <span className="text-xs font-semibold text-[var(--nm-text)]">{selectedSize || "Select"}</span>
+          </div>
           <div className="flex flex-wrap gap-2">
             {product.sizes.map((size) => (
               <button
                 key={size}
                 type="button"
                 onClick={() => onSelectSize(size)}
-                className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                   selectedSize === size
-                    ? "border-[var(--nm-accent)] bg-[var(--nm-accent)] text-white"
-                    : "border-[var(--nm-border)] bg-[var(--nm-surface)] hover:border-[var(--nm-accent)]"
+                    ? "border-[var(--nm-accent)] bg-[var(--nm-accent)] text-white shadow-[0_12px_24px_-18px_var(--nm-accent)]"
+                    : "border-[var(--nm-border)] bg-[var(--nm-card)] hover:border-[var(--nm-accent)]"
                 }`}
               >
                 {size}
@@ -83,9 +92,12 @@ export default function VariantSelector({
       ) : null}
 
       {Array.isArray(product.colors) && product.colors.length > 0 ? (
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Color</p>
-          <div className="flex flex-wrap gap-2">
+        <div className="rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">Color</p>
+            <span className="text-xs font-semibold text-[var(--nm-text)]">{selectedColor || "-"}</span>
+          </div>
+          <div className="flex flex-wrap gap-2.5">
             {product.colors.map((color) => (
               <ColorSwatch
                 key={color}

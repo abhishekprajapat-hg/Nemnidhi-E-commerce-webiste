@@ -18,6 +18,26 @@ const variantSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const sizeChartRowSchema = new mongoose.Schema(
+  {
+    size: { type: String, default: "", trim: true },
+    chest: { type: String, default: "", trim: true },
+    waist: { type: String, default: "", trim: true },
+    hip: { type: String, default: "", trim: true },
+    length: { type: String, default: "", trim: true },
+  },
+  { _id: false }
+);
+
+const sizeChartSchema = new mongoose.Schema(
+  {
+    unit: { type: String, default: "in", trim: true },
+    note: { type: String, default: "", trim: true },
+    rows: { type: [sizeChartRowSchema], default: [] },
+  },
+  { _id: false }
+);
+
 const reviewSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -44,6 +64,7 @@ const productSchema = new mongoose.Schema(
 
 
     variants: { type: [variantSchema], default: [] },
+    sizeChart: { type: sizeChartSchema, default: () => ({ unit: "in", note: "", rows: [] }) },
     reviews: { type: [reviewSchema], default: [] },
     rating: { type: Number, default: 0, min: 0, max: 5 },
     numReviews: { type: Number, default: 0, min: 0 },

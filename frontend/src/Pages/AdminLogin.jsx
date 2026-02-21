@@ -82,7 +82,7 @@ export default function AdminLogin() {
         <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
           Admin
         </p>
-        <h1 className="nm-display mt-2 text-5xl font-semibold leading-none">Sign In</h1>
+        <h1 className="nm-display nm-auth-title mt-2 font-semibold">Sign In</h1>
 
         {error && (
           <div className="mt-4 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">

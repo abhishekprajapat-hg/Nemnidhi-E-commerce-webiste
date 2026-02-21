@@ -1,7 +1,9 @@
 const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
+const mongoose = require("mongoose");
 const User = require("../models/User");
+const Product = require("../models/Product");
 const sendEmail = require("../utils/sendEmail");
 
 /* ================= GOOGLE CLIENT ================= */
@@ -14,6 +16,9 @@ const generateToken = (id) => {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
 };
+
+const SAVED_PRODUCT_SELECT =
+  "_id title slug category minPrice maxPrice totalStock variants rating numReviews";
 
 /* ================= OTP EMAIL ================= */
 function buildOtpHtml(otp, minutes = 10) {
@@ -192,7 +197,9 @@ exports.googleAuth = asyncHandler(async (req, res) => {
    🔵 PROFILE (UNCHANGED)
 ================================================= */
 exports.getProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("-password");
+  const user = await User.findById(req.user._id)
+    .select("-password -otp -otpExpires")
+    .populate("savedProducts", SAVED_PRODUCT_SELECT);
   if (!user) throw new Error("User not found");
   res.json(user);
 });
@@ -211,6 +218,69 @@ exports.updateProfile = asyncHandler(async (req, res) => {
     _id: updatedUser._id,
     name: updatedUser.name,
     email: updatedUser.email,
+    isAdmin: updatedUser.isAdmin,
+    shippingAddress: updatedUser.shippingAddress || {},
     token: generateToken(updatedUser._id),
   });
+});
+
+exports.getWishlist = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id)
+    .select("savedProducts")
+    .populate("savedProducts", SAVED_PRODUCT_SELECT);
+  if (!user) throw new Error("User not found");
+  res.json({ savedProducts: user.savedProducts || [] });
+});
+
+exports.addToWishlist = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(productId)) {
+    res.status(400);
+    throw new Error("Invalid product id");
+  }
+
+  const productExists = await Product.exists({ _id: productId });
+  if (!productExists) {
+    res.status(404);
+    throw new Error("Product not found");
+  }
+
+  const user = await User.findById(req.user._id);
+  if (!user) throw new Error("User not found");
+
+  const alreadySaved = (user.savedProducts || []).some(
+    (savedId) => String(savedId) === String(productId)
+  );
+  if (!alreadySaved) {
+    user.savedProducts = [productId, ...(user.savedProducts || [])];
+    await user.save();
+  }
+
+  const updated = await User.findById(req.user._id)
+    .select("savedProducts")
+    .populate("savedProducts", SAVED_PRODUCT_SELECT);
+
+  res.json({ savedProducts: updated?.savedProducts || [], isSaved: true });
+});
+
+exports.removeFromWishlist = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(productId)) {
+    res.status(400);
+    throw new Error("Invalid product id");
+  }
+
+  const user = await User.findById(req.user._id);
+  if (!user) throw new Error("User not found");
+
+  user.savedProducts = (user.savedProducts || []).filter(
+    (savedId) => String(savedId) !== String(productId)
+  );
+  await user.save();
+
+  const updated = await User.findById(req.user._id)
+    .select("savedProducts")
+    .populate("savedProducts", SAVED_PRODUCT_SELECT);
+
+  res.json({ savedProducts: updated?.savedProducts || [], isSaved: false });
 });

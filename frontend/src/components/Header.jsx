@@ -134,8 +134,8 @@ export default function Header() {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-[var(--nm-border)] bg-[color:color-mix(in_srgb,var(--nm-surface)_82%,transparent)] backdrop-blur-xl">
-      <div className="nm-shell py-3">
-        <div className="nm-panel relative flex items-center justify-between px-4 py-3 sm:px-6">
+      <div className="nm-shell py-2.5 sm:py-3">
+        <div className="nm-panel relative flex items-center justify-between gap-2 px-3 py-2.5 sm:px-5 sm:py-3">
           <div className="flex items-center gap-2 lg:hidden">
             <button
               type="button"
@@ -144,7 +144,7 @@ export default function Header() {
                 setAccountOpen(false);
                 setMobileOpen(true);
               }}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--nm-border)] text-[var(--nm-text)] transition hover:bg-[var(--nm-accent-soft)]"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--nm-border)] text-[var(--nm-text)] transition hover:bg-[var(--nm-accent-soft)] sm:h-10 sm:w-10"
               aria-label="Open menu"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -153,18 +153,18 @@ export default function Header() {
             </button>
           </div>
 
-          <Link to="/" className="group flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--nm-accent-soft)] text-[var(--nm-accent-strong)]">
+          <Link to="/" className="group flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--nm-accent-soft)] text-[var(--nm-accent-strong)] sm:h-10 sm:w-10">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" d="M12 3l6 4.5v9L12 21l-6-4.5v-9L12 3z" />
                 <path strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" d="M9 11.5h6M9 14.5h6" />
               </svg>
             </div>
-            <div>
-              <div className="nm-display text-2xl font-semibold leading-none tracking-[0.07em]">
+            <div className="min-w-0">
+              <div className="nm-display truncate whitespace-nowrap text-[clamp(1.6rem,5.5vw,2rem)] font-semibold leading-none tracking-[0.05em]">
                 NEMNIDHI
               </div>
-              <p className="hidden text-[0.63rem] uppercase tracking-[0.18em] text-[var(--nm-muted)] sm:block">
+              <p className="hidden text-[0.6rem] uppercase tracking-[0.16em] text-[var(--nm-muted)] md:block">
                 Modern Ethnic Atelier
               </p>
             </div>
@@ -267,11 +267,11 @@ export default function Header() {
             </div>
           </nav>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <button
               type="button"
               onClick={toggleTheme}
-              className="hidden h-10 items-center rounded-full border border-[var(--nm-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)] sm:inline-flex"
+              className="hidden min-h-[2.5rem] items-center rounded-full border border-[var(--nm-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)] sm:inline-flex"
               aria-label="Toggle theme"
             >
               {theme === "dark" ? "Light" : "Dark"}
@@ -281,7 +281,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => setAccountOpen((prev) => !prev)}
-                className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--nm-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
+                className="inline-flex min-h-[2.5rem] items-center gap-2 rounded-full border border-[var(--nm-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
               >
                 {firstName}
                 <svg
@@ -345,7 +345,7 @@ export default function Header() {
 
             <Link
               to="/cart"
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--nm-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
+              className="inline-flex min-h-[2.5rem] items-center gap-1.5 rounded-full border border-[var(--nm-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
               aria-label="Open cart"
             >
               Bag
@@ -374,7 +374,7 @@ export default function Header() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 280, damping: 30 }}
-              className="h-[100dvh] w-[88vw] max-w-sm overflow-y-auto border-r border-[var(--nm-border)] bg-[var(--nm-surface)] p-5 shadow-2xl"
+              className="h-[100dvh] w-[86vw] max-w-sm overflow-y-auto border-r border-[var(--nm-border)] bg-[var(--nm-surface)] p-4 shadow-2xl sm:p-5"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-6 flex items-center justify-between">

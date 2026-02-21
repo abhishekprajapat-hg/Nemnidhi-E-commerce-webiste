@@ -17,14 +17,22 @@ const Gallery = ({
   active,
   inStock,
   isWished,
-  setIsWished,
+  onToggleWish,
+  wishLoading = false,
   canShowNavigation,
 }) => {
   const safeImages = Array.isArray(images) && images.length > 0 ? images : ["/placeholder.png"];
+  const slideLabel = `${String(active + 1).padStart(2, "0")} / ${String(safeImages.length).padStart(2, "0")}`;
 
   return (
-    <div>
-      <div className="relative overflow-hidden rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-bg-elevated)]">
+    <div className="pd-gallery space-y-4">
+      <div className="pd-gallery-main relative overflow-hidden rounded-[2rem] border border-[var(--nm-border)] bg-[var(--nm-bg-elevated)]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-black/15 via-black/5 to-transparent" />
+
+        <span className="absolute left-4 top-4 z-20 rounded-full border border-white/25 bg-black/35 px-3 py-1 text-[11px] font-semibold tracking-[0.1em] text-white backdrop-blur-md">
+          {slideLabel}
+        </span>
+
         <Swiper
           modules={[Navigation, Autoplay, Pagination, Thumbs]}
           thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
@@ -33,7 +41,7 @@ const Gallery = ({
           slidesPerView={1}
           navigation={canShowNavigation}
           pagination={{ clickable: true }}
-          autoplay={{ delay: 4500, disableOnInteraction: true }}
+          autoplay={safeImages.length > 1 ? { delay: 4200, disableOnInteraction: true } : false}
           className="aspect-[4/5] w-full"
         >
           {safeImages.map((image, index) => (
@@ -52,17 +60,18 @@ const Gallery = ({
         </Swiper>
 
         {!inStock ? (
-          <span className="absolute left-4 top-4 z-10 rounded-full bg-red-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-red-700">
-            Out of stock
+          <span className="absolute bottom-4 left-4 z-20 rounded-full bg-red-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-red-700">
+            Sold Out
           </span>
         ) : null}
 
         <button
           type="button"
-          onClick={() => setIsWished(!isWished)}
-          className="absolute right-4 top-4 z-10 rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)]"
+          onClick={onToggleWish}
+          disabled={wishLoading}
+          className="absolute right-4 top-4 z-20 rounded-full border border-[var(--nm-border)] bg-[color-mix(in_srgb,var(--nm-card)_78%,transparent)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--nm-text)] backdrop-blur-sm transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)] disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isWished ? "Saved" : "Save"}
+          {wishLoading ? "Saving..." : isWished ? "Saved" : "Save"}
           <span className="sr-only">Add to wishlist</span>
         </button>
       </div>
@@ -72,7 +81,7 @@ const Gallery = ({
           onSwiper={setThumbsSwiper}
           modules={[Thumbs]}
           watchSlidesProgress
-          className="thumbnail-swiper mt-4"
+          className="thumbnail-swiper !overflow-visible"
           breakpoints={{
             320: { slidesPerView: 4, spaceBetween: 8 },
             640: { slidesPerView: 5, spaceBetween: 10 },
@@ -87,9 +96,9 @@ const Gallery = ({
                   setActive(index);
                   if (mainSwiper?.slideTo) mainSwiper.slideTo(index);
                 }}
-                className={`overflow-hidden rounded-2xl border transition ${
+                className={`overflow-hidden rounded-2xl border bg-[var(--nm-card)] transition ${
                   index === active
-                    ? "border-[var(--nm-accent)] ring-2 ring-[var(--nm-accent-soft)]"
+                    ? "border-[var(--nm-accent)] shadow-[0_10px_30px_-18px_var(--nm-accent)] ring-2 ring-[var(--nm-accent-soft)]"
                     : "border-[var(--nm-border)] opacity-80 hover:opacity-100"
                 }`}
               >

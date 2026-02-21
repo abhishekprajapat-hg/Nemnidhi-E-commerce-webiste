@@ -28,6 +28,13 @@ const userSchema = new mongoose.Schema(
 
     shippingAddress: { type: addressSchema, default: {} },
 
+    savedProducts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+      },
+    ],
+
     // ------------------------------
     // OTP VERIFICATION FIELDS
     // ------------------------------

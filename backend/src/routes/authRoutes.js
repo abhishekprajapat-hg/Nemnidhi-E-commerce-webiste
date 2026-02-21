@@ -24,5 +24,8 @@ router.post('/google', authController.googleAuth);
 // -----------------------------
 router.get('/profile', protect, authController.getProfile);
 router.put('/profile', protect, authController.updateProfile);
+router.get('/wishlist', protect, authController.getWishlist);
+router.post('/wishlist/:productId', protect, authController.addToWishlist);
+router.delete('/wishlist/:productId', protect, authController.removeFromWishlist);
 
 module.exports = router;

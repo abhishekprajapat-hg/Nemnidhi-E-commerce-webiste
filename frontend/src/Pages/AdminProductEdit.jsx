@@ -5,6 +5,25 @@ import { showToast } from "../utils/toast";
 import AdminLayout from "../components/admin/AdminLayout";
 
 const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const makeSizeChartRow = () => ({ size: "", chest: "", waist: "", hip: "", length: "" });
+
+function normalizeSizeChart(raw) {
+  const rows = Array.isArray(raw?.rows)
+    ? raw.rows.map((row) => ({
+        size: String(row?.size || ""),
+        chest: String(row?.chest || ""),
+        waist: String(row?.waist || ""),
+        hip: String(row?.hip || ""),
+        length: String(row?.length || ""),
+      }))
+    : [];
+
+  return {
+    unit: String(raw?.unit || "in"),
+    note: String(raw?.note || ""),
+    rows,
+  };
+}
 
 function Field({ label, children }) {
   return (
@@ -49,6 +68,11 @@ export default function AdminProductEdit() {
     description: "",
     category: "",
     variants: [],
+    sizeChart: {
+      unit: "in",
+      note: "",
+      rows: [],
+    },
   });
   const [availableCategories, setAvailableCategories] = useState([]);
 
@@ -109,6 +133,7 @@ export default function AdminProductEdit() {
               }))
             : [],
         }));
+        const sizeChart = normalizeSizeChart(data.sizeChart);
 
         setProduct({
           title: data.title || "",
@@ -116,6 +141,7 @@ export default function AdminProductEdit() {
           description: data.description || "",
           category: data.category || "",
           variants,
+          sizeChart,
         });
         setDirty(false);
       } catch (err) {
@@ -234,6 +260,57 @@ export default function AdminProductEdit() {
     [updateProduct]
   );
 
+  const updateSizeChartField = useCallback(
+    (field, value) => {
+      updateProduct((prev) => ({
+        ...prev,
+        sizeChart: {
+          ...(prev.sizeChart || { unit: "in", note: "", rows: [] }),
+          [field]: value,
+        },
+      }));
+    },
+    [updateProduct]
+  );
+
+  const addSizeChartRow = useCallback(() => {
+    updateProduct((prev) => ({
+      ...prev,
+      sizeChart: {
+        ...(prev.sizeChart || { unit: "in", note: "", rows: [] }),
+        rows: [...(prev.sizeChart?.rows || []), makeSizeChartRow()],
+      },
+    }));
+  }, [updateProduct]);
+
+  const removeSizeChartRow = useCallback(
+    (rowIndex) => {
+      updateProduct((prev) => ({
+        ...prev,
+        sizeChart: {
+          ...(prev.sizeChart || { unit: "in", note: "", rows: [] }),
+          rows: (prev.sizeChart?.rows || []).filter((_, idx) => idx !== rowIndex),
+        },
+      }));
+    },
+    [updateProduct]
+  );
+
+  const updateSizeChartRowField = useCallback(
+    (rowIndex, field, value) => {
+      updateProduct((prev) => ({
+        ...prev,
+        sizeChart: {
+          ...(prev.sizeChart || { unit: "in", note: "", rows: [] }),
+          rows: (prev.sizeChart?.rows || []).map((row, idx) =>
+            idx === rowIndex ? { ...row, [field]: value } : row
+          ),
+        },
+      }));
+    },
+    [updateProduct]
+  );
+
   const uploadFile = useCallback(async (file) => {
     const attemptUpload = async (url) => {
       try {
@@ -311,6 +388,19 @@ export default function AdminProductEdit() {
               stock: Number(size.stock || 0),
             })),
           })),
+          sizeChart: {
+            unit: String(product.sizeChart?.unit || "in").trim() || "in",
+            note: String(product.sizeChart?.note || "").trim(),
+            rows: (Array.isArray(product.sizeChart?.rows) ? product.sizeChart.rows : [])
+              .map((row) => ({
+                size: String(row?.size || "").trim(),
+                chest: String(row?.chest || "").trim(),
+                waist: String(row?.waist || "").trim(),
+                hip: String(row?.hip || "").trim(),
+                length: String(row?.length || "").trim(),
+              }))
+              .filter((row) => Object.values(row).some(Boolean)),
+          },
         };
 
         if (id) await api.put(`/api/products/${id}`, payload);
@@ -404,6 +494,99 @@ export default function AdminProductEdit() {
                     />
                   </Field>
                 </div>
+              </section>
+
+              <section className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-semibold">Size Chart</h3>
+                    <p className="text-xs text-[var(--nm-muted)]">
+                      Optional chart shown on product detail page.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addSizeChartRow}
+                    className="nm-btn-secondary text-xs"
+                  >
+                    + Add Row
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Field label="Unit">
+                    <select
+                      value={product.sizeChart?.unit || "in"}
+                      onChange={(event) => updateSizeChartField("unit", event.target.value)}
+                      className="w-full rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-3 text-sm focus:border-[var(--nm-accent)] focus:outline-none"
+                    >
+                      <option value="in">Inches (in)</option>
+                      <option value="cm">Centimeters (cm)</option>
+                    </select>
+                  </Field>
+                  <Field label="Note (optional)">
+                    <TextInput
+                      value={product.sizeChart?.note || ""}
+                      placeholder="Eg. Measurements may vary by 0.5 in"
+                      onChange={(event) => updateSizeChartField("note", event.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                {!Array.isArray(product.sizeChart?.rows) || product.sizeChart.rows.length === 0 ? (
+                  <p className="mt-3 text-sm text-[var(--nm-muted)]">No size chart rows added yet.</p>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {product.sizeChart.rows.map((row, rowIndex) => (
+                      <div key={`size-chart-row-${rowIndex}`} className="rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-3">
+                        <div className="grid gap-2 md:grid-cols-5">
+                          <TextInput
+                            placeholder="Size"
+                            value={row.size}
+                            onChange={(event) =>
+                              updateSizeChartRowField(rowIndex, "size", event.target.value)
+                            }
+                          />
+                          <TextInput
+                            placeholder="Chest"
+                            value={row.chest}
+                            onChange={(event) =>
+                              updateSizeChartRowField(rowIndex, "chest", event.target.value)
+                            }
+                          />
+                          <TextInput
+                            placeholder="Waist"
+                            value={row.waist}
+                            onChange={(event) =>
+                              updateSizeChartRowField(rowIndex, "waist", event.target.value)
+                            }
+                          />
+                          <TextInput
+                            placeholder="Hip"
+                            value={row.hip}
+                            onChange={(event) =>
+                              updateSizeChartRowField(rowIndex, "hip", event.target.value)
+                            }
+                          />
+                          <TextInput
+                            placeholder="Length"
+                            value={row.length}
+                            onChange={(event) =>
+                              updateSizeChartRowField(rowIndex, "length", event.target.value)
+                            }
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSizeChartRow(rowIndex)}
+                          className="mt-2 text-xs font-semibold uppercase tracking-[0.1em] text-red-600"
+                        >
+                          Remove row
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
 
               <section className="rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5">
@@ -596,6 +779,9 @@ export default function AdminProductEdit() {
                 )}
                 <h4 className="mt-3 text-base font-semibold">{product.title || "Untitled"}</h4>
                 <p className="text-sm text-[var(--nm-muted)]">{selectedCategoryName}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.1em] text-[var(--nm-muted)]">
+                  Size Chart Rows: {Array.isArray(product.sizeChart?.rows) ? product.sizeChart.rows.length : 0}
+                </p>
               </section>
             </aside>
           </form>

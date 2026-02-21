@@ -3,6 +3,54 @@ import { createSlice } from '@reduxjs/toolkit';
 import { showToast } from '../utils/toast';
 
 // --- Helpers ----------------------------------------------------------------
+const LEGACY_CART_KEY = 'cartItems';
+const GUEST_OWNER = 'guest';
+
+const normalizeOwnerId = (ownerId) => {
+  const raw = String(ownerId || '').trim();
+  return raw || GUEST_OWNER;
+};
+
+const storageKeyForOwner = (ownerId) => `cartItems:${normalizeOwnerId(ownerId)}`;
+
+const getStoredUserId = () => {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+    const user = JSON.parse(raw);
+    return user?._id || user?.id || user?.email || null;
+  } catch {
+    return null;
+  }
+};
+
+const parseCartJson = (raw) => {
+  if (!raw) return [];
+  const parsed = JSON.parse(raw);
+  return Array.isArray(parsed) ? parsed : [];
+};
+
+const loadCartForOwner = (ownerId) => {
+  try {
+    const scopedKey = storageKeyForOwner(ownerId);
+    const scopedRaw = localStorage.getItem(scopedKey);
+    if (scopedRaw) return parseCartJson(scopedRaw);
+
+    // Backwards compatibility: migrate old cartItems to guest bucket once.
+    if (normalizeOwnerId(ownerId) === GUEST_OWNER) {
+      const legacyRaw = localStorage.getItem(LEGACY_CART_KEY);
+      if (legacyRaw) {
+        const migrated = parseCartJson(legacyRaw);
+        localStorage.setItem(storageKeyForOwner(GUEST_OWNER), JSON.stringify(migrated));
+        localStorage.removeItem(LEGACY_CART_KEY);
+        return migrated;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load cart from storage, falling back to empty', e);
+  }
+  return [];
+};
 
 /**
  * Returns true if cart item `a` matches key `b`.
@@ -61,16 +109,17 @@ const makeLightweightCart = (cartItems) =>
  *  2) Save lightweight cart (no base64 images)
  *  3) Save minimal cart (product, qty, sku)
  */
-const saveCartToStorage = (cartItems) => {
+const saveCartToStorage = (cartItems, ownerId) => {
+  const storageKey = storageKeyForOwner(ownerId);
   try {
     // Try saving full cart first
-    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+    localStorage.setItem(storageKey, JSON.stringify(cartItems));
     return;
   } catch (err) {
     // If quota exceeded, attempt fallbacks
     try {
       const light = makeLightweightCart(cartItems);
-      localStorage.setItem('cartItems', JSON.stringify(light));
+      localStorage.setItem(storageKey, JSON.stringify(light));
       showToast('Cart saved in compact form (large fields removed).', 'info');
       return;
     } catch (err2) {
@@ -81,7 +130,7 @@ const saveCartToStorage = (cartItems) => {
           qty: it.qty,
           sku: it.sku,
         }));
-        localStorage.setItem('cartItems', JSON.stringify(minimal));
+        localStorage.setItem(storageKey, JSON.stringify(minimal));
         showToast('Cart saved (minimal). Some item details not persisted.', 'info');
         return;
       } catch (err3) {
@@ -96,23 +145,11 @@ const saveCartToStorage = (cartItems) => {
 // --- Initial state ---------------------------------------------------------
 
 const initialState = {
-  items: (() => {
-    try {
-      const raw = localStorage.getItem('cartItems');
-      if (!raw) return [];
-      // parse safely
-      return JSON.parse(raw);
-    } catch (e) {
-      console.warn('Failed to parse cart from storage, starting with empty cart', e);
-      try {
-        localStorage.removeItem('cartItems');
-      } catch (er) {
-        /* ignore */
-      }
-      return [];
-    }
-  })(),
+  ownerId: normalizeOwnerId(getStoredUserId()),
+  items: [],
 };
+
+initialState.items = loadCartForOwner(initialState.ownerId);
 
 // --- Slice -----------------------------------------------------------------
 
@@ -183,7 +220,7 @@ const cartSlice = createSlice({
       }
 
       // persist (with fallbacks)
-      saveCartToStorage(state.items);
+      saveCartToStorage(state.items, state.ownerId);
     },
 
     /**
@@ -203,7 +240,7 @@ const cartSlice = createSlice({
         state.items[idx] = { ...exist, qty: exist.qty - 1 };
       }
 
-      saveCartToStorage(state.items);
+      saveCartToStorage(state.items, state.ownerId);
     },
 
     /**
@@ -213,7 +250,7 @@ const cartSlice = createSlice({
     clearItemFromCart: (state, action) => {
       const key = action.payload;
       state.items = state.items.filter((it) => !matches(it, key));
-      saveCartToStorage(state.items);
+      saveCartToStorage(state.items, state.ownerId);
     },
 
     /**
@@ -237,7 +274,7 @@ const cartSlice = createSlice({
       } else {
         state.items[idx] = { ...exist, qty };
       }
-      saveCartToStorage(state.items);
+      saveCartToStorage(state.items, state.ownerId);
     },
 
     /**
@@ -246,15 +283,26 @@ const cartSlice = createSlice({
     clearCart: (state) => {
       state.items = [];
       try {
-        localStorage.removeItem('cartItems');
+        localStorage.removeItem(storageKeyForOwner(state.ownerId));
       } catch (e) {
-        console.warn('Failed to remove cartItems from storage', e);
+        console.warn('Failed to remove cart from storage', e);
       }
+    },
+
+    /**
+     * Switch cart context when logged in user changes.
+     * This prevents cart leakage across accounts.
+     */
+    syncCartOwner: (state, action) => {
+      const nextOwnerId = normalizeOwnerId(action.payload);
+      if (state.ownerId === nextOwnerId) return;
+      state.ownerId = nextOwnerId;
+      state.items = loadCartForOwner(nextOwnerId);
     },
   },
 });
 
-export const { addToCart, removeFromCart, clearItemFromCart, clearCart, setItemQty } =
+export const { addToCart, removeFromCart, clearItemFromCart, clearCart, setItemQty, syncCartOwner } =
   cartSlice.actions;
 
 export default cartSlice.reducer;

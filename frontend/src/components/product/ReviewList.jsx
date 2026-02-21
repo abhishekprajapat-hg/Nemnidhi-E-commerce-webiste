@@ -7,20 +7,37 @@ export default function ReviewList({ reviews, loading }) {
   return (
     <div className="space-y-5">
       {reviews.map((review) => {
+        const filled = Math.round(Math.max(0, Math.min(5, Number(review.rating || 0))));
         const validImages = Array.isArray(review.images)
           ? review.images.filter((img) => Boolean(img) && String(img).trim() !== "")
           : [];
 
         return (
-          <article key={review._id} className="border-b border-[var(--nm-border)] pb-4 last:border-b-0">
-            <div className="flex flex-wrap items-center gap-2">
+          <article
+            key={review._id}
+            className="rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-4 transition hover:border-[var(--nm-accent)]/60"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-semibold">{review.userName || review.name || "User"}</p>
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
-                {Number(review.rating || 0)}/5
-              </span>
-              <span className="text-xs text-[var(--nm-muted)]">
-                {new Date(review.createdAt || Date.now()).toLocaleDateString()}
-              </span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <span
+                      key={`${review._id}-dot-${index}`}
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        index < filled ? "bg-amber-500" : "bg-[var(--nm-border)]"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-[var(--nm-muted)]">
+                  {new Date(review.createdAt || Date.now()).toLocaleDateString("en-IN", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
             </div>
 
             <p className="mt-2 text-sm text-[var(--nm-muted)]">{review.comment}</p>

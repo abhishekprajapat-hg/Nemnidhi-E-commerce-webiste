@@ -1,36 +1,28 @@
 import React from "react";
-import { motion } from "framer-motion";
 
-const MARQUEE_ITEMS = [
+const QUICK_HIGHLIGHTS = [
   "Authentic handloom promise",
   "Free shipping above Rs 2000",
-  "Hand-finished by skilled artisans",
-  "Secure checkout and easy support",
+  "7-day easy exchanges",
+  "Secure payments and support",
 ];
 
 export default function ScrollingMarquee() {
   return (
-    <section className="mt-8 border-y border-[var(--nm-border)] bg-[var(--nm-surface)] py-3">
-      <div className="overflow-hidden">
-        <motion.div
-          className="flex w-max whitespace-nowrap"
-          initial={{ x: "0%" }}
-          animate={{ x: "-50%" }}
-          transition={{ duration: 26, repeat: Infinity, ease: "linear" }}
-        >
-          {[0, 1].map((loop) => (
-            <div key={loop} className="flex items-center gap-8 px-4 sm:px-8">
-              {MARQUEE_ITEMS.map((item) => (
-                <div key={`${loop}-${item}`} className="flex items-center gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
-                    {item}
-                  </span>
-                  <span className="text-[var(--nm-accent)]">+</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </motion.div>
+    <section className="mt-7 sm:mt-8">
+      <div className="nm-shell">
+        <div className="rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] px-3 py-3 sm:px-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+            {QUICK_HIGHLIGHTS.map((item) => (
+              <div
+                key={item}
+                className="rounded-xl border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--nm-muted)] sm:text-[11px]"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );

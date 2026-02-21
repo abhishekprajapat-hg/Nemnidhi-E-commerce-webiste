@@ -29,11 +29,22 @@ function SocialIcon({ children, label, href }) {
 
 export default function Footer() {
   return (
-    <footer className="mt-16 border-t border-[var(--nm-border)] bg-[color:color-mix(in_srgb,var(--nm-surface)_88%,transparent)]">
-      <div className="nm-shell py-12 sm:py-16">
-        <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr]">
+    <footer className="mt-12 border-t border-[var(--nm-border)] bg-[color:color-mix(in_srgb,var(--nm-surface)_88%,transparent)] sm:mt-16">
+      <div className="nm-shell py-10 sm:py-14">
+        <div className="mb-8 flex flex-wrap gap-2 sm:mb-10">
+          {["Handloom verified", "Fast shipping", "Secure checkout", "Easy support"].map((item) => (
+            <span
+              key={item}
+              className="inline-flex items-center rounded-full border border-[var(--nm-border)] bg-[var(--nm-card)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)] sm:text-[11px]"
+            >
+              {item}
+            </span>
+          ))}
+        </div>
+
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr] lg:gap-10">
           <div>
-            <div className="nm-display text-4xl font-semibold tracking-[0.06em]">NEMNIDHI</div>
+            <div className="nm-display text-3xl font-semibold tracking-[0.06em] sm:text-4xl">NEMNIDHI</div>
             <p className="mt-3 max-w-md text-sm leading-6 text-[var(--nm-muted)]">
               Crafted silhouettes rooted in Indian heritage, designed for everyday celebration and statement occasions.
             </p>
@@ -87,7 +98,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          <div>
+          <div className="sm:col-span-1">
             <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[var(--nm-muted)]">
               Contact
             </p>
@@ -116,7 +127,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-3 border-t border-[var(--nm-border)] pt-6 text-xs text-[var(--nm-muted)] sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-10 flex flex-col gap-3 border-t border-[var(--nm-border)] pt-6 text-xs text-[var(--nm-muted)] sm:mt-12 sm:flex-row sm:items-center sm:justify-between">
           <p>&copy; {new Date().getFullYear()} Nemnidhi. All rights reserved.</p>
           <p>Designed for timeless celebrations and modern wardrobes.</p>
         </div>

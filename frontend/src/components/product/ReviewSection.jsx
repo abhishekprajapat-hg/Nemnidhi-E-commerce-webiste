@@ -3,10 +3,11 @@ import ReviewList from "./ReviewList";
 
 export default function ReviewSection({ reviews, reviewsLoading, onOpenReviewForm }) {
   return (
-    <section className="mt-14 rounded-3xl border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 sm:p-6">
+    <section className="pd-section-card mt-14 rounded-[2rem] border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold">Customer Reviews</h2>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--nm-muted)]">Social Proof</p>
+          <h2 className="nm-display text-3xl font-semibold sm:text-4xl">Customer Reviews</h2>
           {!reviewsLoading && reviews?.length > 0 ? (
             <p className="mt-1 text-sm text-[var(--nm-muted)]">
               {reviews.length} review{reviews.length > 1 ? "s" : ""}
