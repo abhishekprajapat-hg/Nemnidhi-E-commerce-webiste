@@ -10,6 +10,39 @@ import OrdersList from "../components/profile/OrdersList";
 const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 const TABS = ["profile", "saved", "orders"];
+const EMPTY_ADDRESS = {
+  label: "Home",
+  fullName: "",
+  phone: "",
+  address: "",
+  landmark: "",
+  city: "",
+  postalCode: "",
+  country: "",
+};
+const REQUIRED_ADDRESS_FIELDS = ["fullName", "address", "city", "postalCode", "country"];
+
+const normalizeAddress = (address = {}) => ({
+  label: ["Home", "Work", "Other"].includes(address.label) ? address.label : "Home",
+  fullName: String(address.fullName || "").trim(),
+  phone: String(address.phone || "").trim(),
+  address: String(address.address || "").trim(),
+  landmark: String(address.landmark || "").trim(),
+  city: String(address.city || "").trim(),
+  postalCode: String(address.postalCode || "").trim(),
+  country: String(address.country || "").trim(),
+});
+
+const mapSavedAddresses = (addresses = []) =>
+  Array.isArray(addresses)
+    ? addresses
+        .filter(Boolean)
+        .map((entry) => ({ _id: String(entry._id || ""), ...normalizeAddress(entry) }))
+        .filter((entry) => entry._id)
+    : [];
+
+const isAddressComplete = (address = {}) =>
+  REQUIRED_ADDRESS_FIELDS.every((field) => Boolean(String(address[field] || "").trim()));
 
 export default function ProfilePage() {
   const dispatch = useDispatch();
@@ -27,13 +60,11 @@ export default function ProfilePage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [shippingAddress, setShippingAddress] = useState({
-    fullName: "",
-    address: "",
-    city: "",
-    postalCode: "",
-    country: "",
-  });
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [defaultAddressId, setDefaultAddressId] = useState("");
+  const [addressDraft, setAddressDraft] = useState(EMPTY_ADDRESS);
+  const [editingAddressId, setEditingAddressId] = useState("");
+  const [addressSaving, setAddressSaving] = useState(false);
   const [initialData, setInitialData] = useState(null);
 
   const mountedRef = useRef(true);
@@ -54,24 +85,32 @@ export default function ProfilePage() {
         if (!mountedRef.current) return;
 
         const user = profileRes.data || {};
-        const shipping = user.shippingAddress || {
-          fullName: "",
-          address: "",
-          city: "",
-          postalCode: "",
-          country: "",
-        };
+        const nextSavedAddresses = mapSavedAddresses(user.savedAddresses);
+        const fallbackShipping = normalizeAddress(user.shippingAddress || EMPTY_ADDRESS);
+        let nextDefaultAddressId = String(user.defaultAddressId || "");
+        if (
+          !nextDefaultAddressId ||
+          !nextSavedAddresses.some((entry) => String(entry._id) === nextDefaultAddressId)
+        ) {
+          nextDefaultAddressId = nextSavedAddresses[0]?._id || "";
+        }
 
         setName(user.name || "");
         setEmail(user.email || "");
-        setShippingAddress(shipping);
+        setSavedAddresses(nextSavedAddresses);
+        setDefaultAddressId(nextDefaultAddressId);
+        setAddressDraft(
+          nextSavedAddresses.length > 0
+            ? normalizeAddress(nextSavedAddresses[0])
+            : fallbackShipping
+        );
+        setEditingAddressId("");
         setSavedProducts(
           Array.isArray(user.savedProducts) ? user.savedProducts.filter(Boolean) : []
         );
         setOrders(ordersRes.data || []);
         setInitialData({
           name: user.name || "",
-          shippingAddress: shipping,
         });
       } catch (err) {
         if (err?.name === "CanceledError" || err?.name === "AbortError") return;
@@ -100,31 +139,39 @@ export default function ProfilePage() {
     [dispatch]
   );
 
+  const defaultAddress = useMemo(
+    () =>
+      savedAddresses.find((entry) => String(entry._id) === String(defaultAddressId)) ||
+      savedAddresses[0] ||
+      null,
+    [savedAddresses, defaultAddressId]
+  );
+  const isAddressEditorOpen = Boolean(editingAddressId);
+  const isAddingAddress = editingAddressId === "new";
+
   const isDirty = useMemo(() => {
     if (!initialData) return false;
     try {
-      return (
-        initialData.name !== name ||
-        JSON.stringify(initialData.shippingAddress || {}) !== JSON.stringify(shippingAddress || {})
-      );
+      return initialData.name !== name;
     } catch {
       return true;
     }
-  }, [initialData, name, shippingAddress]);
+  }, [initialData, name]);
 
   const profileCompletion = useMemo(() => {
+    const addressForCompletion = defaultAddress || EMPTY_ADDRESS;
     const fields = [
       name,
       email,
-      shippingAddress.fullName,
-      shippingAddress.address,
-      shippingAddress.city,
-      shippingAddress.postalCode,
-      shippingAddress.country,
+      addressForCompletion.fullName,
+      addressForCompletion.address,
+      addressForCompletion.city,
+      addressForCompletion.postalCode,
+      addressForCompletion.country,
     ];
     const completed = fields.filter((field) => Boolean(String(field || "").trim())).length;
     return Math.round((completed / fields.length) * 100);
-  }, [email, name, shippingAddress]);
+  }, [defaultAddress, email, name]);
 
   const userInitial = useMemo(() => {
     const source = String(name || email || "N").trim();
@@ -168,22 +215,48 @@ export default function ProfilePage() {
 
       setSaving(true);
       try {
-        const payload = { name, shippingAddress };
+        const payload = {
+          name,
+          shippingAddress: defaultAddress ? normalizeAddress(defaultAddress) : normalizeAddress(EMPTY_ADDRESS),
+        };
         const { data } = await api.put("/api/auth/profile", payload);
+        const nextSavedAddresses = mapSavedAddresses(data.savedAddresses);
+        let nextDefaultAddressId = String(data.defaultAddressId || "");
+        if (
+          !nextDefaultAddressId ||
+          !nextSavedAddresses.some((entry) => String(entry._id) === nextDefaultAddressId)
+        ) {
+          nextDefaultAddressId = nextSavedAddresses[0]?._id || "";
+        }
 
         try {
-          localStorage.setItem("user", JSON.stringify(data));
+          const cached = JSON.parse(localStorage.getItem("user") || "null") || {};
+          localStorage.setItem("user", JSON.stringify({ ...cached, ...data }));
         } catch {
           // ignore
         }
 
-        safeDispatchUser(data);
+        safeDispatchUser((() => {
+          try {
+            const cached = JSON.parse(localStorage.getItem("user") || "null") || {};
+            return { ...cached, ...data };
+          } catch {
+            return data;
+          }
+        })());
         setName(data.name || "");
         setEmail(data.email || "");
-        setShippingAddress(data.shippingAddress || shippingAddress);
+        setSavedAddresses(nextSavedAddresses);
+        setDefaultAddressId(nextDefaultAddressId);
+        if (!isAddressEditorOpen) {
+          setAddressDraft(
+            nextSavedAddresses.length > 0
+              ? normalizeAddress(nextSavedAddresses[0])
+              : normalizeAddress(data.shippingAddress || EMPTY_ADDRESS)
+          );
+        }
         setInitialData({
           name: data.name || "",
-          shippingAddress: data.shippingAddress || shippingAddress,
         });
         showToast("Profile updated successfully");
       } catch (err) {
@@ -192,7 +265,7 @@ export default function ProfilePage() {
         if (mountedRef.current) setSaving(false);
       }
     },
-    [isDirty, name, safeDispatchUser, shippingAddress]
+    [defaultAddress, isAddressEditorOpen, isDirty, name, safeDispatchUser]
   );
 
   const cancelOrder = useCallback(
@@ -273,9 +346,176 @@ export default function ProfilePage() {
     navigate("/");
   }, [dispatch, navigate, safeDispatchUser]);
 
-  const updateShippingField = useCallback((field, value) => {
-    setShippingAddress((prev) => ({ ...prev, [field]: value }));
+  const syncAddressBookToUser = useCallback(
+    (addressBook) => {
+      const nextSavedAddresses = mapSavedAddresses(addressBook.savedAddresses);
+      const nextDefaultAddressId = String(addressBook.defaultAddressId || "");
+      const nextShippingAddress = normalizeAddress(addressBook.shippingAddress || EMPTY_ADDRESS);
+      try {
+        const cached = JSON.parse(localStorage.getItem("user") || "null") || {};
+        const nextUser = {
+          ...cached,
+          name,
+          email,
+          shippingAddress: nextShippingAddress,
+          savedAddresses: nextSavedAddresses,
+          defaultAddressId: nextDefaultAddressId,
+        };
+        localStorage.setItem("user", JSON.stringify(nextUser));
+        safeDispatchUser(nextUser);
+      } catch {
+        safeDispatchUser({
+          name,
+          email,
+          shippingAddress: nextShippingAddress,
+          savedAddresses: nextSavedAddresses,
+          defaultAddressId: nextDefaultAddressId,
+        });
+      }
+    },
+    [email, name, safeDispatchUser]
+  );
+
+  const applyAddressBookResponse = useCallback(
+    (payload) => {
+      const nextSavedAddresses = mapSavedAddresses(payload.savedAddresses);
+      let nextDefaultAddressId = String(payload.defaultAddressId || "");
+      if (
+        !nextDefaultAddressId ||
+        !nextSavedAddresses.some((entry) => String(entry._id) === nextDefaultAddressId)
+      ) {
+        nextDefaultAddressId = nextSavedAddresses[0]?._id || "";
+      }
+      const defaultEntry =
+        nextSavedAddresses.find((entry) => String(entry._id) === nextDefaultAddressId) || null;
+      const nextShippingAddress = defaultEntry
+        ? normalizeAddress(defaultEntry)
+        : normalizeAddress(payload.shippingAddress || EMPTY_ADDRESS);
+
+      setSavedAddresses(nextSavedAddresses);
+      setDefaultAddressId(nextDefaultAddressId);
+      setEditingAddressId("");
+      setAddressDraft(nextShippingAddress);
+
+      syncAddressBookToUser({
+        savedAddresses: nextSavedAddresses,
+        defaultAddressId: nextDefaultAddressId,
+        shippingAddress: nextShippingAddress,
+      });
+    },
+    [syncAddressBookToUser]
+  );
+
+  const openAddAddressEditor = useCallback(() => {
+    setEditingAddressId("new");
+    setAddressDraft(
+      normalizeAddress({
+        ...EMPTY_ADDRESS,
+        fullName: name || defaultAddress?.fullName || "",
+        phone: defaultAddress?.phone || "",
+      })
+    );
+  }, [defaultAddress?.fullName, defaultAddress?.phone, name]);
+
+  const openEditAddressEditor = useCallback((address) => {
+    if (!address?._id) return;
+    setEditingAddressId(String(address._id));
+    setAddressDraft(normalizeAddress(address));
   }, []);
+
+  const closeAddressEditor = useCallback(() => {
+    setEditingAddressId("");
+    setAddressDraft(normalizeAddress(defaultAddress || EMPTY_ADDRESS));
+  }, [defaultAddress]);
+
+  const updateAddressDraftField = useCallback((field, value) => {
+    setAddressDraft((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const saveAddress = useCallback(async () => {
+    if (!isAddressComplete(addressDraft)) {
+      showToast("Please complete all required address fields", "error");
+      return;
+    }
+
+    setAddressSaving(true);
+    try {
+      if (isAddingAddress) {
+        const { data } = await api.post("/api/auth/addresses", {
+          ...normalizeAddress(addressDraft),
+          setDefault: savedAddresses.length === 0,
+        });
+        applyAddressBookResponse(data);
+        showToast("Address added");
+      } else {
+        const updatedAddresses = savedAddresses.map((entry) =>
+          String(entry._id) === String(editingAddressId)
+            ? { ...entry, ...normalizeAddress(addressDraft) }
+            : entry
+        );
+        const nextDefault = defaultAddressId || updatedAddresses[0]?._id || "";
+        const defaultEntry =
+          updatedAddresses.find((entry) => String(entry._id) === String(nextDefault)) || null;
+
+        const { data } = await api.put("/api/auth/profile", {
+          name,
+          savedAddresses: updatedAddresses,
+          defaultAddressId: nextDefault,
+          shippingAddress: defaultEntry ? normalizeAddress(defaultEntry) : normalizeAddress(addressDraft),
+        });
+        applyAddressBookResponse(data);
+        showToast("Address updated");
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || "Failed to save address", "error");
+    } finally {
+      if (mountedRef.current) setAddressSaving(false);
+    }
+  }, [
+    addressDraft,
+    applyAddressBookResponse,
+    defaultAddressId,
+    editingAddressId,
+    isAddingAddress,
+    name,
+    savedAddresses,
+  ]);
+
+  const setDefaultAddress = useCallback(
+    async (addressId) => {
+      if (!addressId) return;
+      setAddressSaving(true);
+      try {
+        const { data } = await api.put(`/api/auth/addresses/${addressId}/default`);
+        applyAddressBookResponse(data);
+        showToast("Default address updated");
+      } catch (err) {
+        showToast(err.response?.data?.message || "Failed to update default address", "error");
+      } finally {
+        if (mountedRef.current) setAddressSaving(false);
+      }
+    },
+    [applyAddressBookResponse]
+  );
+
+  const removeAddress = useCallback(
+    async (addressId) => {
+      if (!addressId) return;
+      if (!window.confirm("Remove this address from your account?")) return;
+
+      setAddressSaving(true);
+      try {
+        const { data } = await api.delete(`/api/auth/addresses/${addressId}`);
+        applyAddressBookResponse(data);
+        showToast("Address removed");
+      } catch (err) {
+        showToast(err.response?.data?.message || "Failed to remove address", "error");
+      } finally {
+        if (mountedRef.current) setAddressSaving(false);
+      }
+    },
+    [applyAddressBookResponse]
+  );
 
   if (loading) {
     return (
@@ -377,7 +617,7 @@ export default function ProfilePage() {
           <div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
             <section className="rounded-[2rem] border border-[var(--nm-border)] bg-[var(--nm-card)] p-5 sm:p-6">
               <h2 className="text-lg font-semibold">Account Information</h2>
-              <p className="mt-1 text-sm text-[var(--nm-muted)]">Update your personal details and delivery address.</p>
+              <p className="mt-1 text-sm text-[var(--nm-muted)]">Update your personal details and manage addresses.</p>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <Input label="Name" id="name" value={name} onChange={(event) => setName(event.target.value)} />
@@ -391,41 +631,187 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Input
-                    label="Full Name"
-                    id="fullName"
-                    value={shippingAddress.fullName}
-                    onChange={(event) => updateShippingField("fullName", event.target.value)}
-                  />
+              <div className="mt-7 border-t border-[var(--nm-border)] pt-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold">Address Book</h3>
+                    <p className="mt-1 text-sm text-[var(--nm-muted)]">
+                      Manage delivery addresses for quick checkout.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openAddAddressEditor}
+                    disabled={saving || addressSaving}
+                    className="rounded-full border border-[var(--nm-border)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-accent-strong)] transition hover:border-[var(--nm-accent)] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    + Add Address
+                  </button>
                 </div>
-                <div className="sm:col-span-2">
-                  <Input
-                    label="Address"
-                    id="address"
-                    value={shippingAddress.address}
-                    onChange={(event) => updateShippingField("address", event.target.value)}
-                  />
-                </div>
-                <Input
-                  label="City"
-                  id="city"
-                  value={shippingAddress.city}
-                  onChange={(event) => updateShippingField("city", event.target.value)}
-                />
-                <Input
-                  label="Postal Code"
-                  id="postalCode"
-                  value={shippingAddress.postalCode}
-                  onChange={(event) => updateShippingField("postalCode", event.target.value)}
-                />
-                <Input
-                  label="Country"
-                  id="country"
-                  value={shippingAddress.country}
-                  onChange={(event) => updateShippingField("country", event.target.value)}
-                />
+
+                {savedAddresses.length === 0 && !isAddressEditorOpen && (
+                  <div className="mt-4 rounded-2xl border border-dashed border-[var(--nm-border)] bg-[var(--nm-surface)] px-4 py-4 text-sm text-[var(--nm-muted)]">
+                    No saved addresses yet. Add your first address.
+                  </div>
+                )}
+
+                {savedAddresses.length > 0 && (
+                  <div className="mt-4 space-y-3">
+                    {savedAddresses.map((address) => {
+                      const isDefault = String(address._id) === String(defaultAddressId);
+                      return (
+                        <article
+                          key={address._id}
+                          className={`rounded-2xl border px-4 py-3 ${
+                            isDefault
+                              ? "border-[var(--nm-accent)] bg-[var(--nm-accent-soft)]/35"
+                              : "border-[var(--nm-border)] bg-[var(--nm-surface)]"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold">{address.fullName}</p>
+                                <span className="rounded-md border border-[var(--nm-border)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--nm-muted)]">
+                                  {address.label}
+                                </span>
+                                {isDefault && (
+                                  <span className="rounded-md bg-[var(--nm-accent)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-[var(--nm-muted)]">
+                                {address.address}, {address.city} - {address.postalCode}
+                              </p>
+                              <p className="mt-1 text-xs text-[var(--nm-muted)]">
+                                {address.country}
+                                {address.phone ? ` | ${address.phone}` : ""}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              {!isDefault && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDefaultAddress(address._id)}
+                                  disabled={saving || addressSaving}
+                                  className="rounded-md border border-[var(--nm-border)] bg-white px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--nm-accent-strong)] transition hover:border-[var(--nm-accent)] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Set Default
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => openEditAddressEditor(address)}
+                                disabled={saving || addressSaving}
+                                className="rounded-md border border-[var(--nm-border)] bg-white px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--nm-muted)] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)] disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeAddress(address._id)}
+                                disabled={saving || addressSaving}
+                                className="rounded-md border border-[var(--nm-border)] bg-white px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--nm-muted)] transition hover:border-red-300 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {isAddressEditorOpen && (
+                  <div className="mt-5 rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-surface)] p-4 sm:p-5">
+                    <h4 className="text-sm font-semibold uppercase tracking-[0.1em]">
+                      {isAddingAddress ? "Add New Address" : "Edit Address"}
+                    </h4>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <label className="block text-sm">
+                          <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--nm-muted)]">
+                            Address Type
+                          </span>
+                          <select
+                            value={addressDraft.label}
+                            onChange={(event) => updateAddressDraftField("label", event.target.value)}
+                            className="block w-full rounded-2xl border border-[var(--nm-border)] bg-[var(--nm-card)] px-4 py-3 text-sm text-[var(--nm-text)] focus:border-[var(--nm-accent)] focus:outline-none"
+                          >
+                            <option value="Home">Home</option>
+                            <option value="Work">Work</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </label>
+                      </div>
+                      <Input
+                        label="Full Name"
+                        id="address-full-name"
+                        value={addressDraft.fullName}
+                        onChange={(event) => updateAddressDraftField("fullName", event.target.value)}
+                      />
+                      <Input
+                        label="Phone"
+                        id="address-phone"
+                        value={addressDraft.phone}
+                        onChange={(event) => updateAddressDraftField("phone", event.target.value)}
+                      />
+                      <div className="sm:col-span-2">
+                        <Input
+                          label="Address"
+                          id="address-line"
+                          value={addressDraft.address}
+                          onChange={(event) => updateAddressDraftField("address", event.target.value)}
+                        />
+                      </div>
+                      <Input
+                        label="Landmark"
+                        id="address-landmark"
+                        value={addressDraft.landmark}
+                        onChange={(event) => updateAddressDraftField("landmark", event.target.value)}
+                      />
+                      <Input
+                        label="City"
+                        id="address-city"
+                        value={addressDraft.city}
+                        onChange={(event) => updateAddressDraftField("city", event.target.value)}
+                      />
+                      <Input
+                        label="Postal Code"
+                        id="address-postal"
+                        value={addressDraft.postalCode}
+                        onChange={(event) => updateAddressDraftField("postalCode", event.target.value)}
+                      />
+                      <Input
+                        label="State"
+                        id="address-country"
+                        value={addressDraft.country}
+                        onChange={(event) => updateAddressDraftField("country", event.target.value)}
+                      />
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={closeAddressEditor}
+                        disabled={addressSaving}
+                        className="nm-btn-secondary text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveAddress}
+                        disabled={addressSaving}
+                        className="nm-btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {addressSaving ? "Saving..." : "Save Address"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -478,7 +864,7 @@ export default function ProfilePage() {
             </p>
             <button
               type="submit"
-              disabled={saving || !isDirty}
+              disabled={saving || addressSaving || !isDirty}
               className="nm-btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Saving..." : "Save Changes"}

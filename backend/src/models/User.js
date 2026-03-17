@@ -1,13 +1,24 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const addressSchema = new mongoose.Schema({
-  fullName: { type: String, default: '', trim: true },
-  address: { type: String, default: '', trim: true },
-  city: { type: String, default: '', trim: true },
-  postalCode: { type: String, default: '', trim: true },
-  country: { type: String, default: '', trim: true }
-}, { _id: false });
+const addressFields = {
+  label: {
+    type: String,
+    enum: ["Home", "Work", "Other"],
+    default: "Home",
+    trim: true,
+  },
+  fullName: { type: String, default: "", trim: true },
+  phone: { type: String, default: "", trim: true },
+  address: { type: String, default: "", trim: true },
+  landmark: { type: String, default: "", trim: true },
+  city: { type: String, default: "", trim: true },
+  postalCode: { type: String, default: "", trim: true },
+  country: { type: String, default: "", trim: true },
+};
+
+const shippingAddressSchema = new mongoose.Schema(addressFields, { _id: false });
+const savedAddressSchema = new mongoose.Schema(addressFields, { timestamps: false });
 
 const userSchema = new mongoose.Schema(
   {
@@ -26,7 +37,9 @@ const userSchema = new mongoose.Schema(
 
     isAdmin: { type: Boolean, default: false },
 
-    shippingAddress: { type: addressSchema, default: {} },
+    shippingAddress: { type: shippingAddressSchema, default: {} },
+    savedAddresses: { type: [savedAddressSchema], default: [] },
+    defaultAddressId: { type: mongoose.Schema.Types.ObjectId, default: null },
 
     savedProducts: [
       {
