@@ -1,0 +1,570 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import api, { getApiErrorMessage } from "../api/client";
+import MobileHeader from "../components/MobileHeader";
+import PrimaryButton from "../components/PrimaryButton";
+import ProductTile from "../components/ProductTile";
+import SectionHeader from "../components/SectionHeader";
+import { useCart } from "../contexts/CartContext";
+import { useToast } from "../contexts/ToastContext";
+import { colors, fonts, radius, shadow, spacing, type } from "../theme/theme";
+import { buildQuickAddPayload } from "../utils/product";
+import { openShopTab } from "../utils/navigation";
+
+const VALUE_BADGES = ["Handloom Verified", "Fast Dispatch", "Secure Checkout"];
+const TRUST_ITEMS = [
+  {
+    title: "Authentic Handloom",
+    description: "Each piece is sourced with verified quality checks.",
+  },
+  {
+    title: "Speedy Delivery",
+    description: "Orders are packed with care and shipped quickly.",
+  },
+  {
+    title: "Secure Payments",
+    description: "Trusted checkout with protected transactions.",
+  },
+  {
+    title: "Easy Support",
+    description: "Assistance before and after purchase, every day.",
+  },
+];
+
+const DEFAULT_CATEGORIES = [
+  { name: "Sarees", description: "Curated edit for your wardrobe." },
+  { name: "Lehengas", description: "Curated edit for your wardrobe." },
+  { name: "Western", description: "Curated edit for your wardrobe." },
+  { name: "Tops", description: "Curated edit for your wardrobe." },
+];
+
+function normalizeCategory(category) {
+  if (!category) return null;
+
+  if (typeof category === "string") {
+    return {
+      name: category,
+      description: "Curated edit for your wardrobe.",
+    };
+  }
+
+  const name = String(category?.title || category?.name || category?.slug || "").trim();
+  if (!name) return null;
+
+  return {
+    name,
+    description:
+      String(category?.subtitle || category?.description || "Curated edit for your wardrobe.").trim(),
+  };
+}
+
+export default function HomeScreen({ navigation }) {
+  const { addItem } = useCart();
+  const { showToast } = useToast();
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [heroSlide, setHeroSlide] = useState(null);
+  const [promo, setPromo] = useState(null);
+  const [newArrivals, setNewArrivals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadHome = useCallback(
+    async (isRefresh = false) => {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+
+      try {
+        const [homepageResponse, productsResponse] = await Promise.all([
+          api.get("/api/content/homepage").catch(() => null),
+          api.get("/api/products?limit=8").catch(() => null),
+        ]);
+
+        const homepage = homepageResponse?.data || {};
+        const heroSlides = Array.isArray(homepage.heroSlides) ? homepage.heroSlides : [];
+        const nextCategories = Array.isArray(homepage.categories)
+          ? homepage.categories.map(normalizeCategory).filter(Boolean)
+          : [];
+        const products = Array.isArray(productsResponse?.data)
+          ? productsResponse?.data
+          : productsResponse?.data?.products || [];
+
+        setHeroSlide(heroSlides[0] || null);
+        setCategories(nextCategories.length ? nextCategories.slice(0, 6) : DEFAULT_CATEGORIES);
+        setPromo(homepage.promo || null);
+        setNewArrivals(products);
+      } catch (error) {
+        showToast(
+          getApiErrorMessage(error, "Could not load the home screen."),
+          "error"
+        );
+      } finally {
+        if (isRefresh) setRefreshing(false);
+        else setLoading(false);
+      }
+    },
+    [showToast]
+  );
+
+  useEffect(() => {
+    loadHome();
+  }, [loadHome]);
+
+  const hero = useMemo(
+    () => ({
+      title:
+        heroSlide?.title || "Modern Indian silhouettes for every celebration",
+      subtitle:
+        heroSlide?.subtitle ||
+        "Curated textiles, artisan finishes, and statement drapes built for timeless wardrobes.",
+      cta: heroSlide?.cta || "Explore Collection",
+      href: heroSlide?.href || "/products",
+    }),
+    [heroSlide]
+  );
+
+  const handleQuickAdd = useCallback(
+    (product) => {
+      const payload = buildQuickAddPayload(product);
+      if (!payload?.size || !payload?.color) {
+        navigation.navigate("ProductDetails", { productId: product?._id });
+        return;
+      }
+
+      const added = addItem(payload);
+      if (added) {
+        showToast(`${product.title} added to cart.`, "success");
+      }
+    },
+    [addItem, navigation, showToast]
+  );
+
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => loadHome(true)}
+          tintColor={colors.accent}
+        />
+      }
+      showsVerticalScrollIndicator={false}
+    >
+      <MobileHeader />
+
+      <LinearGradient
+        colors={["#FFFDF9", "#F7EADF", "#F3DDCF"]}
+        style={styles.heroPanel}
+      >
+        <View style={styles.heroBadgeRow}>
+          <Text style={styles.heroEyebrow}>New Season Edit</Text>
+          <Text style={styles.heroCounter}>01 / 01</Text>
+        </View>
+
+        <Text style={styles.heroTitle}>{hero.title}</Text>
+        <Text style={styles.heroSubtitle}>{hero.subtitle}</Text>
+
+        <View style={styles.heroActions}>
+          <PrimaryButton
+            title={hero.cta}
+            onPress={() => openShopTab(navigation)}
+            style={styles.heroPrimary}
+          />
+          <PrimaryButton
+            title="Shop All"
+            variant="secondary"
+            onPress={() => openShopTab(navigation)}
+            style={styles.heroSecondary}
+          />
+        </View>
+
+        <View style={styles.badgesRow}>
+          {VALUE_BADGES.map((item) => (
+            <View key={item} style={styles.badgePill}>
+              <Text style={styles.badgePillText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.categoriesChipWrap}>
+          <Text style={styles.categoriesChipLabel}>Browse by Category</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesChipRow}
+          >
+            {categories.map((category) => (
+              <PrimaryButton
+                key={category.name}
+                title={category.name}
+                variant="secondary"
+                onPress={() => openShopTab(navigation, category.name)}
+                style={styles.categoryChipButton}
+                textStyle={styles.categoryChipButtonText}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      </LinearGradient>
+
+      <View>
+        <SectionHeader
+          eyebrow="Shop by Category"
+          title="Find your next favorite fit"
+        />
+        <View style={styles.categoryGrid}>
+          {categories.slice(0, 6).map((category) => (
+            <PressableCategory
+              key={category.name}
+              category={category}
+              onPress={() => openShopTab(navigation, category.name)}
+            />
+          ))}
+        </View>
+      </View>
+
+      <View>
+        <SectionHeader
+          eyebrow="Fresh Picks"
+          title="New Arrivals"
+          subtitle="Handpicked styles selected by our editors."
+          actionLabel="View all"
+          onActionPress={() => openShopTab(navigation)}
+        />
+
+        {loading ? (
+          <View style={styles.loaderWrap}>
+            <ActivityIndicator color={colors.accentStrong} size="large" />
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.productsRow}
+          >
+            {newArrivals.map((product) => (
+              <ProductTile
+                key={product._id}
+                compact
+                product={product}
+                onPress={() =>
+                  navigation.navigate("ProductDetails", {
+                    productId: product._id,
+                  })
+                }
+                onAddToCart={() => handleQuickAdd(product)}
+              />
+            ))}
+          </ScrollView>
+        )}
+      </View>
+
+      <LinearGradient
+        colors={["#FFFDF9", "#F6E8DA"]}
+        style={styles.promoCard}
+      >
+        <Text style={styles.promoEyebrow}>{promo?.eyebrow || "Editor Pick"}</Text>
+        <Text style={styles.promoTitle}>
+          {promo?.title || "Curated festive edits now live"}
+        </Text>
+        <Text style={styles.promoText}>
+          {promo?.subtitle ||
+            "Discover handpicked drapes and elevated silhouettes for weddings, celebrations, and statement evenings."}
+        </Text>
+        <View style={styles.promoActions}>
+          <PrimaryButton
+            title={promo?.buttonText || "Shop the Edit"}
+            onPress={() => openShopTab(navigation)}
+          />
+          <PrimaryButton
+            title="View All Products"
+            variant="secondary"
+            onPress={() => openShopTab(navigation)}
+          />
+        </View>
+      </LinearGradient>
+
+      <View style={styles.trustCard}>
+        <SectionHeader
+          eyebrow="Why Nemnidhi"
+          title="Quality you can trust"
+        />
+        <View style={styles.trustGrid}>
+          {TRUST_ITEMS.map((item) => (
+            <View key={item.title} style={styles.trustItem}>
+              <View style={styles.trustIconBubble}>
+                <Text style={styles.trustIconText}>N</Text>
+              </View>
+              <Text style={styles.trustTitle}>{item.title}</Text>
+              <Text style={styles.trustText}>{item.description}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+function PressableCategory({ category, onPress }) {
+  return (
+    <LinearGradient colors={["#2A1D17", "#7D4C34"]} style={styles.categoryCard}>
+      <Text style={styles.categoryCardTitle}>{category.name}</Text>
+      <Text style={styles.categoryCardText}>{category.description}</Text>
+      <PrimaryButton
+        title="Open"
+        variant="ghost"
+        onPress={onPress}
+        style={styles.categoryCardButton}
+        textStyle={styles.categoryCardButtonText}
+      />
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+  content: {
+    gap: spacing.xl,
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+  },
+  heroPanel: {
+    ...shadow,
+    borderColor: colors.border,
+    borderRadius: 30,
+    borderWidth: 1,
+    overflow: "hidden",
+    padding: spacing.xl,
+  },
+  heroBadgeRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  heroEyebrow: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    color: colors.muted,
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    overflow: "hidden",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    textTransform: "uppercase",
+  },
+  heroCounter: {
+    color: colors.muted,
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  heroTitle: {
+    color: colors.text,
+    fontFamily: fonts.display,
+    fontSize: 48,
+    lineHeight: 48,
+    marginTop: 18,
+  },
+  heroSubtitle: {
+    color: colors.muted,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 24,
+    marginTop: 14,
+  },
+  heroActions: {
+    gap: spacing.md,
+    marginTop: spacing.xl,
+  },
+  heroPrimary: {
+    width: "100%",
+  },
+  heroSecondary: {
+    width: "100%",
+  },
+  badgesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: spacing.xl,
+  },
+  badgePill: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  badgePillText: {
+    color: colors.muted,
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  categoriesChipWrap: {
+    marginTop: spacing.xl,
+  },
+  categoriesChipLabel: {
+    color: colors.muted,
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    letterSpacing: 1.3,
+    marginBottom: 10,
+    textTransform: "uppercase",
+  },
+  categoriesChipRow: {
+    gap: 10,
+    paddingRight: spacing.md,
+  },
+  categoryChipButton: {
+    minHeight: 42,
+  },
+  categoryChipButtonText: {
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  categoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  categoryCard: {
+    borderRadius: 24,
+    flexBasis: "47%",
+    minHeight: 205,
+    overflow: "hidden",
+    padding: spacing.lg,
+  },
+  categoryCardTitle: {
+    color: colors.white,
+    fontFamily: fonts.semiBold,
+    fontSize: 20,
+  },
+  categoryCardText: {
+    color: "rgba(255,255,255,0.78)",
+    fontFamily: fonts.body,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  categoryCardButton: {
+    alignSelf: "flex-start",
+    marginTop: "auto",
+    paddingHorizontal: 0,
+  },
+  categoryCardButtonText: {
+    color: colors.white,
+    fontSize: 12,
+  },
+  loaderWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 220,
+  },
+  productsRow: {
+    gap: spacing.md,
+    marginTop: spacing.lg,
+    paddingRight: spacing.md,
+  },
+  promoCard: {
+    ...shadow,
+    borderColor: colors.border,
+    borderRadius: 32,
+    borderWidth: 1,
+    overflow: "hidden",
+    padding: spacing.xl,
+  },
+  promoEyebrow: {
+    color: colors.muted,
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  promoTitle: {
+    color: colors.text,
+    fontFamily: fonts.display,
+    fontSize: 44,
+    lineHeight: 44,
+    marginTop: 12,
+  },
+  promoText: {
+    color: colors.muted,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 24,
+    marginTop: 16,
+  },
+  promoActions: {
+    gap: spacing.md,
+    marginTop: spacing.xl,
+  },
+  trustCard: {
+    ...shadow,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 32,
+    borderWidth: 1,
+    padding: spacing.lg,
+  },
+  trustGrid: {
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  trustItem: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.lg,
+  },
+  trustIconBubble: {
+    alignItems: "center",
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  trustIconText: {
+    color: colors.accentStrong,
+    fontFamily: fonts.displayBold,
+    fontSize: 22,
+    lineHeight: 22,
+  },
+  trustTitle: {
+    color: colors.text,
+    fontFamily: fonts.semiBold,
+    fontSize: 16,
+    marginTop: 12,
+  },
+  trustText: {
+    color: colors.muted,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 6,
+  },
+});
