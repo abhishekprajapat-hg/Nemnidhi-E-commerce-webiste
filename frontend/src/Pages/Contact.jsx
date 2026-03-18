@@ -190,7 +190,7 @@ export default function Contact() {
       <button
         aria-label="Chat on WhatsApp"
         onClick={openQuickWhatsApp}
-        className="fixed bottom-6 right-5 z-50 inline-flex items-center gap-2 rounded-full bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-xl transition hover:scale-105"
+        className="fixed bottom-24 right-5 z-50 inline-flex items-center gap-2 rounded-full bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-xl transition hover:scale-105 sm:bottom-6"
       >
         <img
           src={WHATSAPP_ICON_SRC}

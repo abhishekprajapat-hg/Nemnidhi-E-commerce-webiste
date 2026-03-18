@@ -4,10 +4,23 @@ const Order = require("../models/Order");
 const Product = require("../models/Product");
 const crypto = require("crypto");
 
-const razorpayInstance = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+function getRazorpayConfig() {
+  const keyId = String(process.env.RAZORPAY_KEY_ID || "").trim();
+  const keySecret = String(process.env.RAZORPAY_KEY_SECRET || "").trim();
+
+  if (!keyId || !keySecret) {
+    const err = new Error("Razorpay is not configured on server");
+    err.statusCode = 500;
+    throw err;
+  }
+
+  return { keyId, keySecret };
+}
+
+function getRazorpayInstance() {
+  const { keyId, keySecret } = getRazorpayConfig();
+  return new Razorpay({ key_id: keyId, key_secret: keySecret });
+}
 
 // ⭐ Step 1 → Create Razorpay order
 exports.createRazorpayOrder = asyncHandler(async (req, res) => {
@@ -18,6 +31,7 @@ exports.createRazorpayOrder = asyncHandler(async (req, res) => {
     throw new Error("Invalid amount");
   }
 
+  const razorpayInstance = getRazorpayInstance();
   const razorOrder = await razorpayInstance.orders.create({
     amount: Math.round(totalPrice * 100),
     currency: "INR",
@@ -57,8 +71,9 @@ exports.verifyRazorpayPayment = asyncHandler(async (req, res) => {
   }
 
   // ✅ SIGNATURE VERIFY
+  const { keySecret } = getRazorpayConfig();
   const expectedSig = crypto
-    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+    .createHmac("sha256", keySecret)
     .update(`${razorpay_order_id}|${razorpay_payment_id}`)
     .digest("hex");
 

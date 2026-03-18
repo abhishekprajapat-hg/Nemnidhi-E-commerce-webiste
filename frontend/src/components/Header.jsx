@@ -35,7 +35,6 @@ export default function Header() {
   const reduxUser = useSelector((state) => state.auth?.user || null);
 
   const [user, setUser] = useState(reduxUser);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 
@@ -67,7 +66,6 @@ export default function Header() {
   useEffect(() => {
     function onKeyDown(event) {
       if (event.key === "Escape") {
-        setMobileOpen(false);
         setShopOpen(false);
         setAccountOpen(false);
       }
@@ -86,19 +84,9 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    setMobileOpen(false);
     setShopOpen(false);
     setAccountOpen(false);
   }, [location.pathname]);
-
-  useEffect(() => {
-    if (!mobileOpen) return undefined;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [mobileOpen]);
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -117,7 +105,6 @@ export default function Header() {
     }
     showToast("Logged out successfully");
     setAccountOpen(false);
-    setMobileOpen(false);
     navigate("/");
   };
 
@@ -128,31 +115,56 @@ export default function Header() {
         : "text-[var(--nm-muted)] hover:text-[var(--nm-text)]"
     }`;
 
+  const mobileNavLinks = [
+    {
+      label: "Home",
+      href: "/",
+      icon: "fa-house",
+      matches: (pathname) => pathname === "/",
+    },
+    {
+      label: "Shop",
+      href: "/products",
+      icon: "fa-bag-shopping",
+      matches: (pathname) =>
+        pathname === "/products" ||
+        pathname.startsWith("/product/") ||
+        pathname === "/new-arrivals" ||
+        pathname === "/cart" ||
+        pathname === "/checkout" ||
+        pathname.startsWith("/order/success/"),
+    },
+    {
+      label: "About",
+      icon: "fa-circle-info",
+      href: "/about",
+      matches: (pathname) => pathname === "/about",
+    },
+    {
+      label: "Contact",
+      icon: "fa-phone",
+      href: "/contact",
+      matches: (pathname) => pathname === "/contact",
+    },
+    {
+      label: "Profile",
+      href: user ? "/profile" : "/login",
+      icon: "fa-circle-user",
+      matches: (pathname) =>
+        pathname === "/profile" ||
+        pathname === "/login" ||
+        pathname === "/register" ||
+        pathname === "/verify-otp",
+    },
+  ];
+
   const MotionDiv = motion.div;
-  const MotionAside = motion.aside;
 
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-[var(--nm-border)] bg-[color:color-mix(in_srgb,var(--nm-surface)_82%,transparent)] backdrop-blur-xl">
       <div className="nm-shell py-2.5 sm:py-3">
         <div className="nm-panel relative flex items-center justify-between gap-2 px-3 py-2.5 sm:px-5 sm:py-3">
-          <div className="flex items-center gap-2 lg:hidden">
-            <button
-              type="button"
-              onClick={() => {
-                setShopOpen(false);
-                setAccountOpen(false);
-                setMobileOpen(true);
-              }}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--nm-border)] text-[var(--nm-text)] transition hover:bg-[var(--nm-accent-soft)] sm:h-10 sm:w-10"
-              aria-label="Open menu"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
-              </svg>
-            </button>
-          </div>
-
           <Link to="/" className="group flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--nm-accent-soft)] text-[var(--nm-accent-strong)] sm:h-10 sm:w-10">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -271,6 +283,18 @@ export default function Header() {
             <button
               type="button"
               onClick={toggleTheme}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--nm-border)] text-[var(--nm-text)] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)] sm:hidden"
+              aria-label="Toggle theme"
+            >
+              <i
+                className={`fa-solid ${theme === "dark" ? "fa-sun" : "fa-moon"} text-sm`}
+                aria-hidden="true"
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleTheme}
               className="hidden min-h-[2.5rem] items-center rounded-full border border-[var(--nm-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] transition hover:border-[var(--nm-accent)] hover:text-[var(--nm-accent)] sm:inline-flex"
               aria-label="Toggle theme"
             >
@@ -360,117 +384,50 @@ export default function Header() {
       </div>
       </header>
 
-      <AnimatePresence>
-        {mobileOpen && (
-          <MotionDiv
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[120] bg-black/45"
-            onClick={() => setMobileOpen(false)}
-          >
-            <MotionAside
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", stiffness: 280, damping: 30 }}
-              className="h-[100dvh] w-[86vw] max-w-sm overflow-y-auto border-r border-[var(--nm-border)] bg-[var(--nm-surface)] p-4 shadow-2xl sm:p-5"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="mb-6 flex items-center justify-between">
-                <p className="nm-display text-3xl font-semibold">Menu</p>
-                <button
-                  type="button"
-                  onClick={() => setMobileOpen(false)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--nm-border)]"
-                  aria-label="Close menu"
+      <nav
+        aria-label="Bottom navigation"
+        className="fixed inset-x-0 bottom-0 z-[90] border-t border-[var(--nm-border)] bg-[color:color-mix(in_srgb,var(--nm-surface)_96%,transparent)] backdrop-blur-xl lg:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="mx-auto grid max-w-xl grid-cols-5 items-center px-3 pb-1 pt-1.5">
+          {mobileNavLinks.map((item) => {
+            const isActive = item.matches(location.pathname);
+            const isProfile = item.label === "Profile";
+
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
+                className={`group relative flex min-w-0 items-center justify-center py-2.5 transition ${
+                  isActive
+                    ? "text-[var(--nm-text)]"
+                    : "text-[var(--nm-muted)] hover:text-[var(--nm-text)]"
+                }`}
+              >
+                <span
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-full text-[1.28rem] transition ${
+                    isProfile
+                      ? isActive
+                        ? "ring-2 ring-[var(--nm-text)] ring-offset-2 ring-offset-[var(--nm-surface)]"
+                        : "ring-1 ring-[var(--nm-border)]"
+                      : ""
+                  }`}
                 >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
-                  </svg>
-                </button>
-              </div>
-
-              <nav className="space-y-1">
-                {[{ label: "Shop", href: "/products" }, ...NAV_LINKS].map((item) => (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    className="block rounded-xl px-3 py-2 text-base text-[var(--nm-text)] transition hover:bg-[var(--nm-accent-soft)]"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-
-              <div className="mt-6 rounded-2xl border border-[var(--nm-border)] p-4">
-                <p className="mb-3 text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--nm-muted)]">
-                  Shop Categories
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {SHOP_LINKS.map((item) => (
-                    <Link
-                      key={item.category}
-                      to={`/products?category=${encodeURIComponent(item.category)}`}
-                      className="rounded-full border border-[var(--nm-border)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em]"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-2 pb-6">
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  className="flex w-full items-center justify-center gap-2 rounded-full border border-[var(--nm-border)] px-4 py-2 text-sm font-semibold"
-                >
-                  {theme === "dark" ? "Use Light Theme" : "Use Dark Theme"}
-                </button>
-
-                {user ? (
-                  <>
-                    <Link
-                      to="/profile"
-                      className="block w-full rounded-full border border-[var(--nm-border)] px-4 py-2 text-center text-sm font-semibold"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      My Account
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="block w-full rounded-full border border-red-300 px-4 py-2 text-sm font-semibold text-red-600"
-                    >
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <Link
-                      to="/login"
-                      className="rounded-full border border-[var(--nm-border)] px-4 py-2 text-center text-sm font-semibold"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      Login
-                    </Link>
-                    <Link
-                      to="/register"
-                      className="rounded-full bg-[var(--nm-accent)] px-4 py-2 text-center text-sm font-semibold text-white"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      Register
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </MotionAside>
-          </MotionDiv>
-        )}
-      </AnimatePresence>
+                  <i className={`fa-solid ${item.icon}`} aria-hidden="true" />
+                </span>
+                <span className="sr-only">{item.label}</span>
+                <span
+                  className={`absolute bottom-0 h-1 w-1 rounded-full bg-[var(--nm-text)] transition ${
+                    isActive ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </>
   );
 }

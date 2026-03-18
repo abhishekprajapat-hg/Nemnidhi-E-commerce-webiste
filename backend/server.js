@@ -1,6 +1,6 @@
-require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -16,6 +16,7 @@ const reviewRoutes = require('./src/routes/reviewRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
 const recoRoutes = require('./src/routes/recoRoutes');
+const paymentRoutes = require('./src/routes/paymentRoutes');
 
 const { notFound, errorHandler } = require('./src/middleware/errorMiddleware');
 
@@ -81,19 +82,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/recommend', recoRoutes);
-
-
-try {
-  const paymentRoutesPath = path.join(__dirname, 'src', 'routes', 'paymentRoutes.js');
-  if (fs.existsSync(paymentRoutesPath)) {
-    const paymentRoutes = require('./src/routes/paymentRoutes');
-    app.use('/api/payment', paymentRoutes);
-  } else {
-    console.info('/api/payment not mounted (no file found)');
-  }
-} catch (err) {
-  console.warn('Error loading payment routes, continuing without payments:', err.message);
-}
+app.use('/api/payment', paymentRoutes);
 
 app.get('/api/health', (req, res) => {
   const connectionState = mongoose.connection?.readyState;

@@ -59,13 +59,16 @@ export default function App() {
     (state) => state.auth?.user?._id || state.auth?.user?.id || state.auth?.user?.email || null
   );
   const isAdminRoute = useMemo(() => location.pathname.startsWith("/admin"), [location.pathname]);
+  const appClassName = isAdminRoute
+    ? "min-h-screen flex flex-col"
+    : "min-h-screen flex flex-col pb-24 lg:pb-0";
 
   useEffect(() => {
     dispatch(syncCartOwner(authUserId));
   }, [dispatch, authUserId]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className={appClassName}>
       {!isAdminRoute && (
         <a
           href="#main-content"
