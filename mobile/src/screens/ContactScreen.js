@@ -4,6 +4,7 @@ import MobileHeader from "../components/MobileHeader";
 import FormField from "../components/FormField";
 import PrimaryButton from "../components/PrimaryButton";
 import { colors, fonts, radius, shadow, spacing, type } from "../theme/theme";
+import { openWebsiteDestination } from "../utils/navigation";
 
 const WHATSAPP_NUMBER = "+918269150205";
 const SUPPORT_EMAIL = "support@nemnidhiglam.com";
@@ -17,7 +18,7 @@ function buildWhatsAppUrl({ name = "", email = "", message = "" } = {}) {
   return `https://wa.me/${to}?text=${encodeURIComponent(parts.join("\n"))}`;
 }
 
-export default function ContactScreen() {
+export default function ContactScreen({ navigation }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -134,6 +135,16 @@ export default function ContactScreen() {
               title="Send Email"
               variant="secondary"
               onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
+            />
+            <PrimaryButton
+              title="Store Policies"
+              variant="secondary"
+              onPress={() => openWebsiteDestination(navigation, "/policies")}
+            />
+            <PrimaryButton
+              title="New Arrivals"
+              variant="secondary"
+              onPress={() => openWebsiteDestination(navigation, "/new-arrivals")}
             />
           </View>
         </View>

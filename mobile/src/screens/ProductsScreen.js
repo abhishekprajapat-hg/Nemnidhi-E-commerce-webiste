@@ -151,15 +151,21 @@ export default function ProductsScreen({ navigation, route }) {
   const { addItem } = useCart();
   const { showToast } = useToast();
   const [categories, setCategories] = useState(DEFAULT_CATEGORY_OPTIONS);
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState(() =>
+    String(route.params?.query || "").trim()
+  );
+  const [searchQuery, setSearchQuery] = useState(() =>
+    String(route.params?.query || "").trim()
+  );
   const [category, setCategory] = useState(() =>
     resolveCategoryValue(route.params?.category || "", DEFAULT_CATEGORY_OPTIONS)
   );
-  const [sort, setSort] = useState("-createdAt");
+  const [sort, setSort] = useState(() => String(route.params?.sort || "-createdAt"));
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-  const [minRating, setMinRating] = useState("");
+  const [minRating, setMinRating] = useState(() =>
+    String(route.params?.minRating || "").trim()
+  );
   const [inStockOnly, setInStockOnly] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedColors, setSelectedColors] = useState([]);
@@ -179,11 +185,37 @@ export default function ProductsScreen({ navigation, route }) {
   const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    if (route.params?.category !== undefined) {
-      setCategory(resolveCategoryValue(route.params?.category || "", categories));
-      setPage(1);
+    const nextCategory = route.params?.category;
+    const nextSort = route.params?.sort;
+    const nextQuery = route.params?.query;
+    const nextMinRating = route.params?.minRating;
+
+    if (
+      nextCategory === undefined &&
+      nextSort === undefined &&
+      nextQuery === undefined &&
+      nextMinRating === undefined
+    ) {
+      return;
     }
-  }, [categories, route.params?.category]);
+
+    if (nextCategory !== undefined) {
+      setCategory(resolveCategoryValue(nextCategory || "", categories));
+    }
+    if (nextSort !== undefined) {
+      setSort(String(nextSort || "-createdAt").trim() || "-createdAt");
+    }
+    if (nextQuery !== undefined) {
+      const normalizedQuery = String(nextQuery || "").trim();
+      setSearchInput(normalizedQuery);
+      setSearchQuery(normalizedQuery);
+    }
+    if (nextMinRating !== undefined) {
+      setMinRating(String(nextMinRating || "").trim());
+    }
+
+    setPage(1);
+  }, [categories, route.params?.category, route.params?.minRating, route.params?.query, route.params?.sort]);
 
   useEffect(() => {
     let active = true;

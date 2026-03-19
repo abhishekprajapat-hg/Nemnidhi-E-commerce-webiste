@@ -19,7 +19,7 @@ import { useCart } from "../contexts/CartContext";
 import { useToast } from "../contexts/ToastContext";
 import { colors, fonts, radius, shadow, spacing } from "../theme/theme";
 import { buildQuickAddPayload } from "../utils/product";
-import { openShopTab } from "../utils/navigation";
+import { openShopTab, openWebsiteDestination } from "../utils/navigation";
 
 const VALUE_BADGES = ["Handloom Verified", "Fast Dispatch", "Secure Checkout"];
 const TRUST_ITEMS = [
@@ -46,6 +46,14 @@ const DEFAULT_CATEGORIES = [
   { name: "Lehengas", description: "Curated edit for your wardrobe." },
   { name: "Western", description: "Curated edit for your wardrobe." },
   { name: "Tops", description: "Curated edit for your wardrobe." },
+];
+
+const EXPLORE_LINKS = [
+  { label: "New Arrivals", href: "/new-arrivals" },
+  { label: "Most Loved", href: "/products?sort=-rating" },
+  { label: "Policies", href: "/policies" },
+  { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
 ];
 
 function normalizeCategory(category) {
@@ -220,13 +228,13 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.heroActions}>
           <PrimaryButton
             title={hero.cta}
-            onPress={() => openShopTab(navigation)}
+            onPress={() => openWebsiteDestination(navigation, hero.href)}
             style={styles.heroPrimary}
           />
           <PrimaryButton
             title="Shop All"
             variant="secondary"
-            onPress={() => openShopTab(navigation)}
+            onPress={() => openWebsiteDestination(navigation, "/products")}
             style={styles.heroSecondary}
           />
         </View>
@@ -286,7 +294,7 @@ export default function HomeScreen({ navigation }) {
           title="New Arrivals"
           subtitle="Handpicked styles selected by our editors."
           actionLabel="View all"
-          onActionPress={() => openShopTab(navigation)}
+          onActionPress={() => navigation.navigate("NewArrivals")}
         />
 
         {loading ? (
@@ -337,12 +345,17 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.promoActions}>
           <PrimaryButton
             title={promo?.buttonText || "Shop the Edit"}
-            onPress={() => openShopTab(navigation)}
+            onPress={() =>
+              openWebsiteDestination(
+                navigation,
+                promo?.href || promo?.buttonHref || "/products"
+              )
+            }
           />
           <PrimaryButton
             title="View All Products"
             variant="secondary"
-            onPress={() => openShopTab(navigation)}
+            onPress={() => openWebsiteDestination(navigation, "/products")}
           />
         </View>
       </LinearGradient>
@@ -361,6 +374,25 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.trustTitle}>{item.title}</Text>
               <Text style={styles.trustText}>{item.description}</Text>
             </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.exploreCard}>
+        <SectionHeader
+          eyebrow="Explore More"
+          title="Everything from the website, now inside the app"
+          subtitle="Jump into curated collections, support pages, and store policies."
+        />
+        <View style={styles.exploreActions}>
+          {EXPLORE_LINKS.map((item) => (
+            <PrimaryButton
+              key={item.href}
+              title={item.label}
+              variant="secondary"
+              onPress={() => openWebsiteDestination(navigation, item.href)}
+              style={styles.exploreButton}
+            />
           ))}
         </View>
       </View>
@@ -683,5 +715,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     marginTop: 6,
+  },
+  exploreCard: {
+    ...shadow,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    padding: spacing.xl,
+  },
+  exploreActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  exploreButton: {
+    width: "47%",
   },
 });

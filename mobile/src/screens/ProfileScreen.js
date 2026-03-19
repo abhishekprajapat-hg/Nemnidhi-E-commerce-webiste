@@ -26,7 +26,12 @@ import {
   normalizeAddress,
 } from "../utils/address";
 import { formatCurrency, formatDate } from "../utils/format";
-import { buildQuickAddPayload, getProductCardPrice, getProductPreviewImage } from "../utils/product";
+import {
+  buildQuickAddPayload,
+  getProductCardPrice,
+  getProductPreviewImage,
+} from "../utils/product";
+import { openWebsiteDestination } from "../utils/navigation";
 
 const TABS = ["profile", "saved", "orders"];
 
@@ -34,7 +39,9 @@ export default function ProfileScreen({ navigation, route }) {
   const { user, logout, mergeUserSession } = useAuth();
   const { addItem } = useCart();
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState(route.params?.tab || "profile");
+  const [activeTab, setActiveTab] = useState(
+    TABS.includes(route.params?.tab) ? route.params.tab : "profile"
+  );
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
@@ -49,6 +56,7 @@ export default function ProfileScreen({ navigation, route }) {
     })
   );
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState("");
   const [savedProducts, setSavedProducts] = useState([]);
   const [orders, setOrders] = useState([]);
 
@@ -57,6 +65,14 @@ export default function ProfileScreen({ navigation, route }) {
       setActiveTab(route.params.tab);
     }
   }, [route.params?.tab]);
+
+  const defaultAddress = useMemo(
+    () =>
+      savedAddresses.find((entry) => String(entry._id) === String(defaultAddressId)) || null,
+    [defaultAddressId, savedAddresses]
+  );
+
+  const isEditingAddress = Boolean(editingAddressId && editingAddressId !== "new");
 
   const applyAddressBook = useCallback(
     async (payload = {}) => {
@@ -69,6 +85,8 @@ export default function ProfileScreen({ navigation, route }) {
 
       setSavedAddresses(nextSavedAddresses);
       setDefaultAddressId(nextDefaultId);
+      setEditingAddressId("");
+      setShowAddressForm(false);
       setAddressDraft(
         nextSavedAddresses.length
           ? normalizeAddress(selected)
@@ -77,7 +95,6 @@ export default function ProfileScreen({ navigation, route }) {
               fullName: name || user?.name || "",
             })
       );
-      setShowAddressForm(false);
 
       await mergeUserSession({
         shippingAddress: normalizeAddress(selected),
@@ -117,6 +134,8 @@ export default function ProfileScreen({ navigation, route }) {
       setSavedAddresses(nextSavedAddresses);
       setDefaultAddressId(nextDefaultId);
       setAddressDraft(normalizeAddress(selected));
+      setShowAddressForm(false);
+      setEditingAddressId("");
       setSavedProducts(
         Array.isArray(profile.savedProducts) ? profile.savedProducts.filter(Boolean) : []
       );
@@ -140,13 +159,6 @@ export default function ProfileScreen({ navigation, route }) {
     useCallback(() => {
       loadProfile();
     }, [loadProfile])
-  );
-
-  const defaultAddress = useMemo(
-    () =>
-      savedAddresses.find((entry) => String(entry._id) === String(defaultAddressId)) ||
-      null,
-    [defaultAddressId, savedAddresses]
   );
 
   const handleSaveProfile = async () => {
@@ -173,6 +185,38 @@ export default function ProfileScreen({ navigation, route }) {
     }
   };
 
+  const handleOpenAddAddress = useCallback(() => {
+    setEditingAddressId("new");
+    setAddressDraft(
+      normalizeAddress({
+        ...EMPTY_ADDRESS,
+        fullName: name || user?.name || "",
+        phone: defaultAddress?.phone || "",
+      })
+    );
+    setShowAddressForm(true);
+  }, [defaultAddress?.phone, name, user?.name]);
+
+  const handleEditAddress = useCallback((address) => {
+    if (!address?._id) return;
+    setEditingAddressId(String(address._id));
+    setAddressDraft(normalizeAddress(address));
+    setShowAddressForm(true);
+  }, []);
+
+  const handleCancelAddressForm = useCallback(() => {
+    setEditingAddressId("");
+    setShowAddressForm(false);
+    setAddressDraft(
+      normalizeAddress(
+        defaultAddress || {
+          ...EMPTY_ADDRESS,
+          fullName: name || user?.name || "",
+        }
+      )
+    );
+  }, [defaultAddress, name, user?.name]);
+
   const handleSaveAddress = async () => {
     if (!isAddressComplete(addressDraft)) {
       showToast("Please complete all required address fields.", "error");
@@ -181,13 +225,38 @@ export default function ProfileScreen({ navigation, route }) {
 
     setSavingAddress(true);
     try {
-      const { data } = await api.post("/api/auth/addresses", {
-        ...normalizeAddress(addressDraft),
-        setDefault: savedAddresses.length === 0,
-      });
+      const normalizedDraft = normalizeAddress(addressDraft);
 
-      await applyAddressBook(data);
-      showToast("Address saved.", "success");
+      if (isEditingAddress) {
+        const updatedAddresses = savedAddresses.map((entry) =>
+          String(entry._id) === String(editingAddressId)
+            ? { ...entry, ...normalizedDraft }
+            : entry
+        );
+        const nextDefaultId = defaultAddressId || updatedAddresses[0]?._id || "";
+        const nextDefaultAddress =
+          updatedAddresses.find((entry) => String(entry._id) === String(nextDefaultId)) ||
+          updatedAddresses[0] ||
+          normalizedDraft;
+
+        const { data } = await api.put("/api/auth/profile", {
+          name: name.trim() || user?.name || "",
+          savedAddresses: updatedAddresses,
+          defaultAddressId: nextDefaultId,
+          shippingAddress: normalizeAddress(nextDefaultAddress),
+        });
+
+        await applyAddressBook(data);
+        showToast("Address updated.", "success");
+      } else {
+        const { data } = await api.post("/api/auth/addresses", {
+          ...normalizedDraft,
+          setDefault: savedAddresses.length === 0,
+        });
+
+        await applyAddressBook(data);
+        showToast("Address saved.", "success");
+      }
     } catch (error) {
       showToast(getApiErrorMessage(error, "Could not save the address."), "error");
     } finally {
@@ -224,7 +293,10 @@ export default function ProfileScreen({ navigation, route }) {
   const handleRemoveSavedProduct = async (productId) => {
     try {
       const { data } = await api.delete(`/api/auth/wishlist/${productId}`);
-      setSavedProducts(Array.isArray(data?.savedProducts) ? data.savedProducts : []);
+      const nextProducts = Array.isArray(data?.savedProducts)
+        ? data.savedProducts.filter(Boolean)
+        : savedProducts.filter((entry) => String(entry?._id) !== String(productId));
+      setSavedProducts(nextProducts);
       showToast("Removed from saved products.", "success");
     } catch (error) {
       showToast(getApiErrorMessage(error, "Could not update saved products."), "error");
@@ -272,11 +344,12 @@ export default function ProfileScreen({ navigation, route }) {
         <View style={styles.stickyHeaderWrap}>
           <MobileHeader />
         </View>
+
         <View style={styles.promptCard}>
           <Text style={styles.eyebrow}>Account</Text>
           <Text style={styles.title}>Sign in to unlock your mobile account.</Text>
           <Text style={styles.subtitle}>
-            Login gives you the saved address book, wishlist, and order history from the website.
+            Login gives you the same address book, wishlist, and order history that already lives on the website.
           </Text>
           <View style={styles.promptActions}>
             <PrimaryButton
@@ -295,6 +368,11 @@ export default function ProfileScreen({ navigation, route }) {
                   redirectTo: "ProfileTab",
                 })
               }
+            />
+            <PrimaryButton
+              title="Store Policies"
+              variant="secondary"
+              onPress={() => openWebsiteDestination(navigation, "/policies")}
             />
           </View>
         </View>
@@ -345,6 +423,7 @@ export default function ProfileScreen({ navigation, route }) {
       <View style={styles.tabsRow}>
         {TABS.map((tab) => {
           const active = tab === activeTab;
+
           return (
             <Pressable
               key={tab}
@@ -382,14 +461,16 @@ export default function ProfileScreen({ navigation, route }) {
 
           <View style={styles.sectionCard}>
             <View style={styles.addressHeader}>
-              <View>
+              <View style={styles.addressHeaderCopy}>
                 <Text style={styles.sectionTitle}>Address Book</Text>
-                <Text style={styles.sectionText}>Manage your delivery addresses here.</Text>
+                <Text style={styles.sectionText}>Manage delivery addresses used across mobile and web.</Text>
               </View>
               <PrimaryButton
-                title={showAddressForm ? "Close" : "Add Address"}
+                title={showAddressForm ? "Cancel" : "Add Address"}
                 variant="ghost"
-                onPress={() => setShowAddressForm((current) => !current)}
+                onPress={() =>
+                  showAddressForm ? handleCancelAddressForm() : handleOpenAddAddress()
+                }
               />
             </View>
 
@@ -399,18 +480,18 @@ export default function ProfileScreen({ navigation, route }) {
               ) : (
                 savedAddresses.map((address) => {
                   const isDefault = String(address._id) === String(defaultAddressId);
+
                   return (
                     <View key={address._id} style={styles.addressCard}>
-                      <Text style={styles.addressName}>
-                        {address.fullName} • {address.label}
-                      </Text>
+                      <Text style={styles.addressName}>{address.fullName} | {address.label}</Text>
                       <Text style={styles.addressText}>
                         {address.address}, {address.city} - {address.postalCode}
                       </Text>
                       <Text style={styles.addressText}>
                         {address.country}
-                        {address.phone ? ` • ${address.phone}` : ""}
+                        {address.phone ? ` | ${address.phone}` : ""}
                       </Text>
+
                       <View style={styles.addressActions}>
                         {!isDefault ? (
                           <PrimaryButton
@@ -419,8 +500,18 @@ export default function ProfileScreen({ navigation, route }) {
                             onPress={() => handleSetDefaultAddress(address._id)}
                           />
                         ) : (
-                          <PrimaryButton title="Default" onPress={() => {}} />
+                          <PrimaryButton
+                            title="Default"
+                            variant="secondary"
+                            disabled
+                            onPress={() => {}}
+                          />
                         )}
+                        <PrimaryButton
+                          title="Edit"
+                          variant="secondary"
+                          onPress={() => handleEditAddress(address)}
+                        />
                         <PrimaryButton
                           title="Remove"
                           variant="ghost"
@@ -435,12 +526,29 @@ export default function ProfileScreen({ navigation, route }) {
 
             {showAddressForm ? (
               <View style={styles.formGroup}>
+                <Text style={styles.formIntroTitle}>
+                  {isEditingAddress ? "Edit Address" : "Add New Address"}
+                </Text>
+                <Text style={styles.formIntroText}>
+                  {isEditingAddress
+                    ? "Update the saved address details used across checkout and profile."
+                    : "Save a fresh delivery address for faster checkout on mobile and web."}
+                </Text>
                 <AddressFields address={addressDraft} onChange={setAddressDraft} />
-                <PrimaryButton
-                  title="Save Address"
-                  onPress={handleSaveAddress}
-                  loading={savingAddress}
-                />
+                <View style={styles.actionRow}>
+                  <PrimaryButton
+                    title="Cancel"
+                    variant="secondary"
+                    onPress={handleCancelAddressForm}
+                    style={styles.actionCell}
+                  />
+                  <PrimaryButton
+                    title={isEditingAddress ? "Update Address" : "Save Address"}
+                    onPress={handleSaveAddress}
+                    loading={savingAddress}
+                    style={styles.actionCell}
+                  />
+                </View>
               </View>
             ) : null}
           </View>
@@ -457,6 +565,30 @@ export default function ProfileScreen({ navigation, route }) {
               }}
               style={styles.logoutButton}
             />
+          </View>
+
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Useful Links</Text>
+            <Text style={styles.sectionText}>
+              Open the remaining customer pages from the website inside the app.
+            </Text>
+            <View style={styles.utilityActions}>
+              <PrimaryButton
+                title="New Arrivals"
+                variant="secondary"
+                onPress={() => openWebsiteDestination(navigation, "/new-arrivals")}
+              />
+              <PrimaryButton
+                title="Policies"
+                variant="secondary"
+                onPress={() => openWebsiteDestination(navigation, "/policies")}
+              />
+              <PrimaryButton
+                title="Contact Support"
+                variant="secondary"
+                onPress={() => openWebsiteDestination(navigation, "/contact")}
+              />
+            </View>
           </View>
         </>
       ) : null}
@@ -521,17 +653,13 @@ export default function ProfileScreen({ navigation, route }) {
                   <View key={order._id} style={styles.orderCard}>
                     <View style={styles.orderHeader}>
                       <View>
-                        <Text style={styles.orderTitle}>
-                          {order.orderId || order._id}
-                        </Text>
+                        <Text style={styles.orderTitle}>{order.orderId || order._id}</Text>
                         <Text style={styles.orderMeta}>{formatDate(order.createdAt)}</Text>
                       </View>
                       <Text style={styles.orderStatus}>{status}</Text>
                     </View>
 
-                    <Text style={styles.orderAmount}>
-                      {formatCurrency(order.totalPrice)}
-                    </Text>
+                    <Text style={styles.orderAmount}>{formatCurrency(order.totalPrice)}</Text>
                     <Text style={styles.orderItems}>
                       {(order.orderItems || [])
                         .slice(0, 2)
@@ -712,10 +840,24 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.lg,
   },
+  formIntroTitle: {
+    color: colors.text,
+    fontFamily: fonts.semiBold,
+    fontSize: 18,
+  },
+  formIntroText: {
+    color: colors.muted,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 20,
+  },
   addressHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     gap: spacing.md,
+    justifyContent: "space-between",
+  },
+  addressHeaderCopy: {
+    flex: 1,
   },
   addressList: {
     gap: spacing.md,
@@ -742,7 +884,17 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.md,
   },
+  actionRow: {
+    gap: spacing.md,
+  },
+  actionCell: {
+    width: "100%",
+  },
   logoutButton: {
+    marginTop: spacing.lg,
+  },
+  utilityActions: {
+    gap: spacing.md,
     marginTop: spacing.lg,
   },
   emptyText: {
@@ -799,8 +951,8 @@ const styles = StyleSheet.create({
   },
   orderHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     gap: spacing.md,
+    justifyContent: "space-between",
   },
   orderTitle: {
     color: colors.text,

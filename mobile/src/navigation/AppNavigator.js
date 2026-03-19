@@ -14,6 +14,8 @@ import ProfileScreen from "../screens/ProfileScreen";
 import OrderSuccessScreen from "../screens/OrderSuccessScreen";
 import AboutScreen from "../screens/AboutScreen";
 import ContactScreen from "../screens/ContactScreen";
+import NewArrivalsScreen from "../screens/NewArrivalsScreen";
+import PoliciesScreen from "../screens/PoliciesScreen";
 import WebsiteTabBar from "../components/WebsiteTabBar";
 
 const Stack = createNativeStackNavigator();
@@ -104,6 +106,16 @@ export default function AppNavigator() {
         name="OrderSuccess"
         component={OrderSuccessScreen}
         options={{ title: "Order Confirmed" }}
+      />
+      <Stack.Screen
+        name="NewArrivals"
+        component={NewArrivalsScreen}
+        options={{ title: "New Arrivals" }}
+      />
+      <Stack.Screen
+        name="Policies"
+        component={PoliciesScreen}
+        options={{ title: "Policies" }}
       />
     </Stack.Navigator>
   );

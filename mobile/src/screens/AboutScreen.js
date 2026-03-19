@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import MobileHeader from "../components/MobileHeader";
 import PrimaryButton from "../components/PrimaryButton";
 import { colors, fonts, radius, shadow, spacing, type } from "../theme/theme";
+import { openWebsiteDestination } from "../utils/navigation";
 
 const VALUES = [
   {
@@ -109,11 +110,19 @@ export default function AboutScreen({ navigation }) {
         </Text>
         <PrimaryButton
           title="Shop Now"
-          onPress={() =>
-            navigation.navigate("MainTabs", {
-              screen: "ShopTab",
-            })
-          }
+          onPress={() => openWebsiteDestination(navigation, "/products")}
+          style={styles.ctaButton}
+        />
+        <PrimaryButton
+          title="New Arrivals"
+          variant="secondary"
+          onPress={() => openWebsiteDestination(navigation, "/new-arrivals")}
+          style={styles.ctaButton}
+        />
+        <PrimaryButton
+          title="Store Policies"
+          variant="secondary"
+          onPress={() => openWebsiteDestination(navigation, "/policies")}
           style={styles.ctaButton}
         />
       </View>
