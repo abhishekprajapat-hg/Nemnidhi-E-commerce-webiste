@@ -49,9 +49,12 @@ export default function ContactScreen() {
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
+      stickyHeaderIndices={[0]}
       showsVerticalScrollIndicator={false}
     >
-      <MobileHeader />
+      <View style={styles.stickyHeaderWrap}>
+        <MobileHeader />
+      </View>
 
       <View style={styles.titleCard}>
         <Text style={styles.eyebrow}>Contact</Text>
@@ -155,6 +158,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
+  },
+  stickyHeaderWrap: {
+    backgroundColor: colors.background,
+    paddingBottom: spacing.xs,
+    zIndex: 5,
   },
   titleCard: {
     marginBottom: 4,

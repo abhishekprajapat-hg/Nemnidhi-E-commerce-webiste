@@ -43,9 +43,12 @@ export default function AboutScreen({ navigation }) {
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
+      stickyHeaderIndices={[0]}
       showsVerticalScrollIndicator={false}
     >
-      <MobileHeader />
+      <View style={styles.stickyHeaderWrap}>
+        <MobileHeader />
+      </View>
 
       <View style={styles.heroCard}>
         <Text style={styles.eyebrow}>About Nemnidhi</Text>
@@ -128,6 +131,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
+  },
+  stickyHeaderWrap: {
+    backgroundColor: colors.background,
+    paddingBottom: spacing.xs,
+    zIndex: 5,
   },
   heroCard: {
     ...shadow,

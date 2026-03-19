@@ -9,10 +9,11 @@ import {
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import api, { getApiErrorMessage } from "../api/client";
+import api, { getApiErrorMessage, toAbsoluteAssetUrl } from "../api/client";
 import MobileHeader from "../components/MobileHeader";
 import PrimaryButton from "../components/PrimaryButton";
 import ProductTile from "../components/ProductTile";
+import RemoteImage from "../components/RemoteImage";
 import SectionHeader from "../components/SectionHeader";
 import { useCart } from "../contexts/CartContext";
 import { useToast } from "../contexts/ToastContext";
@@ -53,7 +54,9 @@ function normalizeCategory(category) {
   if (typeof category === "string") {
     return {
       name: category,
+      slug: String(category).trim().toLowerCase().replace(/\s+/g, "-"),
       description: "Curated edit for your wardrobe.",
+      image: null,
     };
   }
 
@@ -62,8 +65,19 @@ function normalizeCategory(category) {
 
   return {
     name,
+    slug: String(category?.slug || name)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-"),
     description:
       String(category?.subtitle || category?.description || "Curated edit for your wardrobe.").trim(),
+    image: toAbsoluteAssetUrl(
+      category?.img ||
+        category?.image ||
+        category?.imageUrl ||
+        category?.thumbnail ||
+        category?.coverImage
+    ),
   };
 }
 
@@ -157,6 +171,7 @@ export default function HomeScreen({ navigation }) {
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
+      stickyHeaderIndices={[0]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -166,7 +181,9 @@ export default function HomeScreen({ navigation }) {
       }
       showsVerticalScrollIndicator={false}
     >
-      <MobileHeader />
+      <View style={styles.stickyHeaderWrap}>
+        <MobileHeader />
+      </View>
 
       <LinearGradient
         colors={["#FFFDF9", "#F7EADF", "#F3DDCF"]}
@@ -234,10 +251,10 @@ export default function HomeScreen({ navigation }) {
           >
             {categories.map((category) => (
               <PrimaryButton
-                key={category.name}
+                key={category.slug || category.name}
                 title={category.name}
                 variant="secondary"
-                onPress={() => openShopTab(navigation, category.name)}
+                onPress={() => openShopTab(navigation, category.slug || category.name)}
                 style={styles.categoryChipButton}
                 textStyle={styles.categoryChipButtonText}
               />
@@ -254,9 +271,9 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.categoryGrid}>
           {categories.slice(0, 6).map((category) => (
             <PressableCategory
-              key={category.name}
+              key={category.slug || category.name}
               category={category}
-              onPress={() => openShopTab(navigation, category.name)}
+              onPress={() => openShopTab(navigation, category.slug || category.name)}
               width={categoryCardWidth}
             />
           ))}
@@ -357,6 +374,16 @@ function PressableCategory({ category, onPress, width }) {
       colors={["#2A1D17", "#7D4C34"]}
       style={[styles.categoryCard, { width }]}
     >
+      <RemoteImage
+        uri={category?.image}
+        label={category?.name}
+        style={styles.categoryCardImageWrap}
+        imageStyle={styles.categoryCardImage}
+      />
+      <LinearGradient
+        colors={["rgba(24,15,11,0.12)", "rgba(24,15,11,0.26)", "rgba(24,15,11,0.82)"]}
+        style={styles.categoryCardOverlay}
+      />
       <Text style={styles.categoryCardTitle}>{category.name}</Text>
       <Text style={styles.categoryCardText}>{category.description}</Text>
       <PrimaryButton
@@ -380,6 +407,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
+  },
+  stickyHeaderWrap: {
+    backgroundColor: colors.background,
+    paddingBottom: spacing.xs,
+    zIndex: 5,
   },
   heroPanel: {
     ...shadow,
@@ -516,11 +548,22 @@ const styles = StyleSheet.create({
     minHeight: 205,
     overflow: "hidden",
     padding: spacing.lg,
+    position: "relative",
+  },
+  categoryCardImageWrap: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  categoryCardImage: {
+    transform: [{ scale: 1.02 }],
+  },
+  categoryCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   categoryCardTitle: {
     color: colors.white,
     fontFamily: fonts.semiBold,
     fontSize: 20,
+    marginTop: "auto",
   },
   categoryCardText: {
     color: "rgba(255,255,255,0.78)",

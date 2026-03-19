@@ -32,6 +32,14 @@ EXPO_PUBLIC_API_URL=http://192.168.1.10:5000
 
 Use your machine's local network IP when testing on a physical device.
 
+For a centralized production setup, point the app to your public backend URL instead:
+
+```env
+EXPO_PUBLIC_API_URL=https://your-domain.com
+```
+
+With a public backend URL, the mobile app no longer depends on the phone being on the same Wi-Fi as your laptop.
+
 ## Run
 
 ```bash

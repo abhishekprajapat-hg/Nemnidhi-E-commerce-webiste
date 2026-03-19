@@ -14,7 +14,6 @@ export default function ProductTile({
 }) {
   const image = getProductPreviewImage(product);
   const price = getProductCardPrice(product);
-  const stock = Number(product?.totalStock || product?.countInStock || 0);
   const hasRating = Number(product?.rating || 0) > 0;
 
   return (
@@ -27,15 +26,6 @@ export default function ProductTile({
             style={styles.image}
           />
           <View style={styles.mediaOverlay} />
-          {stock > 0 ? (
-            <View style={styles.stockChip}>
-              <Text style={styles.stockChipText}>Ready To Ship</Text>
-            </View>
-          ) : (
-            <View style={[styles.stockChip, styles.stockChipMuted]}>
-              <Text style={styles.stockChipText}>Sold Out</Text>
-            </View>
-          )}
         </View>
 
         <View style={styles.content}>
@@ -94,27 +84,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: 92,
     position: "absolute",
-  },
-  stockChip: {
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderColor: "rgba(255,255,255,0.4)",
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    position: "absolute",
-    left: 12,
-    top: 12,
-  },
-  stockChipMuted: {
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  stockChipText: {
-    color: colors.white,
-    fontFamily: fonts.semiBold,
-    fontSize: 10,
-    letterSpacing: 0.7,
-    textTransform: "uppercase",
   },
   content: {
     gap: 8,

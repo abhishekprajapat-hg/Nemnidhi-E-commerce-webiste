@@ -1,7 +1,7 @@
 import React from "react";
 import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
 import { useFonts } from "expo-font";
@@ -57,8 +57,17 @@ export default function AppShell() {
           <AuthProvider>
             <CartProvider>
               <NavigationContainer theme={navigationTheme}>
-                <StatusBar style="dark" />
-                <AppNavigator />
+                <SafeAreaView
+                  edges={["top"]}
+                  style={{ flex: 1, backgroundColor: colors.background }}
+                >
+                  <StatusBar
+                    backgroundColor={colors.background}
+                    style="dark"
+                    translucent={false}
+                  />
+                  <AppNavigator />
+                </SafeAreaView>
               </NavigationContainer>
             </CartProvider>
           </AuthProvider>

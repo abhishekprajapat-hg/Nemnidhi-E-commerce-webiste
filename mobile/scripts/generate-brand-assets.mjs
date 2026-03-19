@@ -7,7 +7,7 @@ const repoRoot = path.resolve(mobileRoot, "..");
 const assetsDir = path.join(mobileRoot, "assets");
 const sourceSvgPath = path.join(repoRoot, "frontend", "public", "favicon.svg");
 
-const ICON_BG = "#F5EEE5";
+const ICON_BG = "#1C1B19";
 const MONO_FILL = "#1F1915";
 const CANVAS_SIZE = 1024;
 
@@ -69,13 +69,16 @@ const monoMarkSvg = `
 `;
 
 const sourceSvg = await fs.readFile(sourceSvgPath, "utf8");
+const launcherSvg = sourceSvg
+  .replace('viewBox="0 0 64 64"', 'viewBox="4 4 56 56"')
+  .replace('stroke="#7e6130" stroke-opacity="0.65"', "");
 
 await fs.mkdir(assetsDir, { recursive: true });
 
-await renderSquareIcon(sourceSvg, "icon.png");
+await renderSquareIcon(launcherSvg, "icon.png");
 await renderSquareIcon(sourceSvg, "favicon.png", 256);
 await renderPaddedIcon(sourceSvg, "splash-icon.png", 420);
-await renderPaddedIcon(sourceSvg, "android-icon-foreground.png", 700);
+await renderPaddedIcon(launcherSvg, "android-icon-foreground.png", 920);
 await renderPaddedIcon(monoMarkSvg, "android-icon-monochrome.png", 560);
 await renderSolidBackground("android-icon-background.png", ICON_BG);
 

@@ -266,9 +266,12 @@ export default function ProfileScreen({ navigation, route }) {
       <ScrollView
         style={styles.promptScreen}
         contentContainerStyle={styles.promptContent}
+        stickyHeaderIndices={[0]}
         showsVerticalScrollIndicator={false}
       >
-        <MobileHeader />
+        <View style={styles.stickyHeaderWrap}>
+          <MobileHeader />
+        </View>
         <View style={styles.promptCard}>
           <Text style={styles.eyebrow}>Account</Text>
           <Text style={styles.title}>Sign in to unlock your mobile account.</Text>
@@ -311,9 +314,12 @@ export default function ProfileScreen({ navigation, route }) {
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
+      stickyHeaderIndices={[0]}
       showsVerticalScrollIndicator={false}
     >
-      <MobileHeader />
+      <View style={styles.stickyHeaderWrap}>
+        <MobileHeader />
+      </View>
 
       <View style={styles.heroCard}>
         <Text style={styles.eyebrow}>My Account</Text>
@@ -570,6 +576,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
+  },
+  stickyHeaderWrap: {
+    backgroundColor: colors.background,
+    paddingBottom: spacing.xs,
+    zIndex: 5,
   },
   promptCard: {
     ...shadow,
