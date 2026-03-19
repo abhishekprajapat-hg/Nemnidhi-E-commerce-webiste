@@ -27,6 +27,41 @@ const app = express();
 
 app.set('trust proxy', 1);
 
+function normalizeOrigin(value = '') {
+  return String(value || '').trim().replace(/\/+$/, '');
+}
+
+function parseAllowedOrigins() {
+  const raw = [
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_URLS,
+    process.env.ALLOWED_ORIGINS,
+    process.env.APP_URL,
+  ]
+    .filter(Boolean)
+    .join(',');
+
+  return raw
+    .split(',')
+    .map((entry) => normalizeOrigin(entry))
+    .filter(Boolean);
+}
+
+function resolveFrontendBuildPath() {
+  const explicit = process.env.FRONTEND_DIST_DIR
+    ? path.resolve(__dirname, process.env.FRONTEND_DIST_DIR)
+    : '';
+  const candidates = [
+    explicit,
+    path.resolve(__dirname, '..', 'frontend', 'dist'),
+    path.resolve(__dirname, 'client', 'build'),
+  ].filter(Boolean);
+
+  return candidates.find((entry) => fs.existsSync(path.join(entry, 'index.html'))) || '';
+}
+
+const allowedOrigins = parseAllowedOrigins();
+
 try {
   const morgan = require('morgan');
   app.use(morgan(NODE_ENV === 'development' ? 'dev' : 'combined'));
@@ -37,7 +72,14 @@ try {
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || '*',
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(normalizeOrigin(origin))) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
     credentials: true,
   })
 );
@@ -126,10 +168,13 @@ async function startServer() {
     await connectDB();
 
     if (NODE_ENV === 'production') {
-      const clientBuild = path.join(__dirname, 'client', 'build');
-      if (fs.existsSync(clientBuild)) {
-        app.use(express.static(clientBuild));
-        app.get('*', (req, res) => res.sendFile(path.join(clientBuild, 'index.html')));
+      const frontendBuild = resolveFrontendBuildPath();
+      if (frontendBuild) {
+        console.log('Serving frontend from:', frontendBuild);
+        app.use(express.static(frontendBuild));
+        app.get('*', (req, res) => res.sendFile(path.join(frontendBuild, 'index.html')));
+      } else {
+        console.warn('No frontend build found for production static serving.');
       }
     }
 
