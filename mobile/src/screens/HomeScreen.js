@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,7 +16,7 @@ import ProductTile from "../components/ProductTile";
 import SectionHeader from "../components/SectionHeader";
 import { useCart } from "../contexts/CartContext";
 import { useToast } from "../contexts/ToastContext";
-import { colors, fonts, radius, shadow, spacing, type } from "../theme/theme";
+import { colors, fonts, radius, shadow, spacing } from "../theme/theme";
 import { buildQuickAddPayload } from "../utils/product";
 import { openShopTab } from "../utils/navigation";
 
@@ -67,6 +68,7 @@ function normalizeCategory(category) {
 }
 
 export default function HomeScreen({ navigation }) {
+  const { width } = useWindowDimensions();
   const { addItem } = useCart();
   const { showToast } = useToast();
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
@@ -75,6 +77,11 @@ export default function HomeScreen({ navigation }) {
   const [newArrivals, setNewArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const isNarrowScreen = width < 390;
+  const isCompactScreen = width < 360;
+  const categoryCardWidth = isNarrowScreen
+    ? "100%"
+    : Math.max(0, (width - spacing.md * 2 - spacing.md) / 2);
 
   const loadHome = useCallback(
     async (isRefresh = false) => {
@@ -163,15 +170,35 @@ export default function HomeScreen({ navigation }) {
 
       <LinearGradient
         colors={["#FFFDF9", "#F7EADF", "#F3DDCF"]}
-        style={styles.heroPanel}
+        style={[styles.heroPanel, isNarrowScreen ? styles.heroPanelNarrow : null]}
       >
-        <View style={styles.heroBadgeRow}>
+        <View
+          style={[
+            styles.heroBadgeRow,
+            isNarrowScreen ? styles.heroBadgeRowStacked : null,
+          ]}
+        >
           <Text style={styles.heroEyebrow}>New Season Edit</Text>
           <Text style={styles.heroCounter}>01 / 01</Text>
         </View>
 
-        <Text style={styles.heroTitle}>{hero.title}</Text>
-        <Text style={styles.heroSubtitle}>{hero.subtitle}</Text>
+        <Text
+          style={[
+            styles.heroTitle,
+            isNarrowScreen ? styles.heroTitleNarrow : null,
+            isCompactScreen ? styles.heroTitleCompact : null,
+          ]}
+        >
+          {hero.title}
+        </Text>
+        <Text
+          style={[
+            styles.heroSubtitle,
+            isNarrowScreen ? styles.heroSubtitleNarrow : null,
+          ]}
+        >
+          {hero.subtitle}
+        </Text>
 
         <View style={styles.heroActions}>
           <PrimaryButton
@@ -200,7 +227,10 @@ export default function HomeScreen({ navigation }) {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesChipRow}
+            contentContainerStyle={[
+              styles.categoriesChipRow,
+              isNarrowScreen ? styles.categoriesChipRowNarrow : null,
+            ]}
           >
             {categories.map((category) => (
               <PrimaryButton
@@ -227,6 +257,7 @@ export default function HomeScreen({ navigation }) {
               key={category.name}
               category={category}
               onPress={() => openShopTab(navigation, category.name)}
+              width={categoryCardWidth}
             />
           ))}
         </View>
@@ -270,10 +301,16 @@ export default function HomeScreen({ navigation }) {
 
       <LinearGradient
         colors={["#FFFDF9", "#F6E8DA"]}
-        style={styles.promoCard}
+        style={[styles.promoCard, isNarrowScreen ? styles.promoCardNarrow : null]}
       >
         <Text style={styles.promoEyebrow}>{promo?.eyebrow || "Editor Pick"}</Text>
-        <Text style={styles.promoTitle}>
+        <Text
+          style={[
+            styles.promoTitle,
+            isNarrowScreen ? styles.promoTitleNarrow : null,
+            isCompactScreen ? styles.promoTitleCompact : null,
+          ]}
+        >
           {promo?.title || "Curated festive edits now live"}
         </Text>
         <Text style={styles.promoText}>
@@ -314,9 +351,12 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-function PressableCategory({ category, onPress }) {
+function PressableCategory({ category, onPress, width }) {
   return (
-    <LinearGradient colors={["#2A1D17", "#7D4C34"]} style={styles.categoryCard}>
+    <LinearGradient
+      colors={["#2A1D17", "#7D4C34"]}
+      style={[styles.categoryCard, { width }]}
+    >
       <Text style={styles.categoryCardTitle}>{category.name}</Text>
       <Text style={styles.categoryCardText}>{category.description}</Text>
       <PrimaryButton
@@ -349,10 +389,18 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     padding: spacing.xl,
   },
+  heroPanelNarrow: {
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
   heroBadgeRow: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
+  },
+  heroBadgeRowStacked: {
+    alignItems: "flex-start",
+    gap: 10,
   },
   heroEyebrow: {
     backgroundColor: colors.card,
@@ -381,12 +429,23 @@ const styles = StyleSheet.create({
     lineHeight: 48,
     marginTop: 18,
   },
+  heroTitleNarrow: {
+    fontSize: 40,
+    lineHeight: 40,
+  },
+  heroTitleCompact: {
+    fontSize: 36,
+    lineHeight: 38,
+  },
   heroSubtitle: {
     color: colors.muted,
     fontFamily: fonts.body,
     fontSize: 14,
     lineHeight: 24,
     marginTop: 14,
+  },
+  heroSubtitleNarrow: {
+    lineHeight: 22,
   },
   heroActions: {
     gap: spacing.md,
@@ -434,6 +493,9 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingRight: spacing.md,
   },
+  categoriesChipRowNarrow: {
+    paddingRight: spacing.xl,
+  },
   categoryChipButton: {
     minHeight: 42,
   },
@@ -446,11 +508,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
+    justifyContent: "space-between",
     marginTop: spacing.lg,
   },
   categoryCard: {
     borderRadius: 24,
-    flexBasis: "47%",
     minHeight: 205,
     overflow: "hidden",
     padding: spacing.lg,
@@ -494,6 +556,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     padding: spacing.xl,
   },
+  promoCardNarrow: {
+    borderRadius: 28,
+    padding: spacing.lg,
+  },
   promoEyebrow: {
     color: colors.muted,
     fontFamily: fonts.bold,
@@ -507,6 +573,14 @@ const styles = StyleSheet.create({
     fontSize: 44,
     lineHeight: 44,
     marginTop: 12,
+  },
+  promoTitleNarrow: {
+    fontSize: 36,
+    lineHeight: 38,
+  },
+  promoTitleCompact: {
+    fontSize: 32,
+    lineHeight: 34,
   },
   promoText: {
     color: colors.muted,

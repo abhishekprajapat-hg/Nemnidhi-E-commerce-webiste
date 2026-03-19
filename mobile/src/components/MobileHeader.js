@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import BrandMark from "./BrandMark";
@@ -13,7 +13,9 @@ export default function MobileHeader({
   showCart = true,
 }) {
   const navigation = useNavigation();
+  const { width } = useWindowDimensions();
   const { itemCount } = useCart();
+  const isNarrowScreen = width < 390;
   const handleBack = () => {
     if (typeof onBackPress === "function") {
       onBackPress();
@@ -32,7 +34,7 @@ export default function MobileHeader({
 
   return (
     <View style={[styles.wrap, compact ? styles.wrapCompact : null]}>
-      <View style={styles.panel}>
+      <View style={[styles.panel, isNarrowScreen ? styles.panelNarrow : null]}>
         <View style={styles.leadingGroup}>
           {showBack ? (
             <Pressable
@@ -62,7 +64,15 @@ export default function MobileHeader({
             </View>
 
             <View style={styles.brandTextWrap}>
-              <Text style={styles.brandTitle}>NEMNIDHI</Text>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.brandTitle,
+                  isNarrowScreen ? styles.brandTitleNarrow : null,
+                ]}
+              >
+                NEMNIDHI
+              </Text>
             </View>
           </Pressable>
         </View>
@@ -71,7 +81,7 @@ export default function MobileHeader({
           <Pressable
             onPress={() => navigation.navigate("Cart")}
             accessibilityLabel="Open cart"
-            style={styles.bagButton}
+            style={[styles.bagButton, isNarrowScreen ? styles.bagButtonNarrow : null]}
           >
             <Text style={styles.bagText}>Bag</Text>
             {itemCount > 0 ? (
@@ -81,7 +91,12 @@ export default function MobileHeader({
             ) : null}
           </Pressable>
         ) : (
-          <View style={styles.headerSpacer} />
+          <View
+            style={[
+              styles.headerSpacer,
+              isNarrowScreen ? styles.headerSpacerNarrow : null,
+            ]}
+          />
         )}
       </View>
     </View>
@@ -107,17 +122,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  panelNarrow: {
+    paddingHorizontal: 12,
+  },
   leadingGroup: {
     alignItems: "center",
     flexDirection: "row",
     flexShrink: 1,
     gap: 10,
+    minWidth: 0,
   },
   brand: {
     alignItems: "center",
     flexDirection: "row",
     flexShrink: 1,
     gap: 10,
+    minWidth: 0,
   },
   iconButton: {
     alignItems: "center",
@@ -137,6 +157,7 @@ const styles = StyleSheet.create({
   },
   brandTextWrap: {
     flexShrink: 1,
+    minWidth: 0,
   },
   brandTitle: {
     color: colors.text,
@@ -145,6 +166,11 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     letterSpacing: 0.8,
     lineHeight: 28,
+  },
+  brandTitleNarrow: {
+    fontSize: 24,
+    letterSpacing: 0.5,
+    lineHeight: 24,
   },
   bagButton: {
     alignItems: "center",
@@ -155,6 +181,9 @@ const styles = StyleSheet.create({
     gap: 6,
     minHeight: 40,
     paddingHorizontal: 12,
+  },
+  bagButtonNarrow: {
+    paddingHorizontal: 10,
   },
   bagText: {
     color: colors.text,
@@ -179,5 +208,8 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 40,
+  },
+  headerSpacerNarrow: {
+    width: 32,
   },
 });

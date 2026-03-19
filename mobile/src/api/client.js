@@ -1,13 +1,32 @@
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 import axios from "axios";
 
 function trimTrailingSlash(value = "") {
   return String(value || "").replace(/\/+$/, "");
 }
 
+function normalizeLoopbackUrl(value = "") {
+  const trimmed = trimTrailingSlash(value);
+  if (Platform.OS !== "android") return trimmed;
+
+  return trimmed.replace(
+    /^([a-z]+:\/\/)(localhost|127\.0\.0\.1|0\.0\.0\.0)(?=[:/]|$)/i,
+    "$110.0.2.2"
+  );
+}
+
+function extractHost(value = "") {
+  return String(value || "")
+    .trim()
+    .replace(/^[a-z]+:\/\//i, "")
+    .split("/")[0]
+    .split(":")[0];
+}
+
 function guessApiBaseUrl() {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (envUrl) return trimTrailingSlash(envUrl);
+  if (envUrl) return normalizeLoopbackUrl(envUrl);
 
   const hostUri =
     Constants.expoConfig?.hostUri ||
@@ -15,10 +34,10 @@ function guessApiBaseUrl() {
     Constants.manifest2?.extra?.expoClient?.hostUri ||
     "";
 
-  const host = String(hostUri || "").split(":")[0];
+  const host = extractHost(hostUri);
   if (host) return `http://${host}:5000`;
 
-  return "http://localhost:5000";
+  return Platform.OS === "android" ? "http://10.0.2.2:5000" : "http://localhost:5000";
 }
 
 export const API_BASE_URL = guessApiBaseUrl();
@@ -38,11 +57,18 @@ export const registerUnauthorizedHandler = (handler) => {
 export const getApiErrorMessage = (
   error,
   fallback = "Something went wrong"
-) =>
-  error?.response?.data?.message ||
-  error?.response?.data?.error ||
-  error?.message ||
-  fallback;
+) => {
+  if (!error?.response && error?.message === "Network Error") {
+    return `Cannot reach the server at ${API_BASE_URL}. Check that the backend is running and that your phone can access that address.`;
+  }
+
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    fallback
+  );
+};
 
 export const toAbsoluteAssetUrl = (value) => {
   const raw = String(value || "").trim();
@@ -61,6 +87,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 15000,
 });
 
 api.interceptors.request.use((config) => {

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Nemnidhi",
     "slug": "nemnidhi-mobile",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,11 +17,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#F5EEE5",
+        "backgroundColor": "#1C1B19",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.anonymous.nemnidhimobile"
+      "package": "com.anonymous.nemnidhimobile",
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
